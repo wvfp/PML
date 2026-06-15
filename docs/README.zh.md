@@ -6,6 +6,12 @@ PML（Picture Markup Language）是一种给 AI 用的"画图编程语言"。你
 
 ## 快速上手
 
+### 安装依赖
+
+```bash
+uv sync
+```
+
 ### 运行 .pml 文件
 
 ```bash
@@ -229,7 +235,7 @@ hello       → 符号（类似变量名）
 
 ## MCP 服务器（给 AI Agent 用）
 
-把 PML 封装成 AI 能直接调用的工具：
+把 PML 封装成 AI 能直接调用的工具（兼容 Claude Desktop、Cursor 等）：
 
 ```bash
 uv run pml-mcp
@@ -241,6 +247,22 @@ uv run pml-mcp
 - `validate` — 语法检查
 - `list_components` — 列出可用组件
 - `preview_params` — 查看组件参数
+
+### Claude Desktop 配置
+
+在 `claude_desktop_config.json` 中添加：
+
+```json
+{
+  "mcpServers": {
+    "pml": {
+      "command": "uv",
+      "args": ["run", "pml-mcp"],
+      "cwd": "/path/to/PML"
+    }
+  }
+}
+```
 
 ---
 
@@ -295,3 +317,17 @@ PML **没有** `cadr`、`caar`、`cddr`。取第二个元素用：
 ```
 
 更多示例见 `examples/` 目录。
+
+---
+
+## 系统要求
+
+- Python ≥ 3.10
+- Pillow ≥ 12.2.0
+- `uv` 包管理器（[安装指南](https://docs.astral.sh/uv/#installation)）
+
+---
+
+## 许可证
+
+[MIT](../LICENSE)
