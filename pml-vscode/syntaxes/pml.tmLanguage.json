@@ -1,0 +1,171 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "PML",
+  "scopeName": "source.pml",
+  "fileTypes": ["pml"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#constants" },
+    { "include": "#numbers" },
+    { "include": "#symbols" },
+    { "include": "#lists" },
+    { "include": "#builtins" },
+    { "include": "#special-forms" },
+    { "include": "#component-calls" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "match": ";.*$",
+          "name": "comment.line.semicolon.pml"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "begin": "\"",
+          "end": "\"",
+          "name": "string.quoted.double.pml",
+          "patterns": [
+            {
+              "match": "\\\\.",
+              "name": "constant.character.escape.pml"
+            }
+          ]
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        { "match": ":\\w+[-\\w]*", "name": "keyword.other.pml" }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        { "match": "\\#[tTfF]", "name": "constant.language.boolean.pml" },
+        { "match": "'[\\w\\-]+", "name": "constant.other.quoted-symbol.pml" }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        { "match": "-?\\d+\\.\\d+", "name": "constant.numeric.float.pml" },
+        { "match": "-?\\d+", "name": "constant.numeric.integer.pml" }
+      ]
+    },
+    "symbols": {
+      "patterns": [
+        { "match": "[\\w\\?\\-\\+\\*\\/\\=\\<\\>\\!\\|\\&\\%]+(?=\\s|\\)|$)", "name": "variable.other.pml" }
+      ]
+    },
+    "lists": {
+      "patterns": [
+        {
+          "begin": "'\\(",
+          "end": "\\)",
+          "name": "meta.list.quoted.pml",
+          "patterns": [{ "include": "#comments" }, { "include": "#strings" }, { "include": "#numbers" }, { "include": "#constants" }]
+        }
+      ]
+    },
+    "special-forms": {
+      "patterns": [
+        {
+          "match": "\\(\\s*(define)\\s+",
+          "captures": { "1": { "name": "keyword.control.define.pml" } }
+        },
+        {
+          "match": "\\(\\s*(lambda|defmacro|let|let\\*|letrec)\\s+",
+          "captures": { "1": { "name": "keyword.control.lambda.pml" } }
+        },
+        {
+          "match": "\\(\\s*(if|cond|when|unless)\\s+",
+          "captures": { "1": { "name": "keyword.control.conditional.pml" } }
+        },
+        {
+          "match": "\\(\\s*(quote|quasiquote|unquote)\\s+",
+          "captures": { "1": { "name": "keyword.control.quote.pml" } }
+        },
+        {
+          "match": "\\(\\s*(begin|do|set!|and|or|not)\\s+",
+          "captures": { "1": { "name": "keyword.control.pml" } }
+        },
+        {
+          "match": "\\(\\s*(import|provide|load)\\s+",
+          "captures": { "1": { "name": "keyword.control.module.pml" } }
+        },
+        {
+          "match": "\\(\\s*(defskeleton)\\s+",
+          "captures": { "1": { "name": "keyword.control.skeleton.pml" } }
+        },
+        {
+          "match": "\\(\\s*(animate|play|stop|pause|seek|parallel|sequence|every-frame)\\s+",
+          "captures": { "1": { "name": "keyword.control.animation.pml" } }
+        }
+      ]
+    },
+    "builtins": {
+      "patterns": [
+        {
+          "match": "\\(\\s*([+\\-*/]|mod|abs|floor|ceil|round|sqrt|pow|min|max|pi|sin|cos|tan|rand)\\s+",
+          "captures": { "1": { "name": "support.function.arithmetic.pml" } }
+        },
+        {
+          "match": "\\(\\s*([=!<>]=?|eq\\?|equal\\?)\\s+",
+          "captures": { "1": { "name": "support.function.comparison.pml" } }
+        },
+        {
+          "match": "\\(\\s*(car|cdr|cons|list|length|append|reverse|map|filter|reduce)\\s+",
+          "captures": { "1": { "name": "support.function.list.pml" } }
+        },
+        {
+          "match": "\\(\\s*(number\\?|string\\?|boolean\\?|symbol\\?|keyword\\?|list\\?|procedure\\?|null\\?|integer\\?)\\s+",
+          "captures": { "1": { "name": "support.function.type.pml" } }
+        },
+        {
+          "match": "\\(\\s*(println|print|read|gensym)\\s+",
+          "captures": { "1": { "name": "support.function.io.pml" } }
+        },
+        {
+          "match": "\\(\\s*(str-join|str-split|str-upcase|str-downcase|str-replace)\\s+",
+          "captures": { "1": { "name": "support.function.string.pml" } }
+        }
+      ]
+    },
+    "component-calls": {
+      "patterns": [
+        {
+          "match": "\\(\\s*(canvas|sprite-canvas|add|render|render-set|render-spritesheet)\\s+",
+          "captures": { "1": { "name": "support.function.graphics.pml" } }
+        },
+        {
+          "match": "\\(\\s*(rect|circle|ellipse|line|polygon|path|text|image|group)\\s+",
+          "captures": { "1": { "name": "support.function.shape.pml" } }
+        },
+        {
+          "match": "\\(\\s*(translate|scale|rotate|compose|inverse|matrix-apply|identity-matrix|matrix\\?)\\s+",
+          "captures": { "1": { "name": "support.function.transform.pml" } }
+        },
+        {
+          "match": "\\(\\s*(character|body|head|anime-eyes|mouth|hair|outfit|weapon|potion|chest|generic-item)\\s+",
+          "captures": { "1": { "name": "support.class.component.pml" } }
+        },
+        {
+          "match": "\\(\\s*(button|panel|health-bar|icon|tile|decoration|background)\\s+",
+          "captures": { "1": { "name": "support.class.component.pml" } }
+        },
+        {
+          "match": "\\(\\s*(define-style|use-style|define-palette|use-palette)\\s+",
+          "captures": { "1": { "name": "support.function.style.pml" } }
+        },
+        {
+          "match": "\\(\\s*(instantiate-skeleton|ik-solve|bind-skin|joint-position)\\s+",
+          "captures": { "1": { "name": "support.function.skeleton.pml" } }
+        }
+      ]
+    }
+  }
+}
