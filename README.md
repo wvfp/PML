@@ -1,6 +1,6 @@
 # PML — Picture Markup Language
 
-**A Lisp-style DSL for sprite asset generation.** Describe game sprites in S-expressions, compile to PNG/GIF via Pillow.
+**A Lisp-style DSL for code-to-image generation.** Write images in S-expressions, compile to PNG/GIF via Pillow. Built for LLM agents — describe what you want in code, get the image back.
 
 ```lisp
 (sprite-canvas 128 256 :bg "transparent")
@@ -117,7 +117,7 @@ More examples in [`examples/`](examples/).
 
 - **Full Lisp dialect**: S-expressions, closures, macros, lexical scoping
 - **Graphics pipeline**: primitives, transforms, canvas compositing
-- **Sprite system**: style engine, palette management, semantic components (character, body, eyes, hair, outfit, items, UI, scene elements)
+- **Semantic component system**: style engine, palette management, reusable components (characters, UI widgets, scene elements, items, etc.)
 - **Animation engine**: property tweening, timeline, easing functions, GIF export
 - **Inverse Kinematics**: FABRIK and CCD solvers with angle constraints and skin binding
 - **Module system**: import/provide with caching and circular dependency detection

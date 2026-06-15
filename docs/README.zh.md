@@ -1,6 +1,6 @@
 # PML 入门指南
 
-PML（Picture Markup Language）是一种给 AI 用的"画图编程语言"。你用 Lisp 风格的代码描述想要的画面，PML 编译后输出游戏素材 PNG 图片。
+PML（Picture Markup Language）是一种给 LLM 用的"代码生图"语言。你用 Lisp 风格的代码描述想要的画面，PML 编译后输出 PNG/GIF 图片。不限定用例——游戏素材、UI 界面、数据可视化、插画、图标，任何图像都可以。
 
 ---
 

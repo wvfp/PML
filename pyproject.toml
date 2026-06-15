@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "picmarkup"
 version = "0.1.0"
-description = "PML (Picture Markup Language) — A Lisp-style language for sprite asset generation"
+description = "PML (Picture Markup Language) — A Lisp-style DSL for code-to-image generation"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
@@ -23,7 +23,7 @@ classifiers = [
     "Topic :: Multimedia :: Graphics",
     "Topic :: Software Development :: Interpreters",
 ]
-keywords = ["pml", "sprite", "dsl", "lisp", "gamedev", "asset-pipeline"]
+keywords = ["pml", "image-generation", "dsl", "lisp", "llm", "code-to-image", "graphics"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["pml/"]

@@ -1,6 +1,6 @@
 # PML Language Reference
 
-PML (Picture Markup Language) is a Lisp-style DSL for sprite asset generation. It compiles S-expressions through a pipeline (lex → parse → expand → evaluate → render) and outputs game-ready sprite PNGs via Pillow.
+PML (Picture Markup Language) is a Lisp-style DSL for code-to-image generation. It compiles S-expressions through a pipeline (lex → parse → expand → evaluate → render) and outputs PNG/GIF images via Pillow. Built for LLM agents — describe any visual in code, get the image back.
 
 ---
 
@@ -391,7 +391,7 @@ Output directory can be controlled globally via `--output-dir` CLI flag.
 
 ---
 
-## 6. Sprites & Components
+## 6. Semantic Components
 
 ### Style System
 
