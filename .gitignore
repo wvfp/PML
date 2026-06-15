@@ -1,0 +1,25 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Generated output
+examples_output/
+output/
+
+# Editor / IDE
+.vscode/
+.idea/
+
+# Code analysis cache
+.codegraph/
+
+# Temp / scratch files
+*.md~
+
