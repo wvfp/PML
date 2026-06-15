@@ -3,24 +3,45 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "pml"
+name = "picmarkup"
 version = "0.1.0"
 description = "PML (Picture Markup Language) — A Lisp-style language for sprite asset generation"
+readme = "README.md"
+license = "MIT"
 requires-python = ">=3.10"
+authors = [
+    {name = "wvfp"},
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Software Development :: Interpreters",
+]
+keywords = ["pml", "sprite", "dsl", "lisp", "gamedev", "asset-pipeline"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["pml/"]
+
+[tool.hatch.build]
+force-include = { "stdlib/" = "stdlib/" }
 dependencies = [
     "mcp",
     "pillow>=12.2.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/wvfp/PML"
+Repository = "https://github.com/wvfp/PML"
+
 [project.scripts]
 pml = "pml.repl:main"
 pml-mcp = "pml.mcp_server:main"
-
-[tool.uv]
-
-[[tool.uv.index]]
-url = "https://pypi.tuna.tsinghua.edu.cn/simple/"
-default = true
 
 [dependency-groups]
 dev = [
