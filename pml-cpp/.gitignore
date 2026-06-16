@@ -1,0 +1,37 @@
+# Build directories
+build/
+out/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Compiled
+*.o
+*.obj
+*.exe
+*.out
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+
+# Vcpkg
+vcpkg_installed/
+
+# Compile commands
+compile_commands.json
+
+# Coverage
+*.gcda
+*.gcno
+*.gcov
+coverage/

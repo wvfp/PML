@@ -1,0 +1,10 @@
+#pragma once
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// graphic_object.h — Compatibility header
+// ───────────────────────────────────────────────────────────────────────────────
+// This file exists for compatibility with the forward declaration comment in
+// <pml/core/types.h>.  The canonical GraphicObject definition lives in objects.h.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+#include "pml/graphics/objects.h"
