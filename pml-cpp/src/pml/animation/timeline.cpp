@@ -8,6 +8,7 @@
 #include "types.h"
 #include "evaluator.h"
 #include "transform.h"
+#include "pml/skeleton/skin_binding.h"
 
 #include <algorithm>
 #include <cmath>
@@ -165,6 +166,9 @@ void Timeline::render_frames(int fps) {
             obj_mods[target_id][prop] = value;
         }
 
+        // Merge skeleton skin bindings into obj_mods
+        merge_skin_bindings(obj_mods);
+
         // Apply modifications to canvas objects
         if (g_current_canvas) {
             for (auto& obj : g_current_canvas->objects) {
@@ -204,16 +208,40 @@ GraphicObject _apply_modifications(
         } else if (prop == "stroke-width") {
             new_stroke_width = value;
         } else if (prop == "transform.tx") {
-            new_transform = ::AffineTransform{
+            new_transform = AffineTransform{
                 new_transform.a, new_transform.b,
                 new_transform.c, new_transform.d,
                 value, new_transform.f
             };
         } else if (prop == "transform.ty") {
-            new_transform = ::AffineTransform{
+            new_transform = AffineTransform{
                 new_transform.a, new_transform.b,
                 new_transform.c, new_transform.d,
                 new_transform.e, value
+            };
+        } else if (prop == "transform.a") {
+            new_transform = AffineTransform{
+                value, new_transform.b,
+                new_transform.c, new_transform.d,
+                new_transform.e, new_transform.f
+            };
+        } else if (prop == "transform.b") {
+            new_transform = AffineTransform{
+                new_transform.a, value,
+                new_transform.c, new_transform.d,
+                new_transform.e, new_transform.f
+            };
+        } else if (prop == "transform.c") {
+            new_transform = AffineTransform{
+                new_transform.a, new_transform.b,
+                value, new_transform.d,
+                new_transform.e, new_transform.f
+            };
+        } else if (prop == "transform.d") {
+            new_transform = AffineTransform{
+                new_transform.a, new_transform.b,
+                new_transform.c, value,
+                new_transform.e, new_transform.f
             };
         } else {
             // Assume it's a param key (x, y, r, w, h, cx, cy, etc.)

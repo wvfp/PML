@@ -49,7 +49,7 @@ struct GraphicObject {
     /// Note: defined in global namespace as `struct AffineTransform` via
     /// `transform.h` — we refer to it with `::` prefix to avoid ambiguity
     /// with the forward declaration in `types.h`.
-    ::AffineTransform transform;
+    AffineTransform transform;
 
     /// Child objects (for groups, composite characters, etc.).
     std::vector<GraphicObject> children;
@@ -68,7 +68,7 @@ struct GraphicObject {
         std::optional<std::string> fill_ = std::nullopt,
         std::optional<std::string> stroke_ = std::nullopt,
         double stroke_width_ = 1.0,
-        ::AffineTransform transform_ = ::AffineTransform::identity(),
+        AffineTransform transform_ = AffineTransform::identity(),
         std::vector<GraphicObject> children_ = {},
         std::unordered_map<std::string, Value> metadata_ = {}
     );
@@ -76,7 +76,7 @@ struct GraphicObject {
     // ── Immutable "mutators" — each returns a new copy ───────────────
 
     /// Return a copy with a new transform applied.
-    [[nodiscard]] GraphicObject with_transform(::AffineTransform t) const;
+    [[nodiscard]] GraphicObject with_transform(AffineTransform t) const;
 
     /// Return a copy with updated fill color.
     [[nodiscard]] GraphicObject with_fill(std::string color) const;

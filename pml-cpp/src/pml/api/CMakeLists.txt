@@ -4,7 +4,8 @@ add_library(pml_api
 )
 
 target_include_directories(pml_api PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/..   # for pml/api/api.h → pml/core/error.h etc.
+    ${CMAKE_CURRENT_SOURCE_DIR}/..    # src/pml/ — for internal cross-module includes
+    ${CMAKE_CURRENT_SOURCE_DIR}/../.. # src/ — for #include "pml/api/api.h" style paths
 )
 
 target_link_libraries(pml_api PUBLIC

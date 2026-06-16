@@ -1,5 +1,7 @@
 #include "transform.h"
 
+namespace pml {
+
 #ifdef PML_USE_SKIA
 #include <SkMatrix.h>
 
@@ -27,3 +29,5 @@ cairo_matrix_t AffineTransform::to_cairo_matrix() const
     cairo_matrix_init(&m, a, b, c, d, e, f);
     return m;
 }
+
+}  // namespace pml

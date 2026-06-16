@@ -11,6 +11,8 @@
 class SkMatrix;
 #endif
 
+namespace pml {
+
 /// Immutable 2D affine transformation matrix.
 ///
 /// Represented as 6 double-precision fields (a, b, c, d, e, f):
@@ -159,3 +161,5 @@ struct AffineTransform {
 {
     return t.apply(pt.first, pt.second);
 }
+
+}  // namespace pml

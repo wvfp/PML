@@ -355,11 +355,11 @@ auto render(
     }
 
     if (canvas->is_sprite) {
-        ::AffineTransform center_t = ::AffineTransform::translate(
+        AffineTransform center_t = AffineTransform::translate(
             static_cast<double>(canvas->width) / 2.0,
             static_cast<double>(canvas->height) * 0.45);
         for (const auto& obj : canvas->objects) {
-            ::AffineTransform composed = center_t.compose(obj.transform);
+            AffineTransform composed = center_t.compose(obj.transform);
             auto centered = obj.with_transform(composed);
             auto r = backend.draw(*surface, centered);
             if (!r) return std::unexpected(std::move(r.error()));
@@ -416,9 +416,9 @@ auto render_set(
                 "failed to create render-set surface at " + std::to_string(s) + "x"));
         }
 
-        ::AffineTransform scale_t = ::AffineTransform::scale(
+        AffineTransform scale_t = AffineTransform::scale(
             static_cast<double>(s), static_cast<double>(s));
-        ::AffineTransform new_t = scale_t.compose(content.transform);
+        AffineTransform new_t = scale_t.compose(content.transform);
         GraphicObject scaled = content.with_transform(new_t);
 
         auto dr = backend.draw(*surface, scaled);

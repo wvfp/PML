@@ -31,3 +31,7 @@ Managed via [vcpkg](https://github.com/microsoft/vcpkg).
 ## License
 
 MIT
+
+## Behavior Differences
+
+See [BEHAVIOR_DIFFERENCES.md](BEHAVIOR_DIFFERENCES.md) for known differences between the Python and C++ implementations.

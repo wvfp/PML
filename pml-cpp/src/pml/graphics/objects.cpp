@@ -22,7 +22,7 @@ GraphicObject::GraphicObject(
     std::optional<std::string> fill_,
     std::optional<std::string> stroke_,
     double stroke_width_,
-    ::AffineTransform transform_,
+    AffineTransform transform_,
     std::vector<GraphicObject> children_,
     std::unordered_map<std::string, Value> metadata_
 )
@@ -40,7 +40,7 @@ GraphicObject::GraphicObject(
 
 // ── Immutable "mutators" ────────────────────────────────────────────────────
 
-GraphicObject GraphicObject::with_transform(::AffineTransform t) const
+GraphicObject GraphicObject::with_transform(AffineTransform t) const
 {
     GraphicObject result = *this;
     result.transform = t;

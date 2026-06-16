@@ -23,6 +23,9 @@
 
 namespace pml {
 
+// Forward declaration (defined below)
+static std::string format_error(const PMLException& err);
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // LineAccumulator — multi-line expression support
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -186,7 +189,7 @@ void run_repl(std::shared_ptr<Environment> env)
 // Error formatting helper
 // ═══════════════════════════════════════════════════════════════════════════════
 
-std::string format_error(const PMLException& err)
+static std::string format_error(const PMLException& err)
 {
     // Match Python format: "filename:line:col: Type: message" or "Type: message"
     std::string result;

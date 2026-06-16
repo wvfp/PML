@@ -13,6 +13,7 @@
 #include "pml/api/api.h"
 #include "pml/core/error.h"
 #include "pml/module/embedded_stdlib.h"
+#include "repl.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -166,7 +167,7 @@ static nlohmann::json error_to_json(const pml::PMLException& e)
         if (loc.column > 0) j["column"] = loc.column;
         if (!loc.filename.empty()) j["filename"] = loc.filename;
     }
-    j["hint"] = e.repair_hint.has_value() ? *e.repair_hint : nlohmann::json(nullptr);
+    j["hint"] = e.repair_hint.has_value() ? nlohmann::json(*e.repair_hint) : nlohmann::json(nullptr);
     return j;
 }
 

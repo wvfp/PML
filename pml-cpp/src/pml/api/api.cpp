@@ -14,6 +14,8 @@
 #include "pml/evaluator/evaluator.h"
 #include "pml/evaluator/environment.h"
 #include "pml/evaluator/builtins.h"
+#include "pml/evaluator/backend_builtins.h"
+#include "pml/evaluator/shader_builtins.h"
 
 // ── Graphics ─────────────────────────────────────────────────────────────
 #include "pml/graphics/render.h"
@@ -26,20 +28,19 @@
 #include "pml/skeleton/skeleton.h"
 #include "pml/skeleton/ik_ccd.h"
 
-// ── Animation (timeline — conditional) ───────────────────────────────────
-// register_timeline_builtins is declared in timeline.h but timeline.cpp is
-// not yet compiled into pml_animation.  Uncomment the include and call
-// below once timeline.cpp is added to animation/CMakeLists.txt.
-// #include "pml/animation/timeline.h"
+// ── Animation (timeline) ─────────────────────────────────────────────
+#include "pml/animation/timeline.h"
+
+// ── Skin binding ─────────────────────────────────────────────────────
+#include "pml/skeleton/skin_binding.h"
 
 // ── Module system ────────────────────────────────────────────────────────
 // register_module_builtins is not yet implemented.  Module loading is
 // handled via special forms in the evaluator (eval_import / eval_provide).
 
 // ── Transform / Canvas builtins ──────────────────────────────────────────
-// register_transform_builtins and register_canvas_builtins are not yet
-// implemented in the C++ port.  Transform and canvas operations are
-// handled directly by the evaluator's special forms.
+#include "pml/evaluator/transform_builtins.h"
+#include "pml/evaluator/canvas_builtins.h"
 
 #include <algorithm>
 #include <format>
@@ -221,16 +222,31 @@ void PMLRuntime::init_global_env() {
     // 6. Palette system (define-palette, palette-ref)
     register_palette(m_env);
 
-    // ── Registration functions not yet ported ──────────────────────────
-    //
-    // register_timeline_builtins(env);  // Declared in animation/timeline.h,
-    //                                   // implemented in timeline.cpp — not
-    //                                   // yet compiled into pml_animation.
-    //
-    // register_transform_builtins(env); // Not yet implemented in C++ port.
-    // register_canvas_builtins(env);    // Not yet implemented in C++ port.
-    //
-    // Module loading is handled via the evaluator's eval_import/eval_provide
+    // 7. Animation timeline (_animate, _play, _stop, _pause, _seek)
+    register_timeline_builtins(m_env);
+
+    // 8. Skin binding (bind-skin)
+    register_skin_binding(m_env);
+
+    // 9. Backend builtins (list-backends, set-backend!, current-backend,
+    //    backend-capabilities, backend-available?)
+    register_backend_builtins(m_env);
+
+    // 10. Shader builtins (shader, apply-shader!) — stubs, Skia not available
+    register_shader_builtins(m_env);
+
+    // 11. Transform builtins (translate, rotate, scale, shear, identity-matrix,
+    //     compose, matrix-inverse, matrix-apply)
+    register_transform_builtins(m_env);
+
+    // 12. Canvas / shape / style / group / color builtins
+    //     (canvas, sprite-canvas, add, circle, rect, ellipse, line, polygon,
+    //      text, fill, stroke, no-fill, no-stroke, stroke-width, group,
+    //      with-transform, translate-object, rotate-object, scale-object,
+    //      color/rgb, color/rgba)
+    register_canvas_builtins(m_env);
+
+    // ── Module loading is handled via the evaluator's eval_import/eval_provide
     // special forms — no separate module registration call needed.
 }
 
