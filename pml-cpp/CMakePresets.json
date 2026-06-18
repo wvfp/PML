@@ -4,7 +4,7 @@
     {
       "name": "debug",
       "displayName": "Debug",
-      "description": "Debug build. Requires pre-built Skia at G:/Project/skia (override via PML_SKIA_DIR / PML_SKIA_OUT).",
+      "description": "Debug build. Uses pre-built Skia vendored in third_party/skia.",
       "generator": "Visual Studio 18 2026",
       "binaryDir": "${sourceDir}/build/debug",
       "cacheVariables": {
@@ -16,14 +16,14 @@
         "PML_BUILD_CAIRO": "OFF",
         "PML_BUILD_SKIA":  "ON",
         "PML_BUILD_GIF":   "ON",
-        "PML_SKIA_DIR":   "G:/Project/skia",
-        "PML_SKIA_OUT":   "G:/Project/skia/out/llvm.x64.debug"
+        "PML_SKIA_DIR":   "${sourceDir}/third_party/skia",
+        "PML_SKIA_OUT":   "${sourceDir}/third_party/skia/out/llvm.x64.debug"
       }
     },
     {
       "name": "release",
       "displayName": "Release",
-      "description": "Release build. Requires pre-built Skia at G:/Project/skia (override via PML_SKIA_DIR / PML_SKIA_OUT).",
+      "description": "Release build. Uses pre-built Skia vendored in third_party/skia.",
       "generator": "Visual Studio 18 2026",
       "binaryDir": "${sourceDir}/build/release",
       "cacheVariables": {
@@ -35,8 +35,8 @@
         "PML_BUILD_CAIRO": "OFF",
         "PML_BUILD_SKIA":  "ON",
         "PML_BUILD_GIF":   "ON",
-        "PML_SKIA_DIR":   "G:/Project/skia",
-        "PML_SKIA_OUT":   "G:/Project/skia/out/llvm.x64.release"
+        "PML_SKIA_DIR":   "${sourceDir}/third_party/skia",
+        "PML_SKIA_OUT":   "${sourceDir}/third_party/skia/out/llvm.x64.release"
       }
     }
   ],
