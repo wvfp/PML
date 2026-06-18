@@ -54,9 +54,10 @@ class ModuleLoader:
 
     def __init__(self, global_env: Environment) -> None:
         self.global_env = global_env
-        self.cache: dict[str, Module] = {}  # resolved absolute path -> Module
-        self.loading: set[str] = set()       # currently loading (circular detection)
+        self.cache: dict[str, Module] = {}      # resolved absolute path -> Module
+        self.loading: set[str] = set()           # currently loading (circular detection)
         self._stdlib_dir = self._find_stdlib()
+        self._extra_paths: list[str] = []        # project-level search paths
 
     @staticmethod
     def _find_stdlib() -> str:
@@ -67,17 +68,34 @@ class ModuleLoader:
             return str(stdlib)
         return ""
 
+    def add_search_path(self, path: str) -> None:
+        """Register an additional search path for module resolution.
+
+        Used by project-level tools to inject dependency paths.
+        """
+        abs_path = os.path.normpath(os.path.abspath(path))
+        if abs_path not in self._extra_paths and os.path.isdir(abs_path):
+            self._extra_paths.append(abs_path)
+
     def resolve_path(self, path: str, from_file: str = "") -> str:
         """Resolve a module path using the search order.
 
         Returns the absolute resolved path, or raises ImportError_.
         """
+        # Helper: try exact path, then with .pml suffix
+        def _try_candidate(base: str, name: str) -> str | None:
+            for candidate in (name, name + ".pml"):
+                full = os.path.normpath(os.path.join(base, candidate))
+                if os.path.isfile(full):
+                    return full
+            return None
+
         # 1. Relative to importing file
         if from_file:
             base_dir = os.path.dirname(os.path.abspath(from_file))
-            candidate = os.path.normpath(os.path.join(base_dir, path))
-            if os.path.isfile(candidate):
-                return candidate
+            found = _try_candidate(base_dir, path)
+            if found:
+                return found
 
         # 2. PML_PATH environment variable
         pml_path = os.environ.get("PML_PATH", "")
@@ -85,15 +103,21 @@ class ModuleLoader:
             for search_dir in pml_path.split(os.pathsep):
                 search_dir = search_dir.strip()
                 if search_dir:
-                    candidate = os.path.normpath(os.path.join(search_dir, path))
-                    if os.path.isfile(candidate):
-                        return candidate
+                    found = _try_candidate(search_dir, path)
+                    if found:
+                        return found
 
         # 3. stdlib directory
         if self._stdlib_dir:
-            candidate = os.path.normpath(os.path.join(self._stdlib_dir, path))
-            if os.path.isfile(candidate):
-                return candidate
+            found = _try_candidate(self._stdlib_dir, path)
+            if found:
+                return found
+
+        # 4. Extra search paths (project dependencies)
+        for search_dir in self._extra_paths:
+            found = _try_candidate(search_dir, path)
+            if found:
+                return found
 
         # Not found
         raise ImportError_(
@@ -154,6 +178,9 @@ class ModuleLoader:
         # Macro expansion pass
         expander = Expander(module_env)
         ast = expander.expand_all(ast)
+
+        # Set source file path for relative imports within this module
+        module_env.define("__source_file__", resolved_path)
 
         # Evaluate all expressions in module environment
         for expr in ast:

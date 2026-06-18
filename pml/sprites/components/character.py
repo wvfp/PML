@@ -9,7 +9,8 @@ from pml.sprites.palette import Palette, get_palette, set_active_palette
 from pml.sprites.style import StyleDescriptor, resolve_style
 from pml.sprites.validator import ParamSchema, validate_params
 from pml.transform import AffineTransform
-from pml.types import Symbol
+
+from .view_utils import VIEW_NAMES, sym_str
 
 _CHARACTER_SCHEMA = (
     ParamSchema()
@@ -25,26 +26,21 @@ _CHARACTER_SCHEMA = (
     .any_type("style", None)
     .any_type("palette", None)
     .number("scale", 1.0, min_val=0.1, max_val=10.0)
+    .enum("view", VIEW_NAMES, "front")
 )
 
 
-def _sym_str(v: Any) -> str:
-    if isinstance(v, Symbol):
-        return v.name
-    return str(v) if v is not None else ""
-
-
-def _create_default_body(skin: str) -> GraphicObject:
+def _create_default_body(skin: str, view: str = "front") -> GraphicObject:
     from pml.sprites.components.body import create_body
-    return create_body(skin=skin, build="average", proportions="anime")
+    return create_body(skin=skin, build="average", proportions="anime", view=view)
 
 
-def _create_default_head(skin: str) -> GraphicObject:
+def _create_default_head(skin: str, view: str = "front") -> GraphicObject:
     from pml.sprites.components.head import create_head
-    return create_head(shape="oval", skin=skin, ears="normal")
+    return create_head(shape="oval", skin=skin, ears="normal", view=view)
 
 
-def _create_default_eyes(expression: str) -> GraphicObject:
+def _create_default_eyes(expression: str, view: str = "front") -> GraphicObject:
     from pml.sprites.components.eyes import create_eyes
     style_map = {
         "neutral": "shoujo",
@@ -54,10 +50,10 @@ def _create_default_eyes(expression: str) -> GraphicObject:
         "surprised": "round",
     }
     eye_style = style_map.get(expression, "shoujo")
-    return create_eyes(style=eye_style, color="#4a90d9", size=1.0)
+    return create_eyes(style=eye_style, color="#4a90d9", size=1.0, view=view)
 
 
-def _create_default_mouth(expression: str) -> GraphicObject:
+def _create_default_mouth(expression: str, view: str = "front") -> GraphicObject:
     from pml.sprites.components.mouth import create_mouth
     style_map = {
         "neutral": "neutral",
@@ -67,12 +63,12 @@ def _create_default_mouth(expression: str) -> GraphicObject:
         "surprised": "open",
     }
     mouth_style = style_map.get(expression, "neutral")
-    return create_mouth(style=mouth_style, size=1.0)
+    return create_mouth(style=mouth_style, size=1.0, view=view)
 
 
-def _create_default_hair() -> GraphicObject:
+def _create_default_hair(view: str = "front") -> GraphicObject:
     from pml.sprites.components.hair import create_hair
-    return create_hair(style="medium", color="#2c2c2c")
+    return create_hair(style="medium", color="#2c2c2c", view=view)
 
 
 def _apply_style_to_object(obj: GraphicObject, style: StyleDescriptor) -> GraphicObject:
@@ -129,11 +125,13 @@ def create_character(**kwargs: Any) -> GraphicObject:
         :style — style reference (Symbol, str, or StyleDescriptor)
         :palette — palette name (str)
         :scale — global scale factor
+        :view — 'front | 'side | 'back | 'three-quarter
     """
-    p = validate_params(_CHARACTER_SCHEMA, {_sym_str(k): v for k, v in kwargs.items()})
+    p = validate_params(_CHARACTER_SCHEMA, {sym_str(k): v for k, v in kwargs.items()})
 
     expression = p["expression"]
     scale = p["scale"]
+    view = p["view"]
     style_ref = p.get("style")
     palette_ref = p.get("palette")
 
@@ -149,63 +147,61 @@ def create_character(**kwargs: Any) -> GraphicObject:
 
     skin = palette.get("skin") if palette else "#fce4c8"
 
-    # Get or create components
+    # Get or create components — pass view down to defaults
     body_obj = p.get("body")
     if not isinstance(body_obj, GraphicObject):
-        body_obj = _create_default_body(skin)
+        body_obj = _create_default_body(skin, view)
 
     head_obj = p.get("head")
     if not isinstance(head_obj, GraphicObject):
-        head_obj = _create_default_head(skin)
+        head_obj = _create_default_head(skin, view)
 
     hair_obj = p.get("hair")
     if not isinstance(hair_obj, GraphicObject):
-        hair_obj = _create_default_hair()
+        hair_obj = _create_default_hair(view)
 
     # Eyes and mouth — use defaults based on expression if not provided
-    eyes_obj = _create_default_eyes(expression)
-    mouth_obj = _create_default_mouth(expression)
+    eyes_obj = _create_default_eyes(expression, view)
+    mouth_obj = _create_default_mouth(expression, view)
 
     # Layout in screen coordinates (y increases downward)
-    # The character is centered at (0, 0) with head above and body below
     head_w = head_obj.metadata.get("head_width", 56)
     head_h = head_obj.metadata.get("head_height", 64)
     body_h = body_obj.metadata.get("torso_height", 64)
 
-    # Vertical layout (screen coords, y-down):
-    #   head center at y = -body_h/2 - head_h/2  (above body)
-    #   body starts at y = 0, extends to y = body_h  (below origin)
-    head_cy = -(body_h * 0.3 + head_h * 0.5)  # head center y
-    body_top = 0  # body top y
+    head_cy = -(body_h * 0.3 + head_h * 0.5)
+    body_top = 0
 
-    # Position transforms for each component
+    # View-based eye/mouth offset
+    view_offset_x = {"front": 0, "side": 6, "back": 0, "three-quarter": 3}.get(view, 0)
+
     positioned: list[GraphicObject] = []
 
-    # Body: rect goes from (body_top) downward
     positioned.append(body_obj.with_transform(
         AffineTransform.translate(0, body_top)
     ))
 
-    # Head centered at head_cy
     positioned.append(head_obj.with_transform(
         AffineTransform.translate(0, head_cy)
     ))
 
-    # Eyes on face (slightly above head center for anime style)
-    eye_y = head_cy + 2
-    positioned.append(eyes_obj.with_transform(
-        AffineTransform.translate(0, eye_y)
-    ))
+    # Eyes — skip for back view
+    if view != "back":
+        eye_y = head_cy + 2
+        positioned.append(eyes_obj.with_transform(
+            AffineTransform.translate(view_offset_x, eye_y)
+        ))
 
-    # Mouth below eyes (about 25% down from head center)
-    mouth_y = head_cy + head_h * 0.22
-    positioned.append(mouth_obj.with_transform(
-        AffineTransform.translate(0, mouth_y)
-    ))
+    # Mouth — skip for back view
+    if view != "back":
+        mouth_y = head_cy + head_h * 0.22
+        positioned.append(mouth_obj.with_transform(
+            AffineTransform.translate(view_offset_x, mouth_y)
+        ))
 
-    # Hair on top of head (same center as head)
+    # Hair on top of head
     positioned.append(hair_obj.with_transform(
-        AffineTransform.translate(0, head_cy)
+        AffineTransform.translate(view_offset_x, head_cy)
     ))
 
     # Outfit overlay (if provided) — positioned over body area
@@ -215,7 +211,7 @@ def create_character(**kwargs: Any) -> GraphicObject:
             AffineTransform.translate(0, body_top)
         ))
 
-    # Weapon (if provided) — placed to the character's right side
+    # Weapon (if provided)
     weapon_obj = p.get("weapon")
     if isinstance(weapon_obj, GraphicObject):
         weapon_x = head_w * 0.6 + 10
@@ -245,5 +241,6 @@ def create_character(**kwargs: Any) -> GraphicObject:
             "direction": p.get("direction", "front"),
             "expression": expression,
             "scale": scale,
+            "view": view,
         },
     )

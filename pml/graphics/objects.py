@@ -21,9 +21,31 @@ class GraphicObject:
     fill: str | None = None
     stroke: str | None = None
     stroke_width: float = 1.0
+    opacity: float = 1.0
+    """Per-object opacity 0.0–1.0. Applied as alpha multiplier at render time
+    by PillowBackend compositing. Stacked with hex alpha in fill/stroke colors."""
+    blend_mode: str = "normal"
+    """Compositing blend mode: normal, multiply, screen, overlay, darken,
+    lighten, color-dodge, color-burn, soft-light, hard-light, difference,
+    exclusion."""
     transform: AffineTransform = field(default_factory=AffineTransform.identity)
     children: tuple[GraphicObject, ...] = ()
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    def with_opacity(self, value: float) -> GraphicObject:
+        """Return a copy with a new opacity."""
+        return GraphicObject(
+            shape_type=self.shape_type,
+            params=dict(self.params),
+            fill=self.fill,
+            stroke=self.stroke,
+            stroke_width=self.stroke_width,
+            opacity=value,
+            blend_mode=self.blend_mode,
+            transform=self.transform,
+            children=self.children,
+            metadata=dict(self.metadata),
+        )
 
     def with_transform(self, t: AffineTransform) -> GraphicObject:
         """Return a copy with a new transform applied."""
@@ -33,6 +55,8 @@ class GraphicObject:
             fill=self.fill,
             stroke=self.stroke,
             stroke_width=self.stroke_width,
+            opacity=self.opacity,
+            blend_mode=self.blend_mode,
             transform=t,
             children=self.children,
             metadata=dict(self.metadata),
@@ -45,6 +69,8 @@ class GraphicObject:
             fill=color,
             stroke=self.stroke,
             stroke_width=self.stroke_width,
+            opacity=self.opacity,
+            blend_mode=self.blend_mode,
             transform=self.transform,
             children=self.children,
             metadata=dict(self.metadata),
@@ -58,6 +84,8 @@ class GraphicObject:
             fill=self.fill,
             stroke=color,
             stroke_width=self.stroke_width,
+            opacity=self.opacity,
+            blend_mode=self.blend_mode,
             transform=self.transform,
             children=self.children,
             metadata=dict(self.metadata),
@@ -73,6 +101,8 @@ class GraphicObject:
             fill=self.fill,
             stroke=self.stroke,
             stroke_width=self.stroke_width,
+            opacity=self.opacity,
+            blend_mode=self.blend_mode,
             transform=self.transform,
             children=self.children,
             metadata=dict(self.metadata),
@@ -84,6 +114,8 @@ class GraphicObject:
             parts.append(f" fill={self.fill}")
         if self.stroke:
             parts.append(f" stroke={self.stroke}")
+        if self.opacity < 1.0:
+            parts.append(f" opacity={self.opacity}")
         if self.children:
             parts.append(f" children={len(self.children)}")
         parts.append(">")

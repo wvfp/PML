@@ -6,7 +6,8 @@ from typing import Any
 
 from pml.graphics.objects import GraphicObject
 from pml.sprites.validator import ParamSchema, validate_params
-from pml.types import Symbol
+
+from .view_utils import VIEW_NAMES, sym_str, view_width
 
 _OUTFIT_SCHEMA = (
     ParamSchema()
@@ -16,15 +17,10 @@ _OUTFIT_SCHEMA = (
     .color("color-top", "#3498db")
     .color("color-bottom", "#2c3e50")
     .enum("detail", ["plain", "striped", "pattern", "badge"], "plain")
+    .enum("view", ["front", "side", "back", "three-quarter"], "front")
 )
 
 _SIZE_MULTS = {"small": 0.7, "medium": 1.0, "large": 1.2}
-
-
-def _sym_str(v: Any) -> str:
-    if isinstance(v, Symbol):
-        return v.name
-    return str(v) if v is not None else ""
 
 
 def _draw_top(top: str, color: str, detail: str, torso_w: float, torso_h: float) -> list[GraphicObject]:
@@ -254,15 +250,45 @@ def create_outfit(**kwargs: Any) -> GraphicObject:
         :color-top — upper garment color
         :color-bottom — lower garment color
         :detail — decorative detail
+        :view — 'front | 'side | 'back | 'three-quarter
     """
-    p = validate_params(_OUTFIT_SCHEMA, {_sym_str(k): v for k, v in kwargs.items()})
+    p = validate_params(_OUTFIT_SCHEMA, {sym_str(k): v for k, v in kwargs.items()})
 
-    torso_w = 50  # match body component default
+    torso_w = 50
     torso_h = 64
+    view = p["view"]
 
-    top_parts = _draw_top(p["top"], p["color-top"], p["detail"], torso_w, torso_h)
-    bottom_parts = _draw_bottom(p["bottom"], p["color-bottom"], torso_w, torso_h)
-    shoe_parts = _draw_shoes(p["shoes"], torso_w, torso_h)
+    vw = int(view_width(torso_w, view, front=1.0, side=0.5, back=1.0, three_quarter=0.7))
+
+    if view == "back":
+        top_parts = _draw_top(p["top"], p["color-top"], "plain", vw, torso_h)
+        bottom_parts = _draw_bottom(p["bottom"], p["color-bottom"], vw, torso_h)
+        shoe_parts = _draw_shoes(p["shoes"], vw, torso_h)
+        top_parts.append(GraphicObject(
+            shape_type="line",
+            params={"x1": 0, "y1": torso_h * 0.15, "x2": 0, "y2": torso_h * 0.7},
+            stroke="#1a1a1a40",
+            stroke_width=1.0,
+        ))
+
+    elif view == "side":
+        top_parts = _draw_top(p["top"], p["color-top"], p["detail"], vw, torso_h)
+        leg_h = torso_h * 0.7
+        leg_w = vw * 0.35
+        leg_y = torso_h
+        bottom_parts = [
+            GraphicObject(
+                shape_type="rect",
+                params={"x": -leg_w / 2, "y": leg_y, "w": leg_w, "h": leg_h},
+                fill=p["color-bottom"], stroke="#1a1a1a", stroke_width=2.0,
+            )
+        ]
+        shoe_parts = _draw_shoes(p["shoes"], vw, torso_h)
+
+    else:
+        top_parts = _draw_top(p["top"], p["color-top"], p["detail"], vw, torso_h)
+        bottom_parts = _draw_bottom(p["bottom"], p["color-bottom"], vw, torso_h)
+        shoe_parts = _draw_shoes(p["shoes"], vw, torso_h)
 
     all_children = top_parts + bottom_parts + shoe_parts
 
@@ -274,5 +300,6 @@ def create_outfit(**kwargs: Any) -> GraphicObject:
             "top": p["top"],
             "bottom": p["bottom"],
             "shoes": p["shoes"],
+            "view": view,
         },
     )

@@ -6,23 +6,19 @@ from typing import Any
 
 from pml.graphics.objects import GraphicObject
 from pml.sprites.validator import ParamSchema, validate_params
-from pml.types import Symbol
+
+from .view_utils import VIEW_NAMES, sym_str
 
 _EYES_SCHEMA = (
     ParamSchema()
     .enum("style", ["shoujo", "shounen", "round", "sharp", "sleepy", "closed"], "shoujo")
     .color("color", "#4a90d9")
-    .number("size", 1.0, min_val=0.3, max_val=3.0)
+    .number("size", 1.0, min_val=0.3, max_val=2.0)
     .number("spacing", 1.0, min_val=0.5, max_val=2.0)
-    .boolean("highlight", True)
-    .enum("lashes", ["none", "short", "long"], "none")
+    .color("highlight", None)
+    .boolean("lashes", True)
+    .enum("view", VIEW_NAMES, "front")
 )
-
-
-def _sym_str(v: Any) -> str:
-    if isinstance(v, Symbol):
-        return v.name
-    return str(v) if v is not None else ""
 
 
 def _make_eye_shoujo(cx: float, cy: float, size: float, color: str, highlight: bool) -> list[GraphicObject]:
@@ -258,6 +254,43 @@ def _make_eye_closed(cx: float, cy: float, size: float, color: str, highlight: b
     return parts
 
 
+def _make_eye_side(cx: float, cy: float, size: float, color: str, highlight: bool) -> list[GraphicObject]:
+    """Side-profile eye — almond shape, iris at front edge."""
+    parts: list[GraphicObject] = []
+    ew = 8 * size
+    eh = 4 * size
+    # Almond white
+    parts.append(GraphicObject(
+        shape_type="ellipse",
+        params={"cx": cx, "cy": cy, "rx": ew, "ry": eh},
+        fill="#FFFFFF",
+        stroke="#1a1a1a",
+        stroke_width=1.5,
+    ))
+    # Iris at front edge
+    iris_r = ew * 0.35
+    parts.append(GraphicObject(
+        shape_type="ellipse",
+        params={"cx": cx + ew * 0.3, "cy": cy, "rx": iris_r, "ry": iris_r},
+        fill=color,
+        stroke="#1a1a1a",
+        stroke_width=0.5,
+    ))
+    # Pupil
+    parts.append(GraphicObject(
+        shape_type="ellipse",
+        params={"cx": cx + ew * 0.3, "cy": cy, "rx": iris_r * 0.5, "ry": iris_r * 0.5},
+        fill="#0a0a0a",
+    ))
+    if highlight:
+        parts.append(GraphicObject(
+            shape_type="ellipse",
+            params={"cx": cx + ew * 0.1, "cy": cy - eh * 0.2, "rx": ew * 0.15, "ry": ew * 0.15},
+            fill="#FFFFFF",
+        ))
+    return parts
+
+
 _EYE_MAKERS = {
     "shoujo": _make_eye_shoujo,
     "shounen": _make_eye_shounen,
@@ -278,44 +311,84 @@ def create_eyes(**kwargs: Any) -> GraphicObject:
         :spacing — eye spacing factor (default 1.0)
         :highlight — whether to draw eye highlights
         :lashes — 'none | 'short | 'long
+        :view — 'front | 'side | 'back | 'three-quarter
     """
-    p = validate_params(_EYES_SCHEMA, {_sym_str(k): v for k, v in kwargs.items()})
+    p = validate_params(_EYES_SCHEMA, {sym_str(k): v for k, v in kwargs.items()})
 
     style = p["style"]
     color = p["color"]
     size = p["size"]
     spacing = p["spacing"]
     highlight = p["highlight"]
+    view = p["view"]
 
-    base_spacing = 24 * spacing
-    left_cx = -base_spacing / 2
-    right_cx = base_spacing / 2
+    all_children: list[GraphicObject] = []
 
-    maker = _EYE_MAKERS.get(style, _make_eye_shoujo)
-    left_parts = maker(left_cx, 0, size, color, highlight)
-    right_parts = maker(right_cx, 0, size, color, highlight)
+    if view == "back":
+        # No eyes visible from behind
+        pass
 
-    all_children = left_parts + right_parts
+    elif view == "side":
+        # Single profile eye on forward side
+        maker = _EYE_MAKERS.get(style, _make_eye_shoujo)
+        # Use the side eye maker for cleaner look, or fallback to standard maker at half size
+        cx = 12 * spacing  # offset to right
+        all_children.extend(_make_eye_side(cx, 0, size, color, highlight))
 
-    # Add lashes if requested
-    if p["lashes"] in ("short", "long"):
-        lash_len = 6 if p["lashes"] == "short" else 10
-        for cx in (left_cx, right_cx):
-            for dx in (-10 * size, 0, 10 * size):
-                all_children.append(GraphicObject(
-                    shape_type="line",
-                    params={
-                        "x1": cx + dx,
-                        "y1": -12 * size,
-                        "x2": cx + dx + 2,
-                        "y2": -12 * size - lash_len * size,
-                    },
-                    stroke="#1a1a1a",
-                    stroke_width=1.5,
-                ))
+    elif view == "three-quarter":
+        # Both eyes visible but offset and narrower
+        base_spacing = 24 * spacing * 0.7  # reduced spacing
+        left_cx = -base_spacing / 2
+        right_cx = base_spacing / 2
+        maker = _EYE_MAKERS.get(style, _make_eye_shoujo)
+        left_parts = maker(left_cx, 0, size * 0.85, color, highlight)
+        right_parts = maker(right_cx, 0, size * 0.85, color, highlight)
+        all_children = left_parts + right_parts
+        if p["lashes"] in ("short", "long"):
+            lash_len = 6 if p["lashes"] == "short" else 10
+            for cx in (left_cx, right_cx):
+                for dx in (-8 * size, 0, 8 * size):
+                    all_children.append(GraphicObject(
+                        shape_type="line",
+                        params={
+                            "x1": cx + dx,
+                            "y1": -10 * size,
+                            "x2": cx + dx + 2,
+                            "y2": -10 * size - lash_len * size,
+                        },
+                        stroke="#1a1a1a",
+                        stroke_width=1.5,
+                    ))
+
+    else:
+        # Front view — original behavior
+        base_spacing = 24 * spacing
+        left_cx = -base_spacing / 2
+        right_cx = base_spacing / 2
+
+        maker = _EYE_MAKERS.get(style, _make_eye_shoujo)
+        left_parts = maker(left_cx, 0, size, color, highlight)
+        right_parts = maker(right_cx, 0, size, color, highlight)
+        all_children = left_parts + right_parts
+
+        if p["lashes"] in ("short", "long"):
+            lash_len = 6 if p["lashes"] == "short" else 10
+            for cx in (left_cx, right_cx):
+                for dx in (-10 * size, 0, 10 * size):
+                    all_children.append(GraphicObject(
+                        shape_type="line",
+                        params={
+                            "x1": cx + dx,
+                            "y1": -12 * size,
+                            "x2": cx + dx + 2,
+                            "y2": -12 * size - lash_len * size,
+                        },
+                        stroke="#1a1a1a",
+                        stroke_width=1.5,
+                    ))
 
     return GraphicObject(
         shape_type="group",
         children=tuple(all_children),
-        metadata={"component": "eyes", "style": style, "color": color},
+        metadata={"component": "eyes", "style": style, "color": color, "view": view},
     )

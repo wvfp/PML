@@ -6,7 +6,8 @@ from typing import Any
 
 from pml.graphics.objects import GraphicObject
 from pml.sprites.validator import ParamSchema, validate_params
-from pml.types import Symbol
+
+from .view_utils import sym_str
 
 # ======================================================================
 # Schemas
@@ -52,12 +53,6 @@ _ICON_SCHEMA = (
 )
 
 
-def _sym_str(v: Any) -> str:
-    if isinstance(v, Symbol):
-        return v.name
-    return str(v) if v is not None else ""
-
-
 # ======================================================================
 # Button
 # ======================================================================
@@ -85,7 +80,7 @@ def _shift_color(hex_color: str, amount: int) -> str:
 
 
 def create_button(**kwargs: Any) -> GraphicObject:
-    p = validate_params(_BUTTON_SCHEMA, {_sym_str(k): v for k, v in kwargs.items()})
+    p = validate_params(_BUTTON_SCHEMA, {sym_str(k): v for k, v in kwargs.items()})
     w, h = p["width"], p["height"]
     color = _shift_color(p["color"], _STATE_COLORS.get(p["state"], 0))
     children: list[GraphicObject] = []
@@ -166,7 +161,7 @@ def create_button(**kwargs: Any) -> GraphicObject:
 
 
 def create_panel(**kwargs: Any) -> GraphicObject:
-    p = validate_params(_PANEL_SCHEMA, {_sym_str(k): v for k, v in kwargs.items()})
+    p = validate_params(_PANEL_SCHEMA, {sym_str(k): v for k, v in kwargs.items()})
     w, h = p["width"], p["height"]
     bw = p["border-width"]
     children: list[GraphicObject] = []
@@ -223,7 +218,7 @@ def create_panel(**kwargs: Any) -> GraphicObject:
 
 
 def create_health_bar(**kwargs: Any) -> GraphicObject:
-    p = validate_params(_HEALTH_BAR_SCHEMA, {_sym_str(k): v for k, v in kwargs.items()})
+    p = validate_params(_HEALTH_BAR_SCHEMA, {sym_str(k): v for k, v in kwargs.items()})
     w, h = p["width"], p["height"]
     value = p["value"]
     children: list[GraphicObject] = []
@@ -284,7 +279,7 @@ def create_health_bar(**kwargs: Any) -> GraphicObject:
 
 
 def create_icon(**kwargs: Any) -> GraphicObject:
-    p = validate_params(_ICON_SCHEMA, {_sym_str(k): v for k, v in kwargs.items()})
+    p = validate_params(_ICON_SCHEMA, {sym_str(k): v for k, v in kwargs.items()})
     s = p["size"] / 24  # normalize to base 24px
     color = p["color"]
     children: list[GraphicObject] = []

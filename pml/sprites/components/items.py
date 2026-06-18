@@ -7,7 +7,8 @@ from typing import Any
 
 from pml.graphics.objects import GraphicObject
 from pml.sprites.validator import ParamSchema, validate_params
-from pml.types import Symbol
+
+from .view_utils import sym_str
 
 # ======================================================================
 # Schemas
@@ -70,12 +71,6 @@ _ELEMENT_COLORS = {
 _SIZE_SCALE = {"small": 0.7, "medium": 1.0, "large": 1.4, "legendary": 1.8}
 
 
-def _sym_str(v: Any) -> str:
-    if isinstance(v, Symbol):
-        return v.name
-    return str(v) if v is not None else ""
-
-
 def _element_glow(element: str, cx: float, cy: float, r: float) -> list[GraphicObject]:
     """Add element glow effect."""
     if element == "none" or element not in _ELEMENT_COLORS:
@@ -121,7 +116,7 @@ def _ornament_deco(ornament: str, x: float, y: float) -> list[GraphicObject]:
 
 
 def create_weapon(**kwargs: Any) -> GraphicObject:
-    p = validate_params(_WEAPON_SCHEMA, {_sym_str(k): v for k, v in kwargs.items()})
+    p = validate_params(_WEAPON_SCHEMA, {sym_str(k): v for k, v in kwargs.items()})
     s = _SIZE_SCALE.get(p["size"], 1.0)
     mat_color = _MATERIAL_COLORS.get(p["material"], "#bdc3c7")
     children: list[GraphicObject] = []
@@ -273,7 +268,7 @@ _POTION_COLORS = {
 
 
 def create_potion(**kwargs: Any) -> GraphicObject:
-    p = validate_params(_POTION_SCHEMA, {_sym_str(k): v for k, v in kwargs.items()})
+    p = validate_params(_POTION_SCHEMA, {sym_str(k): v for k, v in kwargs.items()})
     s = _SIZE_SCALE.get(p["size"], 1.0)
     liquid_color = _POTION_COLORS.get(p["type"], p["color"])
     children: list[GraphicObject] = []
@@ -372,7 +367,7 @@ _CHEST_COLORS = {
 
 
 def create_chest(**kwargs: Any) -> GraphicObject:
-    p = validate_params(_CHEST_SCHEMA, {_sym_str(k): v for k, v in kwargs.items()})
+    p = validate_params(_CHEST_SCHEMA, {sym_str(k): v for k, v in kwargs.items()})
     s = _SIZE_SCALE.get(p["size"], 1.0)
     main_c, dark_c = _CHEST_COLORS.get(p["type"], ("#8B4513", "#5D4037"))
     children: list[GraphicObject] = []
@@ -435,7 +430,7 @@ def create_chest(**kwargs: Any) -> GraphicObject:
 
 
 def create_generic_item(**kwargs: Any) -> GraphicObject:
-    p = validate_params(_GENERIC_ITEM_SCHEMA, {_sym_str(k): v for k, v in kwargs.items()})
+    p = validate_params(_GENERIC_ITEM_SCHEMA, {sym_str(k): v for k, v in kwargs.items()})
     children: list[GraphicObject] = []
     color = p["color"]
     outline = "#1a1a1a" if p["outline"] else None

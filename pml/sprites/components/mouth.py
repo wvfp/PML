@@ -6,19 +6,15 @@ from typing import Any
 
 from pml.graphics.objects import GraphicObject
 from pml.sprites.validator import ParamSchema, validate_params
-from pml.types import Symbol
+
+from .view_utils import VIEW_NAMES, sym_str
 
 _MOUTH_SCHEMA = (
     ParamSchema()
     .enum("style", ["neutral", "smile", "frown", "open", "cat", "fang"], "neutral")
     .number("size", 1.0, min_val=0.3, max_val=3.0)
+    .enum("view", VIEW_NAMES, "front")
 )
-
-
-def _sym_str(v: Any) -> str:
-    if isinstance(v, Symbol):
-        return v.name
-    return str(v) if v is not None else ""
 
 
 def create_mouth(**kwargs: Any) -> GraphicObject:
@@ -27,16 +23,44 @@ def create_mouth(**kwargs: Any) -> GraphicObject:
     Args:
         :style — 'neutral | 'smile | 'frown | 'open | 'cat | 'fang
         :size — scale factor (default 1.0)
+        :view — 'front | 'side | 'back | 'three-quarter
     """
-    p = validate_params(_MOUTH_SCHEMA, {_sym_str(k): v for k, v in kwargs.items()})
+    p = validate_params(_MOUTH_SCHEMA, {sym_str(k): v for k, v in kwargs.items()})
 
     style = p["style"]
     s = p["size"]
-    w = 12 * s  # mouth width
+    view = p["view"]
+
+    if view == "back":
+        return GraphicObject(
+            shape_type="group",
+            children=(),
+            metadata={"component": "mouth", "style": style, "view": view},
+        )
+
+    if view == "side":
+        w = 8 * s
+        return GraphicObject(
+            shape_type="group",
+            children=[
+                GraphicObject(
+                    shape_type="line",
+                    params={"x1": w * 0.2, "y1": 0, "x2": w, "y2": -2 * s},
+                    stroke="#c0392b",
+                    stroke_width=2.0 * s,
+                ),
+            ],
+            metadata={"component": "mouth", "style": style, "view": view},
+        )
+
+    if view == "three-quarter":
+        s = s * 0.85  # slightly smaller
+
+    # Front view (and three-quarter): original style logic unchanged
+    w = 12 * s
     children: list[GraphicObject] = []
 
     if style == "neutral":
-        # Simple horizontal line
         children.append(GraphicObject(
             shape_type="line",
             params={"x1": -w / 2, "y1": 0, "x2": w / 2, "y2": 0},
@@ -45,7 +69,6 @@ def create_mouth(**kwargs: Any) -> GraphicObject:
         ))
 
     elif style == "smile":
-        # Arc approximated as a shallow V shape (two lines)
         children.append(GraphicObject(
             shape_type="line",
             params={"x1": -w / 2, "y1": -2 * s, "x2": 0, "y2": 4 * s},
@@ -60,7 +83,6 @@ def create_mouth(**kwargs: Any) -> GraphicObject:
         ))
 
     elif style == "frown":
-        # Inverted arc
         children.append(GraphicObject(
             shape_type="line",
             params={"x1": -w / 2, "y1": 4 * s, "x2": 0, "y2": -2 * s},
@@ -75,7 +97,6 @@ def create_mouth(**kwargs: Any) -> GraphicObject:
         ))
 
     elif style == "open":
-        # Open mouth (ellipse)
         children.append(GraphicObject(
             shape_type="ellipse",
             params={"cx": 0, "cy": 2 * s, "rx": w / 2, "ry": 6 * s},
@@ -83,7 +104,6 @@ def create_mouth(**kwargs: Any) -> GraphicObject:
             stroke="#c0392b",
             stroke_width=1.5,
         ))
-        # Teeth highlight
         children.append(GraphicObject(
             shape_type="rect",
             params={"x": -w / 3, "y": -1 * s, "w": w * 2 / 3, "h": 3 * s},
@@ -91,7 +111,6 @@ def create_mouth(**kwargs: Any) -> GraphicObject:
         ))
 
     elif style == "cat":
-        # Cat mouth (ω shape — three small arcs)
         cat_w = 8 * s
         for dx in (-cat_w, 0, cat_w):
             children.append(GraphicObject(
@@ -103,14 +122,12 @@ def create_mouth(**kwargs: Any) -> GraphicObject:
             ))
 
     elif style == "fang":
-        # Smirk with a fang
         children.append(GraphicObject(
             shape_type="line",
             params={"x1": -w / 2, "y1": -2 * s, "x2": w / 2, "y2": -2 * s},
             stroke="#c0392b",
             stroke_width=2.0 * s,
         ))
-        # Fang triangle
         fang_x = w / 3
         children.append(GraphicObject(
             shape_type="polygon",
@@ -127,5 +144,5 @@ def create_mouth(**kwargs: Any) -> GraphicObject:
     return GraphicObject(
         shape_type="group",
         children=tuple(children),
-        metadata={"component": "mouth", "style": style},
+        metadata={"component": "mouth", "style": style, "view": view},
     )

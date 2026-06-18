@@ -82,7 +82,13 @@ class BuiltinProcedure:
 
 
 class Macro:
-    """A user-defined PML macro (non-hygienic, expanded before evaluation)."""
+    """A user-defined PML macro (non-hygienic, expanded before evaluation).
+
+    The expand() method MUST return a SINGLE expression (not a list wrapping one).
+    E.g., return [Symbol("do"), ...]  — NOT [[Symbol("do"), ...]].
+    Returning a list-as-expression will cause double-nesting in the expander's
+    recursive expansion pass, leading to eval-time errors.
+    """
 
     __slots__ = ("name", "params", "rest_param", "body", "closure_env")
 

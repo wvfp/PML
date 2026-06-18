@@ -6,20 +6,56 @@ from typing import Any
 
 from pml.graphics.objects import GraphicObject
 from pml.sprites.validator import ParamSchema, validate_params
-from pml.types import Symbol
+
+from .view_utils import VIEW_NAMES, sym_str, view_width
 
 _HEAD_SCHEMA = (
     ParamSchema()
     .enum("shape", ["oval", "round", "square", "heart", "angular"], "oval")
     .color("skin", "#fce4c8")
     .enum("ears", ["normal", "pointed", "animal", "none"], "normal")
+    .enum("view", VIEW_NAMES, "front")
 )
 
 
-def _sym_str(v: Any) -> str:
-    if isinstance(v, Symbol):
-        return v.name
-    return str(v) if v is not None else ""
+def _make_ear(dx: float, dy: float, rx: float, ry: float, skin: str) -> GraphicObject:
+    return GraphicObject(
+        shape_type="ellipse",
+        params={"cx": dx, "cy": dy, "rx": rx, "ry": ry},
+        fill=skin,
+        stroke="#1a1a1a",
+        stroke_width=1.5,
+    )
+
+
+def _make_pointed_ear(dx: float, flip: float, skin: str) -> GraphicObject:
+    pts = [
+        (dx, -4),
+        (dx + 8 * flip, -30),
+        (dx + 3 * flip, -2),
+    ]
+    return GraphicObject(
+        shape_type="polygon",
+        params={"points": pts},
+        fill=skin,
+        stroke="#1a1a1a",
+        stroke_width=1.5,
+    )
+
+
+def _make_animal_ear(dx: float, flip: float, top_y: float, skin: str) -> GraphicObject:
+    pts = [
+        (dx - 6 * flip, top_y),
+        (dx + 4 * flip, top_y - 22),
+        (dx + 12 * flip, top_y + 2),
+    ]
+    return GraphicObject(
+        shape_type="polygon",
+        params={"points": pts},
+        fill=skin,
+        stroke="#1a1a1a",
+        stroke_width=1.5,
+    )
 
 
 def create_head(**kwargs: Any) -> GraphicObject:
@@ -29,99 +65,84 @@ def create_head(**kwargs: Any) -> GraphicObject:
         :shape — 'oval | 'round | 'square | 'heart | 'angular
         :skin — skin color
         :ears — 'normal | 'pointed | 'animal | 'none
+        :view — 'front | 'side | 'back | 'three-quarter
     """
-    p = validate_params(_HEAD_SCHEMA, {_sym_str(k): v for k, v in kwargs.items()})
+    p = validate_params(_HEAD_SCHEMA, {sym_str(k): v for k, v in kwargs.items()})
 
     shape = p["shape"]
     skin = p["skin"]
     ears = p["ears"]
+    view = p["view"]
 
     # Head dimensions (centered at origin)
     head_w = 56
     head_h = 64
 
-    # Main head shape
-    if shape in ("oval", "heart"):
-        head = GraphicObject(
-            shape_type="ellipse",
-            params={"cx": 0, "cy": 0, "rx": head_w / 2, "ry": head_h / 2},
-            fill=skin,
-            stroke="#1a1a1a",
-            stroke_width=2.0,
-        )
-    elif shape == "round":
-        head = GraphicObject(
-            shape_type="ellipse",
-            params={"cx": 0, "cy": 0, "rx": head_w / 2, "ry": head_w / 2},
-            fill=skin,
-            stroke="#1a1a1a",
-            stroke_width=2.0,
-        )
-    elif shape in ("square", "angular"):
-        head = GraphicObject(
-            shape_type="rect",
-            params={"x": -head_w / 2, "y": -head_h / 2, "w": head_w, "h": head_h},
-            fill=skin,
-            stroke="#1a1a1a",
-            stroke_width=2.0,
-        )
-    else:
-        head = GraphicObject(
-            shape_type="ellipse",
-            params={"cx": 0, "cy": 0, "rx": head_w / 2, "ry": head_h / 2},
-            fill=skin,
-            stroke="#1a1a1a",
-            stroke_width=2.0,
-        )
+    vw = view_width(head_w, view, front=1.0, side=0.55, back=1.0, three_quarter=0.75)
 
+    def _head_shape(w: float, h: float, s: str) -> GraphicObject:
+        if s in ("oval", "heart"):
+            return GraphicObject(
+                shape_type="ellipse",
+                params={"cx": 0, "cy": 0, "rx": w / 2, "ry": h / 2},
+                fill=skin,
+                stroke="#1a1a1a",
+                stroke_width=2.0,
+            )
+        elif s == "round":
+            return GraphicObject(
+                shape_type="ellipse",
+                params={"cx": 0, "cy": 0, "rx": w / 2, "ry": w / 2},
+                fill=skin,
+                stroke="#1a1a1a",
+                stroke_width=2.0,
+            )
+        else:
+            return GraphicObject(
+                shape_type="rect",
+                params={"x": -w / 2, "y": -h / 2, "w": w, "h": h},
+                fill=skin,
+                stroke="#1a1a1a",
+                stroke_width=2.0,
+            )
+
+    head = _head_shape(vw, head_h, shape)
     children = [head]
 
-    # Ears
-    if ears == "normal":
-        ear_r = 6
-        for dx in (-head_w / 2 - ear_r, head_w / 2 + ear_r):
-            children.append(
-                GraphicObject(
-                    shape_type="ellipse",
-                    params={"cx": dx, "cy": -4, "rx": ear_r, "ry": ear_r * 1.2},
-                    fill=skin,
-                    stroke="#1a1a1a",
-                    stroke_width=1.5,
-                )
-            )
-    elif ears == "pointed":
-        for dx, flip in ((-head_w / 2 - 2, -1), (head_w / 2 + 2, 1)):
-            points = [
-                (dx, -4),
-                (dx + 8 * flip, -30),
-                (dx + 3 * flip, -2),
-            ]
-            children.append(
-                GraphicObject(
-                    shape_type="polygon",
-                    params={"points": points},
-                    fill=skin,
-                    stroke="#1a1a1a",
-                    stroke_width=1.5,
-                )
-            )
-    elif ears == "animal":
-        for dx, flip in ((-head_w / 2 + 4, -1), (head_w / 2 - 4, 1)):
-            points = [
-                (dx - 6 * flip, -head_h / 2 + 4),
-                (dx + 4 * flip, -head_h / 2 - 18),
-                (dx + 12 * flip, -head_h / 2 + 6),
-            ]
-            children.append(
-                GraphicObject(
-                    shape_type="polygon",
-                    params={"points": points},
-                    fill=skin,
-                    stroke="#1a1a1a",
-                    stroke_width=1.5,
-                )
-            )
-    # ears == "none" → no ear shapes
+    # Ears — view-dependent
+    if view == "front":
+        if ears == "normal":
+            ear_r = 6
+            for dx in (-vw / 2 - ear_r, vw / 2 + ear_r):
+                children.append(_make_ear(dx, -4, ear_r, ear_r * 1.2, skin))
+        elif ears == "pointed":
+            for dx, flip in ((-vw / 2 - 2, -1), (vw / 2 + 2, 1)):
+                children.append(_make_pointed_ear(dx, flip, skin))
+        elif ears == "animal":
+            for dx, flip in ((-vw / 2 + 4, -1), (vw / 2 - 4, 1)):
+                children.append(_make_animal_ear(dx, flip, -head_h / 2 + 4, skin))
+    elif view == "side":
+        # Only one ear visible on the right (forward-facing) side
+        if ears in ("normal", "pointed", "animal"):
+            dx = vw / 2 + 4
+            if ears == "normal":
+                children.append(_make_ear(dx, -4, 6, 7, skin))
+            elif ears == "pointed":
+                children.append(_make_pointed_ear(dx, 1, skin))
+            elif ears == "animal":
+                children.append(_make_animal_ear(dx, 1, -head_h / 2 + 4, skin))
+    elif view == "three-quarter":
+        # Both ears visible but offset
+        if ears == "normal":
+            for dx in (-vw / 2 - 5, vw / 2 + 5):
+                children.append(_make_ear(dx, -4, 5, 6, skin))
+        elif ears == "pointed":
+            for dx, flip in ((-vw / 2 - 2, -1), (vw / 2 + 2, 1)):
+                children.append(_make_pointed_ear(dx, flip, skin))
+        elif ears == "animal":
+            for dx, flip in ((-vw / 2 + 4, -1), (vw / 2 - 4, 1)):
+                children.append(_make_animal_ear(dx, flip, -head_h / 2 + 4, skin))
+    # view == "back": no ears, or subtle bumps
 
     return GraphicObject(
         shape_type="group",
@@ -130,7 +151,8 @@ def create_head(**kwargs: Any) -> GraphicObject:
             "component": "head",
             "shape": shape,
             "skin": skin,
-            "head_width": head_w,
+            "view": view,
+            "head_width": vw,
             "head_height": head_h,
         },
     )

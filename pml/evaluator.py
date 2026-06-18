@@ -518,7 +518,46 @@ def _eval_provide(expr: Expr, env: Environment) -> None:
     return None
 
 
+def _eval_provide_check(expr: Expr, env: Environment) -> None:
+    """(provide-check) — report mismatches between defines and provides.
+
+    Scans the current module's direct bindings and compares against
+    its export set. Prints warnings for:
+      - Defined but not exported (forgotten provide)
+      - Exported but not defined (typo in provide)
+
+    Ignores symbols starting with _ (internal) and special form names.
+    """
+    SPECIAL_FORM_NAMES = {
+        "define", "set!", "if", "cond", "and", "or", "lambda",
+        "let", "let*", "quote", "quasiquote", "unquote",
+        "do", "defmacro", "import", "provide", "provide-check",
+    }
+    direct: set[str] = set(env.bindings.keys())
+    exports: set[str] = set(env.exports)
+
+    # Defined but not exported
+    missing = direct - exports - SPECIAL_FORM_NAMES - {"_", "..."}
+    missing = {s for s in missing if not s.startswith("_") and not s.startswith(":")}
+
+    # Exported but not defined
+    extra = exports - direct - SPECIAL_FORM_NAMES
+
+    if not missing and not extra:
+        return
+
+    import sys
+    print(";; ── provide-check ──", file=sys.stderr)
+    for s in sorted(missing):
+        print(f";;   ⚠ defined but NOT exported: {s}", file=sys.stderr)
+    for s in sorted(extra):
+        print(f";;   ⚠ exported but NOT defined: {s}", file=sys.stderr)
+    print(";; ───────────────────", file=sys.stderr)
+    return None
+
+
 SPECIAL_FORMS["provide"] = _eval_provide
+SPECIAL_FORMS["provide-check"] = _eval_provide_check
 
 
 def _eval_import(expr: Expr, env: Environment) -> None:

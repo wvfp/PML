@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import random as _random
 
 from pml.environment import Environment
 from pml.types import BuiltinProcedure
@@ -62,6 +63,15 @@ def register(env: Environment) -> None:
         "cos": math.cos,
         "tan": math.tan,
         "atan2": math.atan2,
+        # LLM-friendly Scheme-standard arithmetic
+        "quotient": lambda a, b: int(a / b),
+        "remainder": lambda a, b: int(a % b),
+        "modulo": lambda a, b: int(((a % b) + b) % b),
+        "even?": lambda a: a % 2 == 0,
+        "odd?": lambda a: a % 2 != 0,
+        "clamp": lambda x, lo, hi: max(min(x, hi), lo),
+        "random": lambda: _random.random(),
+        "randint": lambda a, b: _random.randint(int(a), int(b)),
     }
     for name, fn in fns.items():
         env.define(name, BuiltinProcedure(name, fn))

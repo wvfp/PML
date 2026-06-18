@@ -13,6 +13,16 @@ wheels/
 examples_output/
 output/
 
+# Root-level test generation artifacts
+/*.meta.json
+/*.png
+
+# OpenCode session files
+.omo/
+
+# C++ test project (not part of Python PML)
+pml-cpp/
+
 # Editor / IDE
 .vscode/
 .idea/

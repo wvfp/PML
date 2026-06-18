@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from pml.sprites.palette import resolve_color
+
 
 class ParamSchema:
     """Schema for validating component parameters.
@@ -109,7 +111,8 @@ def validate_params(schema: ParamSchema, kwargs: dict[str, Any]) -> dict[str, An
             result[field_name] = bool(value)
 
         elif ftype == "color":
-            result[field_name] = str(value) if value else field_spec["default"]
+            raw = str(value) if value else field_spec["default"]
+            result[field_name] = resolve_color(raw)
 
         else:
             result[field_name] = value

@@ -56,12 +56,47 @@ def _nth(lst, i):
     return lst[int(i)]
 
 
+def _list_ref(lst, index):
+    if not isinstance(lst, list):
+        raise PMLTypeError("list-ref: expected list")
+    if index < 0 or index >= len(lst):
+        raise PMLTypeError(f"list-ref: index {index} out of range [0, {len(lst)})")
+    return lst[index]
+
+
 def _range(*args):
     if len(args) == 2:
         return list(range(int(args[0]), int(args[1])))
     elif len(args) == 3:
         return list(range(int(args[0]), int(args[1]), int(args[2])))
     raise PMLTypeError("range: expects 2 or 3 arguments (start end [step])")
+
+
+def _list_tail(lst, k):
+    if not isinstance(lst, list):
+        raise PMLTypeError("list-tail: expected list")
+    n = int(k)
+    if n < 0 or n > len(lst):
+        raise PMLTypeError(f"list-tail: index {n} out of range [0, {len(lst)}]")
+    return lst[n:]
+
+
+def _memq(item, lst):
+    if not isinstance(lst, list):
+        raise PMLTypeError("memq: second argument must be list")
+    for x in lst:
+        if x is item:
+            return [x] + lst[lst.index(x) + 1:]
+    return False
+
+
+def _assoc(key, alist):
+    if not isinstance(alist, list):
+        raise PMLTypeError("assoc: second argument must be list")
+    for pair in alist:
+        if isinstance(pair, list) and len(pair) > 0 and pair[0] == key:
+            return pair
+    return False
 
 
 def register(env: Environment) -> None:
@@ -74,9 +109,13 @@ def register(env: Environment) -> None:
         "append": _append,
         "reverse": _reverse,
         "nth": _nth,
+        "list-ref": _list_ref,
+        "list-tail": _list_tail,
         "range": _range,
         "null?": lambda x: isinstance(x, list) and len(x) == 0,
         "list?": lambda x: isinstance(x, list),
+        "memq": _memq,
+        "assoc": _assoc,
     }
     for name, fn in fns.items():
         env.define(name, BuiltinProcedure(name, fn))

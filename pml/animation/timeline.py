@@ -208,21 +208,36 @@ def _apply_modifications(
                 new_transform = value
         elif prop == "transform.tx":
             new_transform = AffineTransform(
-                a=new_transform.a,
-                b=new_transform.b,
-                c=new_transform.c,
-                d=new_transform.d,
-                e=float(value),
-                f=new_transform.f,
+                a=new_transform.a, b=new_transform.b,
+                c=new_transform.c, d=new_transform.d,
+                e=float(value), f=new_transform.f,
             )
         elif prop == "transform.ty":
             new_transform = AffineTransform(
-                a=new_transform.a,
-                b=new_transform.b,
-                c=new_transform.c,
-                d=new_transform.d,
-                e=new_transform.e,
-                f=float(value),
+                a=new_transform.a, b=new_transform.b,
+                c=new_transform.c, d=new_transform.d,
+                e=new_transform.e, f=float(value),
+            )
+        elif prop == "transform.sx":
+            sx = float(value)
+            new_transform = AffineTransform(
+                a=sx, b=0.0, c=0.0, d=new_transform.d,
+                e=new_transform.e, f=new_transform.f,
+            )
+        elif prop == "transform.sy":
+            sy = float(value)
+            new_transform = AffineTransform(
+                a=new_transform.a, b=0.0, c=0.0, d=sy,
+                e=new_transform.e, f=new_transform.f,
+            )
+        elif prop == "transform.rot":
+            import math
+            angle = float(value)
+            c = math.cos(angle)
+            _s = math.sin(angle)
+            new_transform = AffineTransform(
+                a=c, b=_s, c=-_s, d=c,
+                e=new_transform.e, f=new_transform.f,
             )
         else:
             # Assume it's a param key

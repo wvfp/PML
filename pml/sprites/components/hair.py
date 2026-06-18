@@ -6,7 +6,9 @@ from typing import Any
 
 from pml.graphics.objects import GraphicObject
 from pml.sprites.validator import ParamSchema, validate_params
-from pml.types import Symbol
+from pml.transform import AffineTransform
+
+from .view_utils import VIEW_NAMES, sym_str
 
 _HAIR_SCHEMA = (
     ParamSchema()
@@ -19,13 +21,8 @@ _HAIR_SCHEMA = (
     .number("length", 60, min_val=10, max_val=200)
     .boolean("bangs", True)
     .boolean("highlights", False)
+    .enum("view", VIEW_NAMES, "front")
 )
-
-
-def _sym_str(v: Any) -> str:
-    if isinstance(v, Symbol):
-        return v.name
-    return str(v) if v is not None else ""
 
 
 def _bangs(color: str, head_w: float) -> list[GraphicObject]:
@@ -273,21 +270,39 @@ def create_hair(**kwargs: Any) -> GraphicObject:
         :length — hair length in pixels (clamped 10-200)
         :bangs — whether to include bangs
         :highlights — whether to add highlight strands
+        :view — 'front | 'side | 'back | 'three-quarter
     """
-    p = validate_params(_HAIR_SCHEMA, {_sym_str(k): v for k, v in kwargs.items()})
+    p = validate_params(_HAIR_SCHEMA, {sym_str(k): v for k, v in kwargs.items()})
 
     style = p["style"]
     color = p["color"]
     length = p["length"]
     bangs = p["bangs"]
     highlights = p["highlights"]
+    view = p["view"]
 
-    head_w = 56  # must match head component
+    head_w = 56
+
+    if view == "back":
+        # No bangs from behind, same head width
+        bangs = False
+    elif view == "side":
+        head_w = int(head_w * 0.5)
+    elif view == "three-quarter":
+        head_w = int(head_w * 0.75)
+
     maker = _HAIR_MAKERS.get(style, _create_medium)
     parts = maker(color, head_w, length, bangs, highlights)
+
+    # Side view: shift hair to the right
+    if view == "side":
+        for i, part in enumerate(parts):
+            parts[i] = part.with_transform(
+                AffineTransform.translate(12, 0)
+            )
 
     return GraphicObject(
         shape_type="group",
         children=tuple(parts),
-        metadata={"component": "hair", "style": style, "color": color},
+        metadata={"component": "hair", "style": style, "color": color, "view": view},
     )

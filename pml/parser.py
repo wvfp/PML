@@ -68,8 +68,26 @@ class Parser:
         while not self._at_end() and self._current().type != TokenType.RPAREN:
             items.append(self._parse_expr())
         if self._at_end():
+            # Count unmatched parens after this position to estimate surplus
+            open_count = 1
+            extra_close = 0
+            for tok in self.tokens[self.pos:]:
+                if tok.type == TokenType.LPAREN:
+                    open_count += 1
+                elif tok.type == TokenType.RPAREN:
+                    open_count -= 1
+                    if open_count < 0:
+                        extra_close += 1
+                        open_count = 0
+            if extra_close > 0:
+                hint = f"可能多了 {extra_close} 个 ')'"
+            elif open_count > 0:
+                hint = f"可能少了 {open_count} 个 ')'"
+            else:
+                hint = ""
             raise PMLSyntaxError(
-                "Unmatched '(' — expected closing ')'",
+                f"Unmatched '(' at line {open_token.line} — expected closing ')'"
+                + (f" — {hint}" if hint else ""),
                 line=open_token.line,
                 column=open_token.column,
                 filename=self.filename,

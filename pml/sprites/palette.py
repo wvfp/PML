@@ -81,15 +81,50 @@ def _define_palette(name: Any, color_list: list) -> None:
     _palette_registry[palette_name] = Palette(name=palette_name, colors=colors)
 
 
+def _palette_keyword(name: str, **kwargs: str) -> None:
+    """Define a palette with keyword syntax.
+
+    Usage: (palette "ocean" :primary "#2c3e50" :accent "#3498db")
+    """
+    palette_name = str(name).strip('"')
+    colors: dict[str, str] = {}
+    for k, v in kwargs.items():
+        colors[k] = str(v)
+    _palette_registry[palette_name] = Palette(name=palette_name, colors=colors)
+
+
+def _use_palette(name: str) -> None:
+    """Activate a palette by name for $key color resolution.
+
+    Usage: (use-palette "ocean")
+    """
+    p = get_palette(name)
+    set_active_palette(p)
+
+
+def resolve_color(color: str) -> str:
+    """Resolve a color string, handling ``$key`` shorthand.
+
+    If *color* starts with ``$``, looks up the key in the active palette.
+    Otherwise returns *color* unchanged.
+    """
+    if isinstance(color, str) and color.startswith("$"):
+        key = color[1:]  # strip $
+        palette = _active_palette[0]
+        if palette is None:
+            print(f"Warning: no active palette for key '{key}', using #808080")
+            return "#808080"
+        return palette.get(key)
+    return str(color) if color else "#808080"
+
+
 def _palette_ref(key: str) -> str:
     """(palette-ref "key") → look up in active palette."""
-    palette = _active_palette[0]
-    if palette is None:
-        print(f"Warning: no active palette, returning #808080 for '{key}'")
-        return "#808080"
-    return palette.get(key)
+    return resolve_color(f"${key}")
 
 
 def register_palette(env: Environment) -> None:
     env.define("define-palette", BuiltinProcedure("define-palette", _define_palette))
     env.define("palette-ref", BuiltinProcedure("palette-ref", _palette_ref))
+    env.define("palette", BuiltinProcedure("palette", _palette_keyword, accepts_kwargs=True))
+    env.define("use-palette", BuiltinProcedure("use-palette", _use_palette))

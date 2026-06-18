@@ -127,46 +127,163 @@ def _error_to_dict(e: PMLError) -> dict[str, Any]:
 
 def _generate_hint(e: PMLError) -> str:
     """Generate LLM-friendly repair hints based on error type."""
+
+    # UnboundVariableError — variable not found in any scope
     if isinstance(e, UnboundVariableError):
+        msg = e.pml_message.lower()
+        # Check for common spelling patterns
+        if "sprite-canvas" in msg or "sprite_canvas" in msg:
+            return (
+                "To create a sprite canvas, use (sprite-canvas width height :bg \"color\"). "
+                "The function name is 'sprite-canvas' (with a hyphen), not 'sprite_canvas'."
+            )
+        if "render-sprite" in msg or "render_sprite" in msg:
+            return (
+                "To render the current canvas, use (render \"filename.png\") or "
+                "(render-spritesheet ...). The function name is 'render' not 'render-sprite'."
+            )
         return (
             "The variable is not defined in any scope. "
-            "Use (define name value) to define it, or (import \"path\" as prefix) "
-            "to import from a module."
+            "Did you misspell it? Check that you used (define name value) first. "
+            "Built-in functions use hyphens between words (e.g. 'sprite-canvas', 'string-append'). "
+            "If importing a module, use (import \"path.pml\" as prefix) then prefix/name."
         )
+
+    # ArityError — wrong argument count
     if isinstance(e, ArityError):
-        return "Check the number of arguments passed to this function or special form."
+        msg = e.pml_message
+        # Try to extract expected vs actual from the message
+        if "expected" in msg and "got" in msg:
+            return (
+                "Fix the number of arguments. "
+                "Review the function's signature — optional keyword arguments like "
+                ":bg, :fill, :stroke are passed as :key value pairs. "
+                "If you meant to pass keyword args, make sure they come after positional args."
+            )
+        return (
+            "Wrong number of arguments passed to this function. "
+            "Check the function signature — keyword arguments use :key value syntax "
+            "and come after all positional arguments."
+        )
+
+    # PMLSyntaxError — lexer/parser errors
     if isinstance(e, PMLSyntaxError):
-        return "Check for unmatched parentheses, unterminated strings, or invalid tokens."
+        msg = e.pml_message.lower()
+        if "unmatched" in msg or "parenthes" in msg:
+            return (
+                "Unbalanced parentheses. "
+                "Every '(' needs a matching ')'. Count open/close parens — "
+                "they should be equal. For S-expressions, each form is (function arg arg ...)."
+            )
+        if "unterminated string" in msg or "unterminated" in msg:
+            return (
+                "A string value is missing its closing quote (\"). "
+                "All strings must be enclosed in double quotes: \"like this\". "
+                "Check for missing \" at the end of a string."
+            )
+        if "token" in msg or "illegal" in msg:
+            return (
+                "Invalid syntax detected. "
+                "Check for special characters outside strings, "
+                "unquoted symbols with spaces, or malformed numbers."
+            )
+        return (
+            "Syntax error in the PML source. Check for balanced parentheses, "
+            "proper string quoting, and correct S-expression structure."
+        )
+
+    # PMLTypeError — argument type or arity mismatch
     if isinstance(e, PMLTypeError):
-        return "Check the types of arguments. Ensure symbols, strings, and numbers are used correctly."
+        msg = e.pml_message.lower()
+        if "keyword" in msg and "no following value" in msg:
+            return (
+                "A keyword (starting with :) is missing its value. "
+                "Keywords must be followed by a value: (:key value). "
+                "For example: (circle 0 0 30 :fill \"#ff0000\")."
+            )
+        if "cannot evaluate" in msg:
+            return (
+                "The expression could not be evaluated. "
+                "Make sure you're calling a defined function or special form. "
+                "Function calls start with a symbol: (function-name arg1 arg2)."
+            )
+        if "expected" in msg:
+            return (
+                "A type mismatch occurred. Check that you passed the right type — "
+                "strings need quotes (\"text\"), symbols use \'prefix (like \'center), "
+                "and numbers are written directly (42, 3.14)."
+            )
+        return (
+            "Argument type mismatch. Check that each argument has the correct type: "
+            "strings need \"quotes\", symbols use \'prefix, numbers are bare. "
+            "Keywords (:key) must be followed by their value."
+        )
+
+    # CircularImportError
     if isinstance(e, CircularImportError):
         return (
             "Circular dependency detected. Break the cycle by removing one of the "
             "mutual imports, or restructure into separate modules."
         )
+
+    # ImportError_
     if isinstance(e, ImportError_):
         return (
-            "Check the file path. Use forward slashes (/) in paths, not backslashes. "
-            "Paths are resolved relative to the importing file."
+            "Module not found or import failed. "
+            "Check the file path — use forward slashes (/), not backslashes. "
+            "Paths are resolved relative to the importing file's directory. "
+            "Ensure the file has a .pml extension."
         )
+
+    # MacroExpansionDepthError
     if isinstance(e, MacroExpansionDepthError):
         return (
             "A macro is expanding recursively without a base case. "
-            "Add a termination condition or restructure to avoid infinite expansion."
+            "Add a termination condition (like an 'if' check) or restructure "
+            "to avoid infinite expansion. Macros should expand to code that "
+            "does not further trigger the same macro call."
         )
+
+    # AccessError
     if isinstance(e, AccessError):
         return (
             "This symbol is not exported from the module. "
-            "Add it to (provide ...) in the module file."
+            "Open the module file and add the symbol name to (provide symbol-name ...)."
         )
+
+    # ResourceError
     if isinstance(e, ResourceError):
-        return "Check that the referenced resource file exists and is accessible."
+        return (
+            "A resource file (image, font, data) was not found. "
+            "Check that the file path is correct and the file exists. "
+            "Use forward slashes (/) in paths."
+        )
+
+    # IKNoSolutionError
     if isinstance(e, IKNoSolutionError):
         return (
-            "The IK solver could not reach the target. Try increasing :iterations, "
-            "relaxing joint constraints (:min/:max), or moving the target closer."
+            "The IK solver could not reach the target position. "
+            "Try increasing :iterations (e.g., :iterations 50), "
+            "relaxing joint angle constraints (:min/:max), "
+            "or moving the target position closer to the chain."
         )
-    return ""
+
+    # Generic PMLError fallback
+    msg = e.pml_message.lower()
+    if "not defined" in msg or "unbound" in msg:
+        return (
+            "A variable or function name was not found. "
+            "Check spelling — PML uses hyphens in multi-word names "
+            "(e.g. 'string-append', not 'string_append' or 'stringAppend'). "
+            "Use (define name value) to define your own variables."
+        )
+
+    return (
+        "Check the PML code for errors. "
+        "Common issues: missing ) to close a form, "
+        "using :keyword without a following value, "
+        "or calling a function with the wrong argument types."
+    )
 
 
 # ======================================================================
@@ -186,6 +303,8 @@ def _serialize_value(val: Any) -> Any:
         return val
     if isinstance(val, list):
         return [_serialize_value(v) for v in val]
+    if isinstance(val, dict):
+        return {str(k): _serialize_value(v) for k, v in val.items()}
     if isinstance(val, Symbol):
         return f"<symbol:{val.name}>"
     if isinstance(val, Keyword):

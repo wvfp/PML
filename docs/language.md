@@ -389,6 +389,134 @@ All primitives accept `:fill`, `:stroke`, `:stroke-width`.
 
 Output directory can be controlled globally via `--output-dir` CLI flag.
 
+### Post-Process Effects (Shaders)
+
+Post-process shaders are image-wide filters applied to the canvas at render time, after
+all objects have been drawn. They chain in order.
+
+```lisp
+;; Apply a shader to the entire canvas
+(post-process 'sepia)
+(post-process 'blur :radius 3)
+
+;; Multiple shaders chain: grayscale → vignette → noise
+(post-process 'grayscale)
+(post-process 'vignette :strength 0.5)
+(post-process 'noise :amount 0.08 :monochrome #t)
+```
+
+**Per-object shader** — apply a filter to a single object before compositing:
+
+```lisp
+(define glow-box (shader (rect 10 10 30 30 :fill "red") 'bloom :radius 3))
+(add glow-box)
+```
+
+**List available shaders:**
+
+```lisp
+(list-shaders)
+;; → ((name "sepia" type "post-process" description "Warm sepia tone effect") ...)
+```
+
+**Define a custom pixel shader** (placeholders for user-defined functions):
+
+```lisp
+(define-shader 'my-shader)
+```
+
+**Built-in shader reference:**
+
+| Shader | Params | Effect |
+|--------|--------|--------|
+| `'sepia` | — | Warm vintage tone |
+| `'grayscale` | — | Desaturate |
+| `'invert` | — | Negative colors |
+| `'brightness` | `:factor` (float, default 1.0) | Brighten / darken |
+| `'contrast` | `:factor` (float, default 1.0) | Contrast boost |
+| `'color-grade` | `:tint` (color), `:strength` (float) | Color tint overlay |
+| `'blur` | `:radius` (float, default 2) | Gaussian blur |
+| `'sharpen` | `:factor` (float, default 2.0) | Sharpen |
+| `'edge-detect` | — | Edge outline extraction |
+| `'emboss` | — | Relief emboss effect |
+| `'contour` | — | Thin contour outlines |
+| `'smooth` | `:iterations` (int, default 1) | Multi-pass smooth/blur |
+| `'pixelate` | `:size` (int, default 8) | Blocky pixelation |
+| `'vignette` | `:strength` (float, default 0.4) | Corner darkening |
+| `'bloom` | `:radius` (float), `:strength` (float) | Glow from bright areas |
+| `'oil-paint` | `:range` (int), `:levels` (int) | Painterly / cartoon effect |
+| `'crt-scanline` | `:strength` (float, default 0.15) | Retro monitor scanlines |
+| `'noise` | `:amount` (float), `:monochrome` (bool) | Film grain texture |
+
+All shaders work on any canvas output. For a full demo run:
+
+```bash
+uv run pml examples/shader.pml -o examples_output
+```
+
+### Hand-Drawn / Sketch Primitives
+
+Hand-drawn primitives produce organic, imperfect shapes that simulate pencil, charcoal,
+watercolor, and hatching techniques. They use numpy-based value noise for position wobble,
+width variation, edge bleeding, and particle scattering.
+
+```lisp
+;; Pencil — variable-width line with positional wobble
+(pencil x1 y1 x2 y2
+  :stroke "#333"        ; Line color (default #000)
+  :stroke-width 2       ; Base width (default 2.0)
+  :roughness 0.3        ; Wobble amount 0–1 (default 0.3)
+  :variance 0.4)        ; Width variation 0–1 (default 0.4)
+
+;; Charcoal — rough stroke with particle scatter
+(charcoal x1 y1 x2 y2
+  :stroke "#222"        ; Color (default #222)
+  :stroke-width 4       ; Base width (default 4.0)
+  :roughness 0.5        ; Wobble 0–1 (default 0.5)
+  :scatter 0.3)         ; Particle scatter 0–1 (default 0.3)
+
+;; Watercolor rectangle — bleeding edges, translucent layers
+(watercolor-rect x y w h
+  :fill "#e74c3c"       ; Fill color
+  :bleed 0.3            ; Edge bleeding 0–1 (default 0.3)
+  :layers 3)            ; Translucent passes (default 3)
+
+;; Watercolor circle
+(watercolor-circle cx cy r
+  :fill "#3498db"
+  :bleed 0.4
+  :layers 4)
+
+;; Hatching / cross-hatching fill
+(hatch x y w h
+  :stroke "#555"        ; Line color (default #333)
+  :stroke-width 1       ; Line thickness (default 1.0)
+  :density 0.4          ; Line spacing 0–1 (default 0.4)
+  :angle 45             ; Hatch angle in degrees (default 45)
+  :cross #f)            ; Enable cross-hatching (default #f)
+
+;; Sketchify — apply organic warp to any existing shape
+(sketchify shape
+  :roughness 0.2)       ; Distortion amount 0–1 (default 0.2)
+```
+
+**Composition example:**
+
+```lisp
+(canvas 200 200 :bg "#f5f0e8")              ;; warm paper tone
+(add (watercolor-circle 60 150 70 :fill "#7f8c8d" :bleed 0.3 :layers 3))  ;; mountain
+(add (pencil 100 100 100 160 :stroke "#5d4037" :stroke-width 3 :roughness 0.4 :variance 0.5))  ;; tree trunk
+(add (watercolor-circle 100 80 40 :fill "#27ae60" :bleed 0.4 :layers 4))  ;; canopy
+(add (hatch 0 160 200 40 :stroke "#8d6e63" :density 0.3 :angle 15 :cross #f))  ;; ground
+(render "landscape.png")
+```
+
+All sketch shapes accept optional `:seed` for reproducible noise. For a full demo:
+
+```bash
+uv run pml examples/handdrawn.pml -o examples_output
+```
+
 ---
 
 ## 6. Semantic Components

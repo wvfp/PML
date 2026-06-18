@@ -6,6 +6,8 @@ import json
 import os
 from typing import Any
 
+from PIL import Image
+
 from pml.environment import Environment
 from pml.errors import PMLTypeError
 from pml.graphics.canvas import Canvas, get_current_canvas
@@ -41,6 +43,10 @@ def _render(filename: str, **kwargs: Any) -> str:
     canvas = get_current_canvas()
     if canvas is None:
         canvas = Canvas(width=256, height=256, bg_color="transparent")
+
+    # Auto-fit: resize canvas to tightly wrap content if dimensions were 0
+    if canvas.auto_fit:
+        canvas.fit_to_content()
 
     # Determine output format
     fmt = kwargs.get("format")
@@ -91,6 +97,21 @@ def _render(filename: str, **kwargs: Any) -> str:
         for obj in canvas.objects:
             if isinstance(obj, GraphicObject):
                 backend.draw(surface, obj)
+
+    # Apply post-process shader chain (if any)
+    if canvas._post_process_chain:
+        from pml.shaders import apply_post_process_chain
+        surface = apply_post_process_chain(surface, canvas._post_process_chain)
+
+    if canvas.clip_rect is not None:
+        from PIL import ImageDraw
+        cx, cy, cw, ch = canvas.clip_rect
+        mask = Image.new("L", surface.size, 0)
+        mask_draw = ImageDraw.Draw(mask)
+        mask_draw.rectangle([cx, cy, cx + cw, cy + ch], fill=255)
+        masked = Image.new("RGBA", surface.size, (0, 0, 0, 0))
+        masked.paste(surface, (0, 0), mask)
+        surface = masked
 
     # Save
     backend.save_image(surface, filename, fmt)

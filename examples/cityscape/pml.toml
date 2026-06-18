@@ -1,0 +1,8 @@
+[project]
+name = "cityscape"
+version = "0.1.0"
+
+[render]
+targets = [
+  { src = "src/main.pml" },
+]

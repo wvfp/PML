@@ -8,7 +8,8 @@ from typing import Any
 
 from pml.graphics.objects import GraphicObject
 from pml.sprites.validator import ParamSchema, validate_params
-from pml.types import Symbol
+
+from .view_utils import sym_str
 
 # ======================================================================
 # Schemas
@@ -67,12 +68,6 @@ _SEASON_COLORS = {
 }
 
 
-def _sym_str(v: Any) -> str:
-    if isinstance(v, Symbol):
-        return v.name
-    return str(v) if v is not None else ""
-
-
 # ======================================================================
 # Tile
 # ======================================================================
@@ -80,7 +75,7 @@ def _sym_str(v: Any) -> str:
 
 def create_tile(**kwargs: Any) -> GraphicObject:
     """Create a terrain tile."""
-    p = validate_params(_TILE_SCHEMA, {_sym_str(k): v for k, v in kwargs.items()})
+    p = validate_params(_TILE_SCHEMA, {sym_str(k): v for k, v in kwargs.items()})
     tile_type = p["type"]
     sz = int(p["size"])
     variant = int(p["variant"])
@@ -240,7 +235,7 @@ def _tile_edge(edge: str, sz: int, colors: dict) -> list[GraphicObject]:
 
 def create_decoration(**kwargs: Any) -> GraphicObject:
     """Create a scene decoration object."""
-    p = validate_params(_DECORATION_SCHEMA, {_sym_str(k): v for k, v in kwargs.items()})
+    p = validate_params(_DECORATION_SCHEMA, {sym_str(k): v for k, v in kwargs.items()})
     dec_type = p["type"]
     scale = _SIZE_SCALE.get(p["size"], 1.0)
     season = p["season"]
@@ -601,7 +596,7 @@ _TIME_COLORS = {
 
 def create_background(**kwargs: Any) -> GraphicObject:
     """Create a scene background."""
-    p = validate_params(_BACKGROUND_SCHEMA, {_sym_str(k): v for k, v in kwargs.items()})
+    p = validate_params(_BACKGROUND_SCHEMA, {sym_str(k): v for k, v in kwargs.items()})
     bg_type = p["type"]
     time = p["time"]
     weather = p["weather"]

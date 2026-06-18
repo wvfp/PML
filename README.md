@@ -109,6 +109,46 @@ uv run pml --help                   # All options
 (render "ui.png")
 ```
 
+### Shader Effects
+
+```lisp
+(sprite-canvas 200 200 :bg "#2c3e50")
+(add (rect 20 20 80 80 :fill "#e74c3c"))
+(post-process 'sepia)                     ;; Apply sepia tone
+(post-process 'vignette :strength 0.5)    ;; Darken corners
+(post-process 'noise :amount 0.08)        ;; Add film grain
+(render "shader-output.png")
+
+;; Per-object shader
+(shader (circle 100 80 40 :fill "#ffd93d") 'bloom :radius 5)
+```
+
+Available: sepia, grayscale, invert, blur, pixelate, bloom, vignette, oil-paint,
+edge-detect, emboss, contour, noise, crt-scanline, brightness, contrast, color-grade,
+sharpen, smooth — all chainable with configurable parameters.
+
+### Hand-Drawn Rendering
+
+```lisp
+(canvas 200 200 :bg "#f5f0e8")            ;; warm paper
+
+;; Pencil — wobble + variable-width stroke
+(add (pencil 20 20 180 40 :stroke "#333" :stroke-width 2 :roughness 0.3 :variance 0.5))
+
+;; Watercolor — bleeding edge translucent fills
+(add (watercolor-rect 20 60 70 70 :fill "#e74c3c" :bleed 0.3 :layers 3))
+
+;; Hatching / cross-hatching
+(add (hatch 110 110 70 70 :stroke "#555" :density 0.6 :angle 45 :cross #t))
+
+;; Sketchify — warp any existing shape
+(add (sketchify (circle 100 160 30 :fill "#3498db") :roughness 0.2))
+
+(render "handdrawn.png")
+```
+
+Primitives: pencil, charcoal, watercolor-rect, watercolor-circle, hatch, sketchify.
+
 More examples in [`examples/`](examples/).
 
 ---
@@ -125,6 +165,8 @@ More examples in [`examples/`](examples/).
 - **MCP server**: expose as tools for AI agents (Claude, Cursor)
 - **CLI**: file execution, REPL, watch mode, JSON output, output directory control
 - **Pillow backend**: PNG, JPG, GIF output
+- **Post-process shader system**: 18 built-in effects (sepia, blur, bloom, pixelate, vignette, edge-detect, etc.), chainable, with per-object and per-canvas modes
+- **Hand-drawn rendering**: pencil, charcoal, watercolor, hatching primitives with organic noise-based distortion
 - **LLM-friendly API**: structured error hints for AI repair
 
 ---
@@ -143,16 +185,19 @@ pml/                          # Core interpreter
 ├── mcp_server.py             # MCP server for AI agents
 ├── transform.py              # AffineTransform
 ├── builtins/                 # Arithmetic, comparison, IO, list/string ops
-├── graphics/                 # Primitives, canvas, render
+├── graphics/                 # Primitives, canvas, render, sketch builtins
+├── shaders/                  # Post-process & pixel shader system (18 effects)
 ├── sprites/                  # Style, palette, components
 ├── animation/                # Timeline, easing, interpolation
 ├── skeleton/                 # SkeletonTemplate, FABRIK/CCD IK
-└── backend/                  # Pillow render backend
+└── backend/                  # Pillow render backend + sketch renderer
 stdlib/                       # Standard library (.pml files)
 ├── math.pml, color.pml, easing.pml, shapes.pml
+├── palettes.pml              # Color palette presets
+├── templates/                # Reusable template definitions
 └── sprites/                  # Component API docs
 examples/                     # Runnable .pml demos
-tests/                        # pytest test suite (389 tests)
+tests/                        # pytest test suite (477 tests)
 docs/
 ├── language.md               # Full language reference
 └── README.zh.md              # Chinese guide
