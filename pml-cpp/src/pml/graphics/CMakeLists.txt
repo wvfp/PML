@@ -10,15 +10,28 @@ target_include_directories(pml_graphics PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/../backend   # src/pml/backend/ (registry.h, backend.h)
     ${CMAKE_CURRENT_SOURCE_DIR}/../..        # src/pml/ (for pml/core/error.h via backend.h)
     ${CMAKE_CURRENT_SOURCE_DIR}/../evaluator # src/pml/evaluator/ (environment.h)
-    ${GIFLIB_INCLUDE_DIRS}
-    ${CAIRO_INCLUDE_DIRS}
-    ${PNG_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../animation # src/pml/animation/ (timeline.h)
 )
 target_link_libraries(pml_graphics PUBLIC
     pml_core
     pml_backend
-    ${GIFLIB_LIBRARIES}
-    ${CAIRO_LIBRARIES}
-    ${PNG_LIBRARIES}
+    pml_animation
 )
-target_compile_options(pml_graphics PUBLIC ${GIFLIB_CFLAGS_OTHER} ${CAIRO_CFLAGS_OTHER} ${PNG_CFLAGS_OTHER})
+
+# transform.cpp uses PML_USE_SKIA-gated SkMatrix include — give the graphics
+# library access to the Skia include directory when Skia is enabled.
+if(PML_USE_SKIA AND TARGET skia_headers)
+    target_link_libraries(pml_graphics PUBLIC skia_headers)
+endif()
+
+# Optional backends: each target brings its own transitive deps (giflib,
+# cairo, libpng, …) so the pml_graphics PUBLIC surface stays slim.
+if(TARGET GIF::GIF)
+    target_link_libraries(pml_graphics PUBLIC GIF::GIF)
+endif()
+if(TARGET Cairo::Cairo)
+    target_link_libraries(pml_graphics PUBLIC Cairo::Cairo)
+endif()
+if(TARGET PNG::PNG)
+    target_link_libraries(pml_graphics PUBLIC PNG::PNG)
+endif()

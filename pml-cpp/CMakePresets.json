@@ -4,42 +4,44 @@
     {
       "name": "debug",
       "displayName": "Debug",
-      "description": "Debug build with AddressSanitizer and full debug symbols",
-      "generator": "Ninja",
+      "description": "Debug build. Requires pre-built Skia at G:/Project/skia (override via PML_SKIA_DIR / PML_SKIA_OUT).",
+      "generator": "Visual Studio 18 2026",
       "binaryDir": "${sourceDir}/build/debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_CXX_STANDARD": "23",
         "CMAKE_CXX_STANDARD_REQUIRED": "ON",
         "CMAKE_POSITION_INDEPENDENT_CODE": "ON",
-        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "PML_BUILD_CAIRO": "OFF",
+        "PML_BUILD_SKIA":  "ON",
+        "PML_BUILD_GIF":   "ON",
+        "PML_SKIA_DIR":   "G:/Project/skia",
+        "PML_SKIA_OUT":   "G:/Project/skia/out/llvm.x64.debug"
       }
     },
     {
       "name": "release",
       "displayName": "Release",
-      "description": "Release build with optimizations",
-      "generator": "Ninja",
+      "description": "Release build. Requires pre-built Skia at G:/Project/skia (override via PML_SKIA_DIR / PML_SKIA_OUT).",
+      "generator": "Visual Studio 18 2026",
       "binaryDir": "${sourceDir}/build/release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_CXX_STANDARD": "23",
         "CMAKE_CXX_STANDARD_REQUIRED": "ON",
         "CMAKE_POSITION_INDEPENDENT_CODE": "ON",
-        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "PML_BUILD_CAIRO": "OFF",
+        "PML_BUILD_SKIA":  "ON",
+        "PML_BUILD_GIF":   "ON",
+        "PML_SKIA_DIR":   "G:/Project/skia",
+        "PML_SKIA_OUT":   "G:/Project/skia/out/llvm.x64.release"
       }
     }
   ],
   "buildPresets": [
-    {
-      "name": "debug",
-      "configurePreset": "debug"
-    },
-    {
-      "name": "release",
-      "configurePreset": "release"
-    }
+    { "name": "debug",   "configurePreset": "debug"   },
+    { "name": "release", "configurePreset": "release" }
   ]
 }

@@ -254,6 +254,18 @@ static Result<Value> builtin_matrix_apply(
     return make_list_value({Value(rx), Value(ry)});
 }
 
+// ── (matrix? x) → boolean ───────────────────────────────────────────────────
+//
+// Type predicate for AffineTransform values.
+
+static Result<Value> builtin_matrix_p(
+    const std::vector<Value>& args, Environment& /*env*/)
+{
+    auto r = expect_arity(1, args, "matrix?");
+    if (!r) return std::unexpected(r.error());
+    return Value(std::holds_alternative<std::shared_ptr<AffineTransform>>(args[0]));
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Registration
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -270,6 +282,7 @@ void register_transform_builtins(std::shared_ptr<Environment> env)
     def(env, "compose",         builtin_compose);
     def(env, "matrix-inverse",  builtin_matrix_inverse);
     def(env, "matrix-apply",    builtin_matrix_apply);
+    def(env, "matrix?",         builtin_matrix_p);
 }
 
 }  // namespace pml

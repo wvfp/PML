@@ -69,7 +69,7 @@ Result<Value> builtin_bind_skin(const std::vector<Value>& args, Environment&) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 void merge_skin_bindings(
-    std::unordered_map<uint64_t, std::unordered_map<std::string, double>>& obj_mods)
+    std::unordered_map<uint64_t, std::unordered_map<std::string, Value>>& obj_mods)
 {
     auto& bindings = get_skin_bindings();
     if (bindings.empty()) return;
@@ -102,12 +102,12 @@ void merge_skin_bindings(
 
             // Encode as individual transform components
             auto& mods = obj_mods[gid];
-            mods["transform.a"] = joint_xform.a;
-            mods["transform.b"] = joint_xform.b;
-            mods["transform.c"] = joint_xform.c;
-            mods["transform.d"] = joint_xform.d;
-            mods["transform.tx"] = joint_xform.e;
-            mods["transform.ty"] = joint_xform.f;
+            mods["transform.a"] = Value(joint_xform.a);
+            mods["transform.b"] = Value(joint_xform.b);
+            mods["transform.c"] = Value(joint_xform.c);
+            mods["transform.d"] = Value(joint_xform.d);
+            mods["transform.tx"] = Value(joint_xform.e);
+            mods["transform.ty"] = Value(joint_xform.f);
         }
     }
 }

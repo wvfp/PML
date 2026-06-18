@@ -13,8 +13,8 @@ target_link_libraries(pml_backend PUBLIC
     pml_core
 )
 
-# Cairo backend subdirectory (always compiled — Cairo is required)
+# Cairo backend subdirectory (gated by PML_BUILD_CAIRO)
 add_subdirectory(cairo)
 
-# GIF export backend subdirectory (always compiled — giflib is required)
+# GIF export backend subdirectory (gated by PML_BUILD_GIF)
 add_subdirectory(gif)

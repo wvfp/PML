@@ -19,6 +19,75 @@
 
 namespace pml {
 
+namespace {
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Local helpers
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Convert a numeric Value to double.
+[[nodiscard]] double value_to_double(const Value& v) {
+    if (const auto* i = std::get_if<int64_t>(&v)) return static_cast<double>(*i);
+    if (const auto* d = std::get_if<double>(&v)) return *d;
+    return 0.0;
+}
+
+/// Parse a hex color string (#RGB, #RRGGBB, #RRGGBBAA) to 0xRRGGBB.
+[[nodiscard]] std::optional<uint32_t> parse_hex_color(const std::string& s) {
+    if (s.empty() || s[0] != '#') return std::nullopt;
+
+    std::string hex = s.substr(1);
+    if (hex.size() == 3) {
+        // #RGB → #RRGGBB
+        hex = std::string{
+            hex[0], hex[0], hex[1], hex[1], hex[2], hex[2]};
+    }
+    if (hex.size() != 6 && hex.size() != 8) {
+        return std::nullopt;
+    }
+
+    try {
+        size_t pos = 0;
+        unsigned long value = std::stoul(hex, &pos, 16);
+        if (pos != hex.size()) return std::nullopt;
+        // Drop alpha if present; keep 24-bit RGB.
+        return static_cast<uint32_t>(value >> (hex.size() == 8 ? 8 : 0)) & 0xFFFFFFu;
+    } catch (...) {
+        return std::nullopt;
+    }
+}
+
+/// Format an RGB triplet as #RRGGBB.
+[[nodiscard]] std::string format_hex_color(uint8_t r, uint8_t g, uint8_t b) {
+    return std::format("#{:02x}{:02x}{:02x}", r, g, b);
+}
+
+/// Interpolate between two RGB hex strings.
+[[nodiscard]] Value interpolate_color(
+    const std::string& from, const std::string& to, double t)
+{
+    auto c1 = parse_hex_color(from);
+    auto c2 = parse_hex_color(to);
+    if (!c1 || !c2) return Value(from);
+
+    uint8_t r1 = static_cast<uint8_t>((*c1 >> 16) & 0xFFu);
+    uint8_t g1 = static_cast<uint8_t>((*c1 >> 8) & 0xFFu);
+    uint8_t b1 = static_cast<uint8_t>(*c1 & 0xFFu);
+
+    uint8_t r2 = static_cast<uint8_t>((*c2 >> 16) & 0xFFu);
+    uint8_t g2 = static_cast<uint8_t>((*c2 >> 8) & 0xFFu);
+    uint8_t b2 = static_cast<uint8_t>(*c2 & 0xFFu);
+
+    auto lerp = [](uint8_t a, uint8_t b, double t) -> uint8_t {
+        return static_cast<uint8_t>(
+            std::clamp(static_cast<int>(a + (b - a) * t + 0.5), 0, 255));
+    };
+
+    return Value(format_hex_color(lerp(r1, r2, t), lerp(g1, g2, t), lerp(b1, b2, t)));
+}
+
+}  // namespace
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Global timeline singleton
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -45,6 +114,7 @@ std::string timeline_state_to_string(TimelineState s) {
         case TimelineState::Idle:     return "idle";
         case TimelineState::Playing:  return "playing";
         case TimelineState::Paused:   return "paused";
+        case TimelineState::Stopped:  return "stopped";
         case TimelineState::Finished: return "finished";
     }
     return "idle";  // unreachable
@@ -57,16 +127,20 @@ std::string timeline_state_to_string(TimelineState s) {
 Animation::Animation(
     uint64_t target_id_,
     std::string property_name_,
-    double from_value_,
-    double to_value_,
+    Value from_value_,
+    Value to_value_,
     float duration_,
-    EasingFn easing_)
+    EasingFn easing_,
+    float delay_,
+    int repeat_)
     : target_id(target_id_)
     , property_name(std::move(property_name_))
-    , from_value(from_value_)
-    , to_value(to_value_)
+    , from_value(std::move(from_value_))
+    , to_value(std::move(to_value_))
     , duration(duration_)
     , easing(easing_ ? std::move(easing_) : easing_linear)
+    , delay(delay_)
+    , repeat(repeat_ > 0 ? repeat_ : 1)
 {
 }
 
@@ -74,8 +148,10 @@ Animation::Animation(
 // Timeline — mutators
 // ═══════════════════════════════════════════════════════════════════════════════
 
-void Timeline::add(Animation anim) {
-    animations.push_back(std::move(anim));
+void Timeline::add(std::shared_ptr<Animation> anim) {
+    if (anim) {
+        animations.push_back(std::move(anim));
+    }
 }
 
 void Timeline::add_frame_hook(FrameHook hook) {
@@ -87,7 +163,7 @@ void Timeline::play() {
 }
 
 void Timeline::stop() {
-    state = TimelineState::Finished;
+    state = TimelineState::Stopped;
     current_time = 0.0;
 }
 
@@ -108,9 +184,11 @@ void Timeline::seek(double t) {
 double Timeline::get_total_duration() const {
     if (animations.empty()) return 0.0;
     double max_dur = 0.0;
-    for (const auto& anim : animations) {
-        if (anim.duration > max_dur) {
-            max_dur = static_cast<double>(anim.duration);
+    for (const auto& anim_ptr : animations) {
+        if (!anim_ptr) continue;
+        double dur = anim_ptr->get_duration();
+        if (dur > max_dur) {
+            max_dur = dur;
         }
     }
     // Default to 1 second if only zero-duration animations
@@ -122,14 +200,45 @@ std::vector<FrameResult> Timeline::evaluate_at(double t) const {
     std::vector<FrameResult> result;
     result.reserve(animations.size());
 
-    for (const auto& anim : animations) {
+    for (const auto& anim_ptr : animations) {
+        if (!anim_ptr) continue;
+        const auto& anim = *anim_ptr;
         if (anim.duration <= 0.0f) continue;
 
-        double progress = t / static_cast<double>(anim.duration);
+        double local_t = t - static_cast<double>(anim.delay);
+        if (local_t < 0.0) {
+            local_t = 0.0;
+        }
+
+        double cycle_duration = static_cast<double>(anim.duration) * anim.repeat;
+        if (local_t >= cycle_duration) {
+            local_t = cycle_duration;
+        }
+
+        double cycle_pos = (anim.repeat > 1)
+            ? std::fmod(local_t, static_cast<double>(anim.duration))
+            : local_t;
+        double progress = cycle_pos / static_cast<double>(anim.duration);
         progress = std::clamp(progress, 0.0, 1.0);
 
         double eased = anim.easing(progress);
-        double value = anim.from_value + (anim.to_value - anim.from_value) * eased;
+        Value value;
+
+        if (is_string(anim.from_value) && is_string(anim.to_value)) {
+            // Interpolate color strings.
+            value = interpolate_color(
+                std::get<std::string>(anim.from_value),
+                std::get<std::string>(anim.to_value),
+                eased);
+        } else if (is_number(anim.from_value) && is_number(anim.to_value)) {
+            // Interpolate numeric values.
+            double from = value_to_double(anim.from_value);
+            double to = value_to_double(anim.to_value);
+            value = Value(from + (to - from) * eased);
+        } else {
+            // Mismatched types: hold at start value.
+            value = anim.from_value;
+        }
 
         result.emplace_back(anim.target_id, anim.property_name, value);
     }
@@ -161,7 +270,7 @@ void Timeline::render_frames(int fps) {
         auto modifications = evaluate_at(t);
 
         // Build mapping: target_id → {property → value}
-        std::unordered_map<uint64_t, std::unordered_map<std::string, double>> obj_mods;
+        std::unordered_map<uint64_t, std::unordered_map<std::string, Value>> obj_mods;
         for (const auto& [target_id, prop, value] : modifications) {
             obj_mods[target_id][prop] = value;
         }
@@ -190,7 +299,7 @@ void Timeline::render_frames(int fps) {
 
 GraphicObject _apply_modifications(
     const GraphicObject& obj,
-    const std::unordered_map<std::string, double>& mods)
+    const std::unordered_map<std::string, Value>& mods)
 {
     auto new_params = obj.params;
     auto new_fill = obj.fill;
@@ -200,56 +309,62 @@ GraphicObject _apply_modifications(
 
     for (const auto& [prop, value] : mods) {
         if (prop == "fill") {
-            // For numeric tweening, store the interpolated value as a param;
-            // actual fill animation would need string interpolation (future).
-            new_params[prop] = Value(value);
+            if (is_string(value)) {
+                new_fill = std::get<std::string>(value);
+            } else {
+                new_params[prop] = value;
+            }
         } else if (prop == "stroke") {
-            new_params[prop] = Value(value);
+            if (is_string(value)) {
+                new_stroke = std::get<std::string>(value);
+            } else {
+                new_params[prop] = value;
+            }
         } else if (prop == "stroke-width") {
-            new_stroke_width = value;
+            new_stroke_width = value_to_double(value);
         } else if (prop == "transform.tx") {
             new_transform = AffineTransform{
                 new_transform.a, new_transform.b,
                 new_transform.c, new_transform.d,
-                value, new_transform.f
+                value_to_double(value), new_transform.f
             };
         } else if (prop == "transform.ty") {
             new_transform = AffineTransform{
                 new_transform.a, new_transform.b,
                 new_transform.c, new_transform.d,
-                new_transform.e, value
+                new_transform.e, value_to_double(value)
             };
         } else if (prop == "transform.a") {
             new_transform = AffineTransform{
-                value, new_transform.b,
+                value_to_double(value), new_transform.b,
                 new_transform.c, new_transform.d,
                 new_transform.e, new_transform.f
             };
         } else if (prop == "transform.b") {
             new_transform = AffineTransform{
-                new_transform.a, value,
+                new_transform.a, value_to_double(value),
                 new_transform.c, new_transform.d,
                 new_transform.e, new_transform.f
             };
         } else if (prop == "transform.c") {
             new_transform = AffineTransform{
                 new_transform.a, new_transform.b,
-                value, new_transform.d,
+                value_to_double(value), new_transform.d,
                 new_transform.e, new_transform.f
             };
         } else if (prop == "transform.d") {
             new_transform = AffineTransform{
                 new_transform.a, new_transform.b,
-                new_transform.c, value,
+                new_transform.c, value_to_double(value),
                 new_transform.e, new_transform.f
             };
         } else {
             // Assume it's a param key (x, y, r, w, h, cx, cy, etc.)
-            new_params[prop] = Value(static_cast<int64_t>(value));
+            new_params[prop] = value;
         }
     }
 
-    return GraphicObject(
+    GraphicObject result(
         obj.shape_type,
         std::move(new_params),
         std::move(new_fill),
@@ -259,6 +374,9 @@ GraphicObject _apply_modifications(
         obj.children,
         obj.metadata
     );
+    // Preserve identity so the timeline can keep targeting this object.
+    result.id = obj.id;
+    return result;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -335,23 +453,31 @@ Result<Value> builtin_animate(const std::vector<Value>& cxx_args, Environment&) 
             "_animate: property must be a symbol or string"));
     }
 
-    // From value
-    if (!is_number(args[2])) {
+    // From value (number or color string)
+    Value from_value;
+    if (is_number(args[2])) {
+        from_value = args[2];
+    } else if (is_string(args[2])) {
+        from_value = args[2];
+    } else if (const auto* sym = std::get_if<Symbol>(&args[2])) {
+        from_value = Value(sym->name);
+    } else {
         return std::unexpected(type_error(
-            "_animate: from value must be numeric"));
+            "_animate: from value must be numeric or a color string"));
     }
-    double from_val = (std::holds_alternative<double>(args[2]))
-        ? std::get<double>(args[2])
-        : static_cast<double>(std::get<int64_t>(args[2]));
 
-    // To value
-    if (!is_number(args[3])) {
+    // To value (number or color string)
+    Value to_value;
+    if (is_number(args[3])) {
+        to_value = args[3];
+    } else if (is_string(args[3])) {
+        to_value = args[3];
+    } else if (const auto* sym = std::get_if<Symbol>(&args[3])) {
+        to_value = Value(sym->name);
+    } else {
         return std::unexpected(type_error(
-            "_animate: to value must be numeric"));
+            "_animate: to value must be numeric or a color string"));
     }
-    double to_val = (std::holds_alternative<double>(args[3]))
-        ? std::get<double>(args[3])
-        : static_cast<double>(std::get<int64_t>(args[3]));
 
     // Duration
     if (!is_number(args[4])) {
@@ -376,55 +502,180 @@ Result<Value> builtin_animate(const std::vector<Value>& cxx_args, Environment&) 
 
     EasingFn ease_fn = get_easing(ease_name);
 
+    // Delay (default 0)
+    float delay = 0.0f;
+    auto delay_it = kwargs.find("delay");
+    if (delay_it != kwargs.end()) {
+        if (is_number(delay_it->second)) {
+            delay = static_cast<float>(
+                std::holds_alternative<double>(delay_it->second)
+                    ? std::get<double>(delay_it->second)
+                    : static_cast<double>(std::get<int64_t>(delay_it->second)));
+        }
+    }
+
+    // Repeat (default 1, or "infinite" symbol)
+    int repeat = 1;
+    auto repeat_it = kwargs.find("repeat");
+    if (repeat_it != kwargs.end()) {
+        if (const auto* sym = std::get_if<Symbol>(&repeat_it->second)) {
+            if (sym->name == "infinite") {
+                repeat = 1;  // infinite not yet supported in C++ backend
+            } else {
+                repeat = std::max(1, static_cast<int>(std::stoi(sym->name)));
+            }
+        } else if (std::holds_alternative<int64_t>(repeat_it->second)) {
+            repeat = std::max(1, static_cast<int>(std::get<int64_t>(repeat_it->second)));
+        } else if (std::holds_alternative<double>(repeat_it->second)) {
+            repeat = std::max(1, static_cast<int>(std::get<double>(repeat_it->second)));
+        }
+    }
+
     // Create animation
     auto anim = std::make_shared<Animation>(
-        target_id, prop_name, from_val, to_val, duration, ease_fn);
+        target_id, prop_name, std::move(from_value), std::move(to_value),
+        duration, ease_fn, delay, repeat);
 
     // Register on global timeline
     auto timeline = get_or_create_timeline();
-    timeline->add(*anim);
+    timeline->add(anim);
 
     return Value(std::move(anim));
 }
 
-/// _play builtin: (_play) — start playback
+/// play builtin: (play) — start playback
 Result<Value> builtin_play(const std::vector<Value>&, Environment&) {
     auto timeline = get_or_create_timeline();
     timeline->play();
     return make_nil_value();
 }
 
-/// _stop builtin: (_stop) — stop and reset
+/// stop builtin: (stop) — stop and reset
 Result<Value> builtin_stop(const std::vector<Value>&, Environment&) {
     auto timeline = get_or_create_timeline();
     timeline->stop();
     return make_nil_value();
 }
 
-/// _pause builtin: (_pause) — pause playback
+/// pause builtin: (pause) — pause playback
 Result<Value> builtin_pause(const std::vector<Value>&, Environment&) {
     auto timeline = get_or_create_timeline();
     timeline->pause();
     return make_nil_value();
 }
 
-/// _seek builtin: (_seek t) — seek to time t
+/// seek builtin: (seek t) or (seek anim t) — seek to time t
 Result<Value> builtin_seek(const std::vector<Value>& args, Environment&) {
-    if (args.size() != 1) {
+    if (args.empty() || args.size() > 2) {
         return std::unexpected(arity_error(
             SourceLocation{}, 1, static_cast<int>(args.size())));
     }
-    if (!is_number(args[0])) {
+    const Value& time_arg = (args.size() == 2) ? args[1] : args[0];
+    if (!is_number(time_arg)) {
         return std::unexpected(type_error(
-            "_seek: argument must be numeric"));
+            "seek: time argument must be numeric"));
     }
-    double t = (std::holds_alternative<double>(args[0]))
-        ? std::get<double>(args[0])
-        : static_cast<double>(std::get<int64_t>(args[0]));
+    double t = (std::holds_alternative<double>(time_arg))
+        ? std::get<double>(time_arg)
+        : static_cast<double>(std::get<int64_t>(time_arg));
 
     auto timeline = get_or_create_timeline();
     timeline->seek(t);
     return make_nil_value();
+}
+
+/// animation-state builtin: return current playback state as a symbol
+Result<Value> builtin_animation_state(const std::vector<Value>&, Environment&) {
+    auto timeline = get_or_create_timeline();
+    return Value(Symbol(timeline_state_to_string(timeline->state)));
+}
+
+/// every-frame builtin: register a thunk to be called before each frame
+Result<Value> builtin_every_frame(const std::vector<Value>& args, Environment& env) {
+    if (args.size() != 1) {
+        return std::unexpected(arity_error(
+            SourceLocation{}, 1, static_cast<int>(args.size())));
+    }
+
+    const Value& thunk = args[0];
+    bool callable = std::holds_alternative<std::shared_ptr<Procedure>>(thunk) ||
+                    std::holds_alternative<std::shared_ptr<BuiltinProcedure>>(thunk);
+    if (!callable) {
+        return std::unexpected(type_error(
+            "every-frame: argument must be a callable procedure"));
+    }
+
+    std::shared_ptr<Environment> env_ptr = env.shared_from_this();
+    auto hook = [thunk, env_ptr](double /*t*/) {
+        auto r = apply_function(thunk, {}, {}, env_ptr);
+        (void)r;  // hooks are fire-and-forget
+    };
+
+    auto timeline = get_or_create_timeline();
+    timeline->add_frame_hook(std::move(hook));
+    return make_nil_value();
+}
+
+/// parallel builtin: (parallel anim ...) — play all animations simultaneously.
+Result<Value> builtin_parallel(const std::vector<Value>& args, Environment&) {
+    std::vector<std::shared_ptr<Animation>> children;
+    children.reserve(args.size());
+    for (const auto& arg : args) {
+        if (const auto* anim_ptr = std::get_if<std::shared_ptr<Animation>>(&arg)) {
+            if (*anim_ptr) children.push_back(*anim_ptr);
+        }
+    }
+
+    auto timeline = get_or_create_timeline();
+    // Remove any duplicates of the child animations from the timeline.
+    auto& anims = timeline->animations;
+    for (const auto& child : children) {
+        auto it = std::remove(anims.begin(), anims.end(), child);
+        anims.erase(it, anims.end());
+    }
+    // Re-add all children so they play together.
+    for (const auto& child : children) {
+        timeline->add(child);
+    }
+
+    return make_list_value(std::vector<Value>(children.begin(), children.end()));
+}
+
+/// sequence builtin: (sequence anim ...) — play animations one after another.
+Result<Value> builtin_sequence(const std::vector<Value>& args, Environment&) {
+    std::vector<std::shared_ptr<Animation>> children;
+    children.reserve(args.size());
+    for (const auto& arg : args) {
+        if (const auto* anim_ptr = std::get_if<std::shared_ptr<Animation>>(&arg)) {
+            if (*anim_ptr) children.push_back(*anim_ptr);
+        }
+    }
+
+    auto timeline = get_or_create_timeline();
+    // Remove originals from the timeline.
+    auto& anims = timeline->animations;
+    for (const auto& child : children) {
+        auto it = std::remove(anims.begin(), anims.end(), child);
+        anims.erase(it, anims.end());
+    }
+
+    // Re-add with cumulative delays so they run back-to-back.
+    float cumulative_delay = 0.0f;
+    for (const auto& child : children) {
+        auto shifted = std::make_shared<Animation>(
+            child->target_id,
+            child->property_name,
+            child->from_value,
+            child->to_value,
+            child->duration,
+            child->easing,
+            child->delay + cumulative_delay,
+            child->repeat);
+        timeline->add(shifted);
+        cumulative_delay += child->duration;
+    }
+
+    return make_list_value(std::vector<Value>(children.begin(), children.end()));
 }
 
 }  // anonymous namespace
@@ -441,11 +692,15 @@ void register_timeline_builtins(std::shared_ptr<Environment> env) {
         env->define(name, Value(proc));
     };
 
-    def("_animate", builtin_animate, true);   // accepts :ease keyword
-    def("_play",    builtin_play);
-    def("_stop",    builtin_stop);
-    def("_pause",   builtin_pause);
-    def("_seek",    builtin_seek);
+    def("animate",          builtin_animate, true);   // accepts :ease :delay :repeat
+    def("play",             builtin_play);
+    def("stop",             builtin_stop);
+    def("pause",            builtin_pause);
+    def("seek",             builtin_seek);
+    def("animation-state",  builtin_animation_state);
+    def("every-frame",      builtin_every_frame);
+    def("parallel",         builtin_parallel);
+    def("sequence",         builtin_sequence);
 }
 
 }  // namespace pml

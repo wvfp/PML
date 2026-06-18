@@ -10,12 +10,14 @@
 #include "canvas.h"         // Canvas (+ g_current_canvas)
 #include "objects.h"        // GraphicObject
 #include "transform.h"      // ::AffineTransform (global namespace)
+#include "timeline.h"       // Timeline, Animation, _apply_modifications
 #include "types.h"
 #include "error.h"
 #include "environment.h"    // full definition for env->define()
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdlib>
 #include <fstream>
 #include <string>
@@ -336,40 +338,136 @@ auto parse_svg_path(const std::string& svg_path)
     return commands;
 }
 
-auto render(
-    const std::string& filename,
-    const std::string& fmt,
-    std::shared_ptr<Canvas> canvas)
-    -> Result<std::string>
+// Render a single frame of a canvas to a freshly-created surface.
+// Shared by static render() and animation render.
+[[nodiscard]] static Result<std::unique_ptr<Surface>> render_frame(
+    RenderBackend& backend,
+    const Canvas& canvas)
 {
-    if (!canvas) canvas = get_current_canvas();
-    if (!canvas) canvas = std::make_shared<Canvas>(256, 256, "transparent");
-
-    const std::string format = detect_format(filename, fmt);
-    RenderBackend& backend = BackendRegistry::instance().active();
-
-    uint32_t bg = bg_color_to_uint32(canvas->bg_color);
-    auto surface = backend.create_surface(canvas->width, canvas->height, bg);
+    uint32_t bg = bg_color_to_uint32(canvas.bg_color);
+    auto surface = backend.create_surface(canvas.width, canvas.height, bg);
     if (!surface) {
         return std::unexpected(resource_error("failed to create render surface"));
     }
 
-    if (canvas->is_sprite) {
+    if (canvas.is_sprite) {
         AffineTransform center_t = AffineTransform::translate(
-            static_cast<double>(canvas->width) / 2.0,
-            static_cast<double>(canvas->height) * 0.45);
-        for (const auto& obj : canvas->objects) {
+            static_cast<double>(canvas.width) / 2.0,
+            static_cast<double>(canvas.height) * 0.45);
+        for (const auto& obj : canvas.objects) {
             AffineTransform composed = center_t.compose(obj.transform);
             auto centered = obj.with_transform(composed);
             auto r = backend.draw(*surface, centered);
             if (!r) return std::unexpected(std::move(r.error()));
         }
     } else {
-        for (const auto& obj : canvas->objects) {
+        for (const auto& obj : canvas.objects) {
             auto r = backend.draw(*surface, obj);
             if (!r) return std::unexpected(std::move(r.error()));
         }
     }
+
+    return surface;
+}
+
+// Render an animated GIF/sequence by stepping the global timeline.
+[[nodiscard]] static Result<std::string> render_animation(
+    const std::string& filename,
+    const std::string& fmt,
+    std::shared_ptr<Canvas> canvas,
+    int fps)
+{
+    if (fps <= 0) fps = 30;
+
+    auto timeline = get_or_create_timeline();
+    timeline->play();
+
+    double total_duration = timeline->get_total_duration();
+    if (total_duration <= 0.0) total_duration = 1.0;
+
+    int num_frames = std::max(1, static_cast<int>(std::ceil(total_duration * fps)));
+
+    RenderBackend& backend = BackendRegistry::instance().active();
+
+    // Preserve original canvas objects so repeated renders are deterministic.
+    auto original_objects = canvas->objects;
+
+    std::vector<std::unique_ptr<Surface>> frame_surfaces;
+    std::vector<Surface*> frame_ptrs;
+    frame_surfaces.reserve(static_cast<size_t>(num_frames));
+    frame_ptrs.reserve(static_cast<size_t>(num_frames));
+
+    for (int i = 0; i < num_frames; ++i) {
+        double t = static_cast<double>(i) / static_cast<double>(fps);
+
+        // Invoke per-frame hooks.
+        for (const auto& hook : timeline->frame_hooks) {
+            hook(t);
+        }
+
+        // Evaluate animations and build target_id -> {property -> value} map.
+        auto modifications = timeline->evaluate_at(t);
+        std::unordered_map<uint64_t, std::unordered_map<std::string, Value>> obj_mods;
+        for (const auto& [target_id, prop, value] : modifications) {
+            obj_mods[target_id][prop] = value;
+        }
+
+        // Apply modifications to canvas objects in-place.
+        for (auto& obj : canvas->objects) {
+            auto it = obj_mods.find(obj.id);
+            if (it != obj_mods.end()) {
+                obj = _apply_modifications(obj, it->second);
+            }
+        }
+
+        // Render this frame.
+        auto frame = render_frame(backend, *canvas);
+        if (!frame) return std::unexpected(std::move(frame.error()));
+
+        frame_ptrs.push_back(frame->get());
+        frame_surfaces.push_back(std::move(*frame));
+    }
+
+    // Restore original object state for deterministic re-renders.
+    canvas->objects = std::move(original_objects);
+
+    timeline->current_time = total_duration;
+    timeline->state = TimelineState::Finished;
+
+    auto sr = backend.save_animation(frame_ptrs, filename, fmt, fps);
+    if (!sr) return std::unexpected(std::move(sr.error()));
+
+    return filename;
+}
+
+auto render(
+    const std::string& filename,
+    const std::string& fmt,
+    std::shared_ptr<Canvas> canvas,
+    int fps)
+    -> Result<std::string>
+{
+    if (!canvas) canvas = get_current_canvas();
+    if (!canvas) canvas = std::make_shared<Canvas>(256, 256, "transparent");
+
+    const std::string format = detect_format(filename, fmt);
+
+    // Determine whether this should be an animation render.
+    bool has_animation = false;
+    if (g_timeline && !g_timeline->animations.empty()) {
+        has_animation = true;
+    }
+
+    if (fps > 0 || (has_animation && format == "GIF")) {
+        int effective_fps = (fps > 0) ? fps : 30;
+        return render_animation(filename, format, canvas, effective_fps);
+    }
+
+    RenderBackend& backend = BackendRegistry::instance().active();
+
+    auto surface_result = render_frame(backend, *canvas);
+    if (!surface_result) return std::unexpected(std::move(surface_result.error()));
+    auto& surface = *surface_result;
 
     auto sr = backend.save_image(*surface, filename, format);
     if (!sr) return std::unexpected(std::move(sr.error()));
@@ -539,35 +637,43 @@ void register_render(std::shared_ptr<Environment> env)
     //   - :format: string (optional, output format)
     // Renders the current canvas to a file.
     {
-        auto render_fn = [](const std::vector<Value>& args,
-                            Environment& /*env*/) -> Result<Value>
-        {
-            if (args.empty()) {
-                return std::unexpected(arity_error(
-                    SourceLocation{}, 1, static_cast<int>(args.size())));
-            }
+            auto render_fn = [](const std::vector<Value>& args,
+                                Environment& /*env*/) -> Result<Value>
+            {
+                if (args.empty()) {
+                    return std::unexpected(arity_error(
+                        SourceLocation{}, 1, static_cast<int>(args.size())));
+                }
 
-            // First arg: filename
-            auto filename = value_to_string_req(args[0]);
-            if (!filename) return std::unexpected(std::move(filename.error()));
+                // First arg: filename
+                auto filename = value_to_string_req(args[0]);
+                if (!filename) return std::unexpected(std::move(filename.error()));
 
-            // Remaining args: kwargs
-            std::string fmt;
-            if (args.size() > 1) {
-                auto kwargs = parse_kwargs(args, 1);
-                fmt = kw_string(kwargs, "format", "");
-            }
+                // Remaining args: kwargs
+                std::string fmt;
+                int fps = 0;
+                if (args.size() > 1) {
+                    auto kwargs = parse_kwargs(args, 1);
+                    fmt = kw_string(kwargs, "format", "");
+                    if (auto it = kwargs.find("fps"); it != kwargs.end()) {
+                        if (std::holds_alternative<int64_t>(it->second)) {
+                            fps = static_cast<int>(std::get<int64_t>(it->second));
+                        } else if (std::holds_alternative<double>(it->second)) {
+                            fps = static_cast<int>(std::get<double>(it->second));
+                        }
+                    }
+                }
 
-            auto result = render(*filename, fmt);
-            if (!result) return std::unexpected(std::move(result.error()));
+                auto result = render(*filename, fmt, nullptr, fps);
+                if (!result) return std::unexpected(std::move(result.error()));
 
-            return Value(std::move(*result));
-        };
+                return Value(std::move(*result));
+            };
 
-        env->define("render",
-            Value(std::make_shared<BuiltinProcedure>(
-                "render", std::move(render_fn), true)));
-    }
+            env->define("render",
+                Value(std::make_shared<BuiltinProcedure>(
+                    "render", std::move(render_fn), true)));
+        }
 
     // ── (render-set name :content obj :scales (1 2 4) :base-size (64 64)) ─
     //

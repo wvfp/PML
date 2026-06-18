@@ -73,11 +73,15 @@ struct PathCommand {
 /// @param fmt       Output format ("PNG", "JPG", "GIF", "SVG", etc.).
 ///                  If empty, detected from filename extension.
 /// @param canvas    The canvas to render. If null, uses get_current_canvas().
+/// @param fps       Frames per second for animation output. If > 0, an
+///                  animated image (e.g. GIF) is produced using the global
+///                  timeline. Defaults to 0 (static image).
 /// @return The output filename on success, or an error.
 [[nodiscard]] auto render(
     const std::string& filename,
     const std::string& fmt = "",
-    std::shared_ptr<Canvas> canvas = nullptr)
+    std::shared_ptr<Canvas> canvas = nullptr,
+    int fps = 0)
     -> Result<std::string>;
 
 /// Render a GraphicObject at multiple scales.

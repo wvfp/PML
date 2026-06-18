@@ -365,8 +365,83 @@ static int run_watch_mode(const CLIOptions& opts, pml::PMLRuntime& runtime)
     return 0;
 }
 
+#elif defined(_WIN32)
+// Windows native directory change notification (avoids mtime polling)
+#include <windows.h>
+#include <ctime>
+
+static int run_watch_mode(const CLIOptions& opts, pml::PMLRuntime& runtime)
+{
+    fs::path abs_path = fs::absolute(opts.file);
+    std::string filename = abs_path.filename().string();
+    std::string dirname  = abs_path.parent_path().string();
+
+    if (!fs::exists(abs_path)) {
+        std::cerr << "Error: file not found: " << opts.file << std::endl;
+        return 1;
+    }
+
+    // Initial run
+    std::cout << "Watching " << opts.file << " for changes... (Ctrl-C to stop)"
+              << std::endl;
+    runtime.execute_file(opts.file);
+
+    auto last_mtime = fs::last_write_time(abs_path);
+
+    HANDLE hChange = FindFirstChangeNotificationA(
+        dirname.c_str(),
+        FALSE,  // do not watch subtree
+        FILE_NOTIFY_CHANGE_LAST_WRITE);
+
+    if (hChange == INVALID_HANDLE_VALUE) {
+        std::cerr << "Error: failed to start directory watch for '"
+                  << dirname << "'" << std::endl;
+        return 1;
+    }
+
+    while (true) {
+        DWORD wait_status = WaitForSingleObject(hChange, 1000);
+        if (wait_status == WAIT_OBJECT_0) {
+            // A file in the directory changed; verify it was the watched file.
+            try {
+                auto mtime = fs::last_write_time(abs_path);
+                if (mtime != last_mtime) {
+                    last_mtime = mtime;
+
+                    auto now = std::time(nullptr);
+                    char time_str[32];
+                    std::strftime(time_str, sizeof(time_str), "%H:%M:%S",
+                                  std::localtime(&now));
+                    std::cout << "\n--- " << time_str << " ---" << std::endl;
+
+                    auto result = runtime.execute_file(opts.file);
+                    if (!result.success && result.error.has_value()) {
+                        std::string msg = (*result.error).value("message",
+                                                              "Execution failed");
+                        std::cerr << "Error: " << msg << std::endl;
+                    }
+                }
+            } catch (const fs::filesystem_error&) {
+                // File might be temporarily unavailable
+            }
+
+            if (!FindNextChangeNotification(hChange)) {
+                std::cerr << "Error: FindNextChangeNotification failed"
+                          << std::endl;
+                break;
+            }
+        } else if (wait_status == WAIT_FAILED) {
+            std::cerr << "Error: WaitForSingleObject failed" << std::endl;
+            break;
+        }
+    }
+
+    FindCloseChangeNotification(hChange);
+    return 0;
+}
+
 #else
-// Fallback for non-Linux: poll-based watch using file modification time
+// Fallback for non-Linux, non-Windows: poll-based watch using file modification time
 #include <ctime>
 
 static int run_watch_mode(const CLIOptions& opts, pml::PMLRuntime& runtime)

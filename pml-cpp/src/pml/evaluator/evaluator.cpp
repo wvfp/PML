@@ -510,77 +510,56 @@ Result<Value> evaluate(
         expr);
 }
 
-// Forward declaration for value_to_expr (defined after expand_quasiquote)
-Expr value_to_expr(const Value& value);
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // Quasiquote expansion
 // ═══════════════════════════════════════════════════════════════════════════════
 
-Expr expand_quasiquote(
+Result<Value> expand_quasiquote(
     const Expr& tmpl, std::shared_ptr<Environment> env) {
-
-    // Atoms (nil, int, double, string, bool, Symbol, Keyword) — return as-is
-    if (!is_list(tmpl)) {
-        return tmpl;
-    }
 
     const auto* list_ptr = std::get_if<std::shared_ptr<ListExpr>>(&tmpl);
     if (!list_ptr || !*list_ptr) {
-        return tmpl;
+        // Plain atom — convert directly to a runtime value.
+        return expr_to_value(tmpl);
     }
 
     const auto& elements = (*list_ptr)->elements;
 
-    // Empty list
-    if (elements.empty()) {
-        return tmpl;
-    }
-
     // Check for (unquote x) at top level
     if (elements.size() == 2) {
-        if (const auto* head_sym =
-                std::get_if<Symbol>(&elements[0])) {
+        if (const auto* head_sym = std::get_if<Symbol>(&elements[0])) {
             if (head_sym->name == "unquote") {
-                // Evaluate and return the result as a quoted expression
                 auto val = evaluate(elements[1], env);
-                if (val) {
-                    return make_list({
-                        Symbol("quote"),
-                        value_to_expr(*val)
-                    });
-                }
-                return make_nil();
+                if (!val) return std::unexpected(val.error());
+                return *val;
+            }
+            if (head_sym->name == "unquote-splicing") {
+                return std::unexpected(
+                    type_error("unquote-splicing used outside of list context"));
             }
         }
     }
 
     // Recurse into list elements, handling unquote-splicing
-    std::vector<Expr> new_elements;
+    std::vector<Value> new_elements;
     new_elements.reserve(elements.size());
 
     for (const auto& item : elements) {
         // Check for (unquote-splicing x) at element level
-        if (const auto* item_list =
-                std::get_if<std::shared_ptr<ListExpr>>(&item)) {
+        if (const auto* item_list = std::get_if<std::shared_ptr<ListExpr>>(&item)) {
             const auto& sub = (*item_list)->elements;
             if (sub.size() == 2) {
-                if (const auto* sub_sym =
-                        std::get_if<Symbol>(&sub[0])) {
+                if (const auto* sub_sym = std::get_if<Symbol>(&sub[0])) {
                     if (sub_sym->name == "unquote-splicing") {
-                        // Evaluate the spliced expression
                         auto val = evaluate(sub[1], env);
-                        if (val) {
-                            if (const auto* vl =
-                                    std::get_if<
-                                        std::shared_ptr<ValueList>>(
-                                        &*val)) {
-                                for (const auto& v :
-                                     (*vl)->elements) {
-                                    new_elements.push_back(
-                                        value_to_expr(v));
-                                }
-                            }
+                        if (!val) return std::unexpected(val.error());
+                        const auto* vl = std::get_if<std::shared_ptr<ValueList>>(&*val);
+                        if (!vl || !*vl) {
+                            return std::unexpected(
+                                type_error("unquote-splicing: value must be a list"));
+                        }
+                        for (const auto& v : (*vl)->elements) {
+                            new_elements.push_back(v);
                         }
                         continue;
                     }
@@ -589,54 +568,12 @@ Expr expand_quasiquote(
         }
 
         // Regular element — recursively quasiquote
-        new_elements.push_back(
-            expand_quasiquote(item, env));
+        auto expanded = expand_quasiquote(item, env);
+        if (!expanded) return std::unexpected(expanded.error());
+        new_elements.push_back(std::move(*expanded));
     }
 
-    return make_list(std::move(new_elements));
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// value_to_expr — convert a Value back to an Expr (for quotation/metaprogramming)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-Expr value_to_expr(const Value& value) {
-    return std::visit(
-        [](const auto& arg) -> Expr {
-            using T = std::decay_t<decltype(arg)>;
-
-            if constexpr (std::is_same_v<T, std::nullptr_t>) {
-                return nullptr;
-            } else if constexpr (std::is_same_v<T, int64_t>) {
-                return arg;
-            } else if constexpr (std::is_same_v<T, double>) {
-                return arg;
-            } else if constexpr (std::is_same_v<T, std::string>) {
-                return arg;
-            } else if constexpr (std::is_same_v<T, bool>) {
-                return arg;
-            } else if constexpr (std::is_same_v<T, Symbol>) {
-                return arg;
-            } else if constexpr (std::is_same_v<T, Keyword>) {
-                return arg;
-            } else if constexpr (std::is_same_v<T,
-                                      std::shared_ptr<ValueList>>) {
-                std::vector<Expr> elems;
-                elems.reserve(arg->elements.size());
-                for (const auto& v : arg->elements) {
-                    elems.push_back(value_to_expr(v));
-                }
-                return make_list(std::move(elems));
-            } else {
-                // Complex types (Procedure, etc.) — wrap as quote form
-                // that will error at evaluation time.
-                return make_list({Symbol("quote"),
-                                  Symbol(std::format(
-                                      "<unevaluable:{}>",
-                                      value_to_string(arg)))});
-            }
-        },
-        value);
+    return make_list_value(std::move(new_elements));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1246,9 +1183,8 @@ Result<Value> eval_quasiquote(
                         static_cast<int>(expr.size()) - 1));
     }
 
-    // Expand quasiquote to get a new expression, then evaluate it
-    Expr expanded = expand_quasiquote(expr[1], env);
-    return evaluate(expanded, env);
+    // Expand quasiquote directly into a runtime value.
+    return expand_quasiquote(expr[1], env);
 }
 
 // ── provide: (provide sym1 sym2 ...) — declare module exports ──────────────

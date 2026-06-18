@@ -27,25 +27,35 @@ namespace pml {
 // Animation — single property tween
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/// A single property animation (tween) that interpolates a numeric property
+/// A single property animation (tween) that interpolates a property
 /// on a target GraphicObject from @p from_value to @p to_value over
 /// @p duration seconds using an easing function.
+/// Supports numeric properties and color strings (hex RGB/RGBA).
 struct Animation {
     uint64_t target_id;           ///< GraphicObject::id to animate.
     std::string property_name;    ///< Property key ("x", "y", "r", "fill", etc.).
-    double from_value;            ///< Start value.
-    double to_value;              ///< End value.
-    float duration;               ///< Duration in seconds.
+    Value from_value;             ///< Start value (number or color string).
+    Value to_value;               ///< End value (number or color string).
+    float duration;               ///< Duration of one cycle in seconds.
     EasingFn easing;              ///< Easing function (from easing.h).
+    float delay{0.0f};            ///< Delay before the animation starts.
+    int repeat{1};                ///< Number of cycles (1 = play once).
 
     Animation(
         uint64_t target_id_,
         std::string property_name_,
-        double from_value_,
-        double to_value_,
+        Value from_value_,
+        Value to_value_,
         float duration_,
-        EasingFn easing_ = easing_linear
+        EasingFn easing_ = easing_linear,
+        float delay_ = 0.0f,
+        int repeat_ = 1
     );
+
+    /// Total duration including delay and all repeats.
+    [[nodiscard]] double get_duration() const noexcept {
+        return static_cast<double>(delay) + static_cast<double>(duration) * repeat;
+    }
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -53,11 +63,12 @@ struct Animation {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /// Runtime playback state of the timeline.
-/// Matches Python's { "idle", "playing", "paused", "finished" }.
+/// Matches Python's { "idle", "playing", "paused", "stopped", "finished" }.
 enum class TimelineState {
     Idle,
     Playing,
     Paused,
+    Stopped,
     Finished
 };
 
@@ -72,7 +83,8 @@ std::string timeline_state_to_string(TimelineState s);
 using FrameHook = std::function<void(double)>;
 
 /// A single evaluation result: (target_id, property_name, interpolated_value).
-using FrameResult = std::tuple<uint64_t, std::string, double>;
+/// The value is a runtime Value (number or color string).
+using FrameResult = std::tuple<uint64_t, std::string, Value>;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Timeline — global animation manager
@@ -89,8 +101,8 @@ using FrameResult = std::tuple<uint64_t, std::string, double>;
 ///   - Call render_frames() to step through all frames
 class Timeline {
 public:
-    /// Registered animations (value semantics).
-    std::vector<Animation> animations;
+    /// Registered animations (reference semantics via shared_ptr).
+    std::vector<std::shared_ptr<Animation>> animations;
 
     /// Per-frame hooks called before each evaluated frame.
     std::vector<FrameHook> frame_hooks;
@@ -106,7 +118,7 @@ public:
     // ── Mutators ────────────────────────────────────────────────────────
 
     /// Register an animation on the timeline.
-    void add(Animation anim);
+    void add(std::shared_ptr<Animation> anim);
 
     /// Register a function to call before each evaluated frame.
     /// The hook receives the current time (in seconds).
@@ -176,14 +188,14 @@ std::shared_ptr<Timeline> get_or_create_timeline();
 ///
 /// Supported properties:
 ///   - param keys (x, y, r, w, h, cx, cy, etc.) → stored in params map
-///   - "fill"            → set fill color (stored as string in params for now)
-///   - "stroke"          → set stroke color
+///   - "fill"            → set fill color string
+///   - "stroke"          → set stroke color string
 ///   - "stroke-width"    → set stroke_width field
 ///   - "transform.tx"    → modify transform.e (translation x)
 ///   - "transform.ty"    → modify transform.f (translation y)
 GraphicObject _apply_modifications(
     const GraphicObject& obj,
-    const std::unordered_map<std::string, double>& mods);
+    const std::unordered_map<std::string, Value>& mods);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Builtin registration

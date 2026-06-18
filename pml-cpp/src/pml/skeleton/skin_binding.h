@@ -62,10 +62,10 @@ Result<Value> builtin_bind_skin(const std::vector<Value>& args, Environment& env
 ///   4. Build AffineTransform.translate(jx, jy).compose(rotate(cumulative))
 ///   5. Store as obj_mods[gid]["transform"] (encoded as two doubles: tx, ty)
 ///
-/// The "transform" key in obj_mods is a special double value encoding
-/// the full transform — applied in _apply_modifications via transform.tx/ty.
+/// The transform components are stored as numeric Values and applied in
+/// _apply_modifications via transform.a/b/c/d/tx/ty.
 void merge_skin_bindings(
-    std::unordered_map<uint64_t, std::unordered_map<std::string, double>>& obj_mods);
+    std::unordered_map<uint64_t, std::unordered_map<std::string, Value>>& obj_mods);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Registration

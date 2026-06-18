@@ -198,10 +198,10 @@ void register_special_form(const std::string& name, const SpecialForm& form);
 // Quasiquote expansion (internal helper)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/// Recursively expand a quasiquote template.
+/// Recursively expand a quasiquote template into a runtime Value.
 /// Handles (unquote x) by evaluating x and (unquote-splicing x) by splicing.
-/// Plain atoms and non-quasiquote lists are returned as-is.
-[[nodiscard]] Expr expand_quasiquote(
+/// Plain atoms and non-quasiquote lists are converted to Values.
+[[nodiscard]] Result<Value> expand_quasiquote(
     const Expr& template_expr, std::shared_ptr<Environment> env);
 
 // ═══════════════════════════════════════════════════════════════════════════════

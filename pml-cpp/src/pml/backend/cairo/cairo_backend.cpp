@@ -247,10 +247,9 @@ auto CairoBackend::info() const -> BackendInfo
 {
     return BackendInfo{
         .name = "cairo",
-        .description = "Cairo 2D render backend — CPU raster, PNG output",
+        .description = "Cairo 2D render backend — CPU raster, toy-text font",
         .capabilities = BackendCap::RasterCPU
-                      | BackendCap::FontRendering
-                      | BackendCap::LoadPNG,
+                      | BackendCap::FontRendering,
     };
 }
 
@@ -375,6 +374,7 @@ void CairoBackend::build_path(cairo_t* cr, const GraphicObject& obj)
             auto x = get_num_param(obj.params, "x").value_or(0.0);
             auto y = get_num_param(obj.params, "y").value_or(0.0);
 
+#if CAIRO_HAS_PNG_FUNCTIONS
             cairo_surface_t* img = cairo_image_surface_create_from_png(
                 src->c_str());
             if (cairo_surface_status(img) == CAIRO_STATUS_SUCCESS) {
@@ -384,6 +384,10 @@ void CairoBackend::build_path(cairo_t* cr, const GraphicObject& obj)
             } else {
                 cairo_surface_destroy(img);
             }
+#else
+            // Cairo built without PNG support — skip image shapes.
+            (void)src; (void)x; (void)y;
+#endif
         }
     }
 }
@@ -522,12 +526,19 @@ auto CairoBackend::save_image(
             general_error("CairoBackend: surface is null"));
     }
 
+#if CAIRO_HAS_PNG_FUNCTIONS
     cairo_status_t status = cairo_surface_write_to_png(cs.surface, path.c_str());
     if (status != CAIRO_STATUS_SUCCESS) {
         return std::unexpected(resource_error(
             "Failed to write PNG: " + std::string(cairo_status_to_string(status))));
     }
     return {};
+#else
+    (void)path;
+    return std::unexpected(
+        general_error("CairoBackend: cairo built without PNG support — "
+                      "use the Pillow/Skia backend, or rebuild cairo with -Dpng=enabled"));
+#endif
 }
 
 auto CairoBackend::save_animation(
@@ -581,9 +592,8 @@ auto CairoBackend::compile_shader(const std::string& /*glsl*/)
 
 [[maybe_unused]] static bool _registered_cairo = BackendRegistry::register_backend(
     "cairo",
-    "Cairo 2D render backend — CPU raster, PNG output",
-    BackendCap::RasterCPU | BackendCap::FontRendering
-        | BackendCap::LoadPNG,
+    "Cairo 2D render backend — CPU raster, toy-text font",
+    BackendCap::RasterCPU | BackendCap::FontRendering,
     []() -> std::unique_ptr<RenderBackend> {
         return std::make_unique<CairoBackend>();
     }

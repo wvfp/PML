@@ -23,6 +23,7 @@
 // ── Sprites ──────────────────────────────────────────────────────────────
 #include "pml/sprites/style.h"
 #include "pml/sprites/palette.h"
+#include "pml/sprites/registry.h"
 
 // ── Skeleton & IK ────────────────────────────────────────────────────────
 #include "pml/skeleton/skeleton.h"
@@ -221,6 +222,9 @@ void PMLRuntime::init_global_env() {
 
     // 6. Palette system (define-palette, palette-ref)
     register_palette(m_env);
+
+    // 6.5 Sprite semantic components (body, head, eyes, hair, outfit, items, UI, scene)
+    register_components(m_env);
 
     // 7. Animation timeline (_animate, _play, _stop, _pause, _seek)
     register_timeline_builtins(m_env);

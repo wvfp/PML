@@ -16,10 +16,10 @@ whether the divergence is considered acceptable for the current release.
 | Attribute | Value |
 |-----------|-------|
 | **Python** | Pillow's `ImageFont.truetype` |
-| **C++** | Cairo font rendering (via fontconfig) |
-| **Difference** | Visual appearance of text differs between Cairo and Pillow font rendering |
+| **C++** | Skia font rendering (via `skshaper`) |
+| **Difference** | Visual appearance of text differs between Skia and Pillow font rendering |
 | **Impact** | Low — text-heavy sprites may look slightly different |
-| **Reason** | Pillow and Cairo use different font rasterization pipelines (FreeType settings, hinting, subpixel rendering) |
+| **Reason** | Pillow and Skia use different font rasterization pipelines (FreeType settings, hinting, subpixel rendering) |
 | **Status** | **Acceptable** — pixel-perfect font matching is not achievable across different font stacks |
 
 ---
@@ -37,17 +37,17 @@ whether the divergence is considered acceptable for the current release.
 
 ---
 
-## 3. Graphics Backend: Skia → Cairo
+## 3. Graphics Backend: Pillow vs Skia
 
 | Attribute | Value |
 |-----------|-------|
 | **Original Design** | Skia GPU backend |
 | **Python** | Pillow (CPU raster) |
-| **C++ (actual)** | Cairo (CPU raster) instead of Skia (GPU/shader) |
-| **Difference** | No Skia GPU acceleration, no shader support |
-| **Impact** | Medium — GPU-accelerated rendering and GLSL shader effects are not available |
-| **Reason** | Skia dependency download issues in the build environment; Cairo was substituted as a stable CPU rasterizer with equivalent 2D primitive support |
-| **Status** | **Acceptable** — Cairo produces equivalent output for all 2D primitives (circles, rectangles, lines, paths, text) |
+| **C++ (actual)** | Skia (CPU/GPU raster with pre-built library) |
+| **Difference** | C++ uses Skia; Python uses Pillow. Anti-aliasing, color blending, and gradient sampling may differ slightly. |
+| **Impact** | Low — both backends produce equivalent output for all 2D primitives (circles, rectangles, lines, paths, text) |
+| **Reason** | C++ port targets Skia for shaders, GPU support, and animation GIF output. Cairo remains available as an optional backend (`PML_BUILD_CAIRO=ON`). |
+| **Status** | **Acceptable** — visual differences are minor and documented |
 
 ---
 
@@ -56,11 +56,11 @@ whether the divergence is considered acceptable for the current release.
 | Attribute | Value |
 |-----------|-------|
 | **Python** | No shader support (Pillow limitation) |
-| **C++** | Shader builtins exist as stubs that return `ResourceError` |
-| **Difference** | `(shader ...)` and `(apply-shader! ...)` builtins are registered but return errors explaining Skia is needed |
-| **Impact** | Low — shader code cannot execute |
-| **Reason** | Shader support requires Skia's `SkRuntimeEffect`, which is not available in the Cairo-based build |
-| **Status** | **Expected** — shader support was a new feature for the C++ port, not a requirement of the Python-to-C++ port |
+| **C++** | `shader` and `apply-shader!` compile and apply SkSL via `SkRuntimeEffect` |
+| **Difference** | Shaders are a C++-only feature with no Python equivalent |
+| **Impact** | None — additional functionality in the C++ port |
+| **Reason** | Skia's `SkRuntimeEffect` is available in the Skia-based build; Python has no matching capability |
+| **Status** | **New feature** — intentional enhancement specific to the C++ implementation |
 
 ---
 
@@ -82,15 +82,28 @@ whether the divergence is considered acceptable for the current release.
 | Attribute | Value |
 |-----------|-------|
 | **Python** | Fully implemented with PML component registry |
-| **C++** | Returns empty lists (stub implementations) |
-| **Difference** | MCP tools 4 and 5 return placeholder data instead of real component metadata |
-| **Impact** | Medium — MCP clients cannot enumerate components or preview parameter schemas |
-| **Reason** | The component registry system has not yet been ported from Python |
-| **Status** | **Acceptable** — component registry is a known gap to be filled in a future iteration |
+| **C++** | Fully implemented; returns real component metadata from `ComponentRegistry` |
+| **Difference** | None — both implementations expose component names and parameter schemas |
+| **Impact** | None |
+| **Reason** | The C++ component registry (`src/pml/sprites/registry.cpp`) was ported and populated with the same components as Python |
+| **Status** | **Resolved** — no behavioral divergence |
 
 ---
 
-## 7. CLI — `--evaluate` Mode
+## 7. Embedded Standard Library Parity
+
+| Attribute | Value |
+|-----------|-------|
+| **Python** | Loads `.pml` files directly from `stdlib/` at runtime |
+| **C++** | Embeds the same `.pml` files into `embedded_stdlib.h/.cpp` at build time via `tools/embed_stdlib.py` |
+| **Difference** | None — the embedded bytes are kept in sync with the Python stdlib |
+| **Impact** | None |
+| **Reason** | C++ cannot rely on a filesystem `stdlib/` directory in all deployment scenarios; embedding guarantees availability |
+| **Status** | **Resolved** — stdlib content is synchronized |
+
+---
+
+## 8. CLI — `--evaluate` Mode
 
 | Attribute | Value |
 |-----------|-------|
@@ -120,11 +133,12 @@ whether the divergence is considered acceptable for the current release.
 
 | # | Difference | Impact | Status |
 |---|-----------|--------|--------|
-| 1 | Font rendering (Cairo vs. Pillow) | Low | Acceptable |
+| 1 | Font rendering (Skia vs. Pillow) | Low | Acceptable |
 | 2 | GIF palette reduction | Low | Acceptable |
-| 3 | Graphics backend (Cairo vs. Skia/Pillow) | Medium | Acceptable |
-| 4 | Shader subsystem stubs | Low | Expected |
+| 3 | Graphics backend (Skia vs. Pillow) | Low | Acceptable |
+| 4 | Shader subsystem (C++ only) | None | New feature |
 | 5 | Floating-point precision | Very low | Acceptable |
-| 6 | MCP component registry stubs | Medium | Acceptable |
-| 7 | CLI `--evaluate` mode | Low | TODO |
-| 8 | Backend query builtins | None | New feature |
+| 6 | MCP component registry | None | Resolved |
+| 7 | Embedded stdlib parity | None | Resolved |
+| 8 | CLI `--evaluate` mode | Low | TODO |
+| 9 | Backend query builtins | None | New feature |

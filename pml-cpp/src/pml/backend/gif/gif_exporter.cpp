@@ -6,6 +6,12 @@
 
 #include <gif_lib.h>
 
+// GifQuantizeBuffer is declared in getarg.h rather than gif_lib.h in giflib 5.2.x
+extern "C" int GifQuantizeBuffer(unsigned int Width, unsigned int Height,
+                      int *ColorMapSize, GifByteType *RedInput,
+                      GifByteType *GreenInput, GifByteType *BlueInput,
+                      GifByteType *OutputBuffer, GifColorType *OutputColorMap);
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -139,8 +145,18 @@ void export_gif(const std::vector<std::vector<uint8_t>>& frames,
         }
 
         // 3. Create local color map
+        // GifMakeMapObject requires the color count to be a power of two.
+        // GifQuantizeBuffer may return an arbitrary count, so round up.
+        int map_size = 1;
+        while (map_size < color_count && map_size < 256) {
+            map_size <<= 1;
+        }
+        if (map_size < 2) {
+            map_size = 2;
+        }
+
         ColorMapObject* local_map = GifMakeMapObject(
-            color_count, palette_storage.data());
+            map_size, palette_storage.data());
         if (!local_map) {
             throw std::runtime_error("GIF export: failed to create color map");
         }

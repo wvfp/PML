@@ -123,18 +123,18 @@ TEST(EasingLookup, ListContainsLinear) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 TEST(Animation, Construction) {
-    pml::Animation anim(42, "x", 0.0, 100.0, 2.0f, pml::easing_linear);
+    pml::Animation anim(42, "x", pml::Value(0.0), pml::Value(100.0), 2.0f, pml::easing_linear);
     EXPECT_EQ(anim.target_id, 42u);
     EXPECT_EQ(anim.property_name, "x");
-    EXPECT_DOUBLE_EQ(anim.from_value, 0.0);
-    EXPECT_DOUBLE_EQ(anim.to_value, 100.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(anim.from_value), 0.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(anim.to_value), 100.0);
     EXPECT_FLOAT_EQ(anim.duration, 2.0f);
     // Default easing should be linear
     EXPECT_DOUBLE_EQ(anim.easing(0.5), 0.5);
 }
 
 TEST(Animation, DefaultEasingIsLinear) {
-    pml::Animation anim(1, "y", 10.0, 50.0, 1.0f);
+    pml::Animation anim(1, "y", pml::Value(10.0), pml::Value(50.0), 1.0f);
     EXPECT_DOUBLE_EQ(anim.easing(0.25), 0.25);
 }
 
@@ -154,12 +154,12 @@ TEST_F(TimelineTest, AddAnimation) {
     ASSERT_NE(tl, nullptr);
     EXPECT_TRUE(tl->animations.empty());
 
-    pml::Animation anim(1, "x", 0.0, 100.0, 2.0f);
+    auto anim = std::make_shared<pml::Animation>(1, "x", pml::Value(0.0), pml::Value(100.0), 2.0f);
     tl->add(anim);
 
     EXPECT_EQ(tl->animations.size(), 1u);
-    EXPECT_EQ(tl->animations[0].target_id, 1u);
-    EXPECT_EQ(tl->animations[0].property_name, "x");
+    EXPECT_EQ(tl->animations[0]->target_id, 1u);
+    EXPECT_EQ(tl->animations[0]->property_name, "x");
 }
 
 TEST_F(TimelineTest, TotalDurationEmpty) {
@@ -169,22 +169,22 @@ TEST_F(TimelineTest, TotalDurationEmpty) {
 
 TEST_F(TimelineTest, TotalDurationSingleAnimation) {
     auto tl = pml::get_or_create_timeline();
-    tl->add(pml::Animation(1, "x", 0.0, 100.0, 3.0f));
+    tl->add(std::make_shared<pml::Animation>(1, "x", pml::Value(0.0), pml::Value(100.0), 3.0f));
     EXPECT_DOUBLE_EQ(tl->get_total_duration(), 3.0);
 }
 
 TEST_F(TimelineTest, TotalDurationMultipleAnimations) {
     auto tl = pml::get_or_create_timeline();
-    tl->add(pml::Animation(1, "x", 0.0, 100.0, 2.0f));
-    tl->add(pml::Animation(2, "y", 0.0, 50.0, 5.0f));
-    tl->add(pml::Animation(3, "r", 0.0, 360.0, 1.0f));
+    tl->add(std::make_shared<pml::Animation>(1, "x", pml::Value(0.0), pml::Value(100.0), 2.0f));
+    tl->add(std::make_shared<pml::Animation>(2, "y", pml::Value(0.0), pml::Value(50.0), 5.0f));
+    tl->add(std::make_shared<pml::Animation>(3, "r", pml::Value(0.0), pml::Value(360.0), 1.0f));
     // Total duration is the max
     EXPECT_DOUBLE_EQ(tl->get_total_duration(), 5.0);
 }
 
 TEST_F(TimelineTest, EvaluateAtMidpoint) {
     auto tl = pml::get_or_create_timeline();
-    tl->add(pml::Animation(1, "x", 0.0, 100.0, 2.0f, pml::easing_linear));
+    tl->add(std::make_shared<pml::Animation>(1, "x", pml::Value(0.0), pml::Value(100.0), 2.0f, pml::easing_linear));
 
     auto results = tl->evaluate_at(1.0);  // midpoint
     ASSERT_EQ(results.size(), 1u);
@@ -193,35 +193,35 @@ TEST_F(TimelineTest, EvaluateAtMidpoint) {
     EXPECT_EQ(tid, 1u);
     EXPECT_EQ(prop, "x");
     // At t=1.0 out of 2.0s, linear interpolation → 50.0
-    EXPECT_NEAR(val, 50.0, 1e-6);
+    EXPECT_NEAR(std::get<double>(val), 50.0, 1e-6);
 }
 
 TEST_F(TimelineTest, EvaluateAtStart) {
     auto tl = pml::get_or_create_timeline();
-    tl->add(pml::Animation(1, "x", 10.0, 110.0, 2.0f, pml::easing_linear));
+    tl->add(std::make_shared<pml::Animation>(1, "x", pml::Value(10.0), pml::Value(110.0), 2.0f, pml::easing_linear));
 
     auto results = tl->evaluate_at(0.0);
     ASSERT_EQ(results.size(), 1u);
 
     auto& [tid, prop, val] = results[0];
-    EXPECT_NEAR(val, 10.0, 1e-6);  // from_value
+    EXPECT_NEAR(std::get<double>(val), 10.0, 1e-6);  // from_value
 }
 
 TEST_F(TimelineTest, EvaluateAtEnd) {
     auto tl = pml::get_or_create_timeline();
-    tl->add(pml::Animation(1, "x", 10.0, 110.0, 2.0f, pml::easing_linear));
+    tl->add(std::make_shared<pml::Animation>(1, "x", pml::Value(10.0), pml::Value(110.0), 2.0f, pml::easing_linear));
 
     auto results = tl->evaluate_at(2.0);
     ASSERT_EQ(results.size(), 1u);
 
     auto& [tid, prop, val] = results[0];
-    EXPECT_NEAR(val, 110.0, 1e-6);  // to_value
+    EXPECT_NEAR(std::get<double>(val), 110.0, 1e-6);  // to_value
 }
 
 TEST_F(TimelineTest, EvaluateAtMultipleAnimations) {
     auto tl = pml::get_or_create_timeline();
-    tl->add(pml::Animation(1, "x", 0.0, 100.0, 2.0f, pml::easing_linear));
-    tl->add(pml::Animation(2, "y", 0.0, 200.0, 4.0f, pml::easing_linear));
+    tl->add(std::make_shared<pml::Animation>(1, "x", pml::Value(0.0), pml::Value(100.0), 2.0f, pml::easing_linear));
+    tl->add(std::make_shared<pml::Animation>(2, "y", pml::Value(0.0), pml::Value(200.0), 4.0f, pml::easing_linear));
 
     // At t=1.0: first is at midpoint (50), second at quarter (50)
     auto results = tl->evaluate_at(1.0);
@@ -257,14 +257,14 @@ TEST_F(TimelineTest, StateMachinePausedToPlaying) {
 
 TEST_F(TimelineTest, StateMachineStopResets) {
     auto tl = pml::get_or_create_timeline();
-    tl->add(pml::Animation(1, "x", 0.0, 100.0, 2.0f));
+    tl->add(std::make_shared<pml::Animation>(1, "x", pml::Value(0.0), pml::Value(100.0), 2.0f));
     tl->play();
     tl->seek(1.0);
     EXPECT_EQ(tl->state, pml::TimelineState::Playing);
 
     tl->stop();
-    // stop() sets state to Finished with time 0
-    EXPECT_EQ(tl->state, pml::TimelineState::Finished);
+    // stop() sets state to Stopped and resets time to 0
+    EXPECT_EQ(tl->state, pml::TimelineState::Stopped);
     EXPECT_DOUBLE_EQ(tl->current_time, 0.0);
 }
 
@@ -282,7 +282,7 @@ TEST_F(TimelineTest, SeekClampsNegative) {
 
 TEST_F(TimelineTest, ResetClearsState) {
     auto tl = pml::get_or_create_timeline();
-    tl->add(pml::Animation(1, "x", 0.0, 100.0, 2.0f));
+    tl->add(std::make_shared<pml::Animation>(1, "x", pml::Value(0.0), pml::Value(100.0), 2.0f));
     tl->play();
     tl->seek(1.0);
 
@@ -299,6 +299,7 @@ TEST_F(TimelineTest, StateToString) {
     EXPECT_EQ(pml::timeline_state_to_string(pml::TimelineState::Idle), "idle");
     EXPECT_EQ(pml::timeline_state_to_string(pml::TimelineState::Playing), "playing");
     EXPECT_EQ(pml::timeline_state_to_string(pml::TimelineState::Paused), "paused");
+    EXPECT_EQ(pml::timeline_state_to_string(pml::TimelineState::Stopped), "stopped");
     EXPECT_EQ(pml::timeline_state_to_string(pml::TimelineState::Finished), "finished");
 }
 
@@ -309,7 +310,7 @@ TEST_F(TimelineTest, StateToString) {
 TEST(ApplyModifications, ChangeXParam) {
     pml::GraphicObject obj("circle", {{"x", pml::Value(int64_t(10))}});
 
-    std::unordered_map<std::string, double> mods = {{"x", 50.0}};
+    std::unordered_map<std::string, pml::Value> mods = {{"x", pml::Value(50.0)}};
     auto result = pml::_apply_modifications(obj, mods);
 
     // The result should have x=50 in its params
@@ -326,7 +327,7 @@ TEST(ApplyModifications, ChangeXParam) {
 TEST(ApplyModifications, ChangeTransformTx) {
     pml::GraphicObject obj("rect", {});
 
-    std::unordered_map<std::string, double> mods = {{"transform.tx", 30.0}};
+    std::unordered_map<std::string, pml::Value> mods = {{"transform.tx", pml::Value(30.0)}};
     auto result = pml::_apply_modifications(obj, mods);
 
     // transform.tx maps to AffineTransform.e
@@ -336,7 +337,7 @@ TEST(ApplyModifications, ChangeTransformTx) {
 TEST(ApplyModifications, ChangeTransformTy) {
     pml::GraphicObject obj("rect", {});
 
-    std::unordered_map<std::string, double> mods = {{"transform.ty", 40.0}};
+    std::unordered_map<std::string, pml::Value> mods = {{"transform.ty", pml::Value(40.0)}};
     auto result = pml::_apply_modifications(obj, mods);
 
     EXPECT_DOUBLE_EQ(result.transform.f, 40.0);
@@ -346,7 +347,7 @@ TEST(ApplyModifications, OriginalUnchanged) {
     pml::GraphicObject obj("circle", {{"x", pml::Value(int64_t(10))}});
     double orig_e = obj.transform.e;
 
-    std::unordered_map<std::string, double> mods = {{"x", 99.0}, {"transform.tx", 5.0}};
+    std::unordered_map<std::string, pml::Value> mods = {{"x", pml::Value(99.0)}, {"transform.tx", pml::Value(5.0)}};
     auto result = pml::_apply_modifications(obj, mods);
 
     // Original should be unchanged (immutable pattern)
@@ -359,7 +360,7 @@ TEST(ApplyModifications, OriginalUnchanged) {
 TEST(ApplyModifications, EmptyMods) {
     pml::GraphicObject obj("circle", {{"x", pml::Value(int64_t(10))}});
 
-    std::unordered_map<std::string, double> mods;
+    std::unordered_map<std::string, pml::Value> mods;
     auto result = pml::_apply_modifications(obj, mods);
 
     // With empty mods, result should match original
@@ -372,12 +373,20 @@ TEST(ApplyModifications, EmptyMods) {
 TEST(ApplyModifications, ChangeFill) {
     pml::GraphicObject obj("circle", {}, "#ff0000");
 
-    // "fill" is handled as a special key — for numeric mods, it may be
-    // stored in params. We test that the modification is applied.
-    std::unordered_map<std::string, double> mods = {{"fill", 1.0}};
+    // String fill values update the fill field directly.
+    std::unordered_map<std::string, pml::Value> mods = {{"fill", pml::Value(std::string("#00ff00"))}};
     auto result = pml::_apply_modifications(obj, mods);
 
-    // fill might be stored as a param or as the fill field depending on impl;
-    // just verify the result is a valid object
-    EXPECT_EQ(result.shape_type, "circle");
+    ASSERT_TRUE(result.fill.has_value());
+    EXPECT_EQ(*result.fill, "#00ff00");
+}
+
+TEST(ApplyModifications, ChangeStroke) {
+    pml::GraphicObject obj("circle", {}, std::nullopt, "#000000");
+
+    std::unordered_map<std::string, pml::Value> mods = {{"stroke", pml::Value(std::string("#ffffff"))}};
+    auto result = pml::_apply_modifications(obj, mods);
+
+    ASSERT_TRUE(result.stroke.has_value());
+    EXPECT_EQ(*result.stroke, "#ffffff");
 }

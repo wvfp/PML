@@ -879,6 +879,62 @@ void register_builtins(std::shared_ptr<Environment> env) {
         return make_list_value(std::move(result));
     });
 
+    // Higher-order list functions (need evaluator access to apply fn)
+    def("map", [](const std::vector<Value>& args, Environment& env) -> Result<Value> {
+        if (args.size() != 2) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+        const auto* lst = std::get_if<std::shared_ptr<ValueList>>(&args[1]);
+        if (!lst || !*lst) {
+            return std::unexpected(type_error("map: second argument must be a list"));
+        }
+        std::vector<Value> out;
+        out.reserve((*lst)->elements.size());
+        for (const auto& item : (*lst)->elements) {
+            auto r = apply_function(args[0], {item}, {}, env.shared_from_this());
+            if (!r) return std::unexpected(std::move(r.error()));
+            out.push_back(std::move(*r));
+        }
+        return make_list_value(std::move(out));
+    });
+
+    def("filter", [](const std::vector<Value>& args, Environment& env) -> Result<Value> {
+        if (args.size() != 2) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+        const auto* lst = std::get_if<std::shared_ptr<ValueList>>(&args[1]);
+        if (!lst || !*lst) {
+            return std::unexpected(type_error("filter: second argument must be a list"));
+        }
+        std::vector<Value> out;
+        for (const auto& item : (*lst)->elements) {
+            auto r = apply_function(args[0], {item}, {}, env.shared_from_this());
+            if (!r) return std::unexpected(std::move(r.error()));
+            if (is_truthy(*r)) out.push_back(item);
+        }
+        return make_list_value(std::move(out));
+    });
+
+    def("reduce", [](const std::vector<Value>& args, Environment& env) -> Result<Value> {
+        if (args.size() != 3) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 3, static_cast<int>(args.size())));
+        }
+        const auto* lst = std::get_if<std::shared_ptr<ValueList>>(&args[2]);
+        if (!lst || !*lst) {
+            return std::unexpected(type_error("reduce: third argument must be a list"));
+        }
+        Value acc = args[1];
+        for (const auto& item : (*lst)->elements) {
+            auto r = apply_function(args[0], {acc, item}, {}, env.shared_from_this());
+            if (!r) return std::unexpected(std::move(r.error()));
+            acc = std::move(*r);
+        }
+        return acc;
+    });
+
     def("null?", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
         if (args.size() != 1) {
             return std::unexpected(
