@@ -494,6 +494,65 @@ def sketchify_graphic(img: Image.Image, obj: GraphicObject) -> None:
 
 
 # ======================================================================
+# Noise fill — polygon with noise-modulated color
+# ======================================================================
+
+
+def draw_noise_fill(img: Image.Image, obj: GraphicObject) -> None:
+    """Fill a polygon with noise-modulated color variation.
+
+    Params: vertices (list of [x, y] pairs)
+    Kwargs:
+      :fill            — base hex color
+      :intensity       — noise strength 0.0–1.0 (default 0.15)
+      :scale           — noise grid scale (default 12.0)
+      :seed            — random seed (default 0)
+    """
+    from pml.backend.pillow import parse_color
+
+    vertices_raw = obj.params.get("vertices", [])
+    if not vertices_raw:
+        return
+
+    # Convert PML lists to (x, y) tuples
+    vertices = [(float(v[0]), float(v[1])) for v in vertices_raw]
+
+    # Parse base color
+    rgba = parse_color(obj.fill)
+    if rgba is None:
+        return
+    base_r, base_g, base_b, base_a = rgba
+
+    intensity = float(obj.params.get("intensity", 0.15))
+    scale = float(obj.params.get("scale", 12.0))
+    seed = int(obj.params.get("seed", 0))
+
+    w, h = img.size
+
+    # Create polygon mask
+    mask = Image.new("L", (w, h), 0)
+    mask_draw = ImageDraw.Draw(mask)
+    mask_draw.polygon(vertices, fill=255)
+
+    # Generate smooth value noise across the canvas
+    noise = _value_noise_2d(w, h, scale=scale, seed=seed)
+
+    # Modulate base color with noise: factor ranges [-intensity, +intensity]
+    factor = (noise - 0.5) * 2.0 * intensity
+
+    nr = np.clip(base_r * (1.0 + factor), 0, 255).astype(np.uint8)
+    ng = np.clip(base_g * (1.0 + factor), 0, 255).astype(np.uint8)
+    nb = np.clip(base_b * (1.0 + factor), 0, 255).astype(np.uint8)
+    na = np.full_like(nr, base_a, dtype=np.uint8)
+
+    result = np.stack([nr, ng, nb, na], axis=2)
+    noise_img = Image.fromarray(result, "RGBA")
+
+    # Composite only within the polygon mask
+    img.paste(noise_img, (0, 0), mask)
+
+
+# ======================================================================
 # Color / truthy helpers
 # ======================================================================
 

@@ -67,6 +67,10 @@ def create_global_env() -> Environment:
     from pml.graphics.builtins_sketch import register_sketch_builtins
     register_sketch_builtins(env)
 
+    # Register noise texture subsystem
+    from pml.graphics.builtins_noise import register_noise_builtins
+    register_noise_builtins(env)
+
     # Register higher-order functions that need evaluator access
     def _map(fn: Any, lst: list) -> list:
         return [apply_function(fn, [item], {}) for item in lst]

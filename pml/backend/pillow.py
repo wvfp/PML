@@ -18,6 +18,7 @@ from pml.backend.sketchy import (
     draw_watercolor_rect,
     draw_watercolor_circle,
     draw_hatch,
+    draw_noise_fill,
     sketchify_graphic,
 )
 
@@ -962,6 +963,7 @@ class PillowBackend(RenderBackend):
             "watercolor-circle": self._draw_watercolor_circle,
             "hatch": self._draw_hatch,
             "sketchify": self._draw_sketchify,
+            "noise-fill": self._draw_noise_fill,
         }
 
         handler = dispatch.get(obj.shape_type)
@@ -1281,3 +1283,6 @@ class PillowBackend(RenderBackend):
 
     def _draw_sketchify(self, img: Image.Image, obj: GraphicObject) -> None:
         sketchify_graphic(img, obj)
+
+    def _draw_noise_fill(self, img: Image.Image, obj: GraphicObject) -> None:
+        draw_noise_fill(img, obj)
