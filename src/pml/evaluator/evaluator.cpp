@@ -31,6 +31,48 @@ namespace pml {
 
 namespace {
 
+// ── deep_equal: Recursively compare two Values for equality ─────────
+
+bool deep_equal(const Value& a, const Value& b) {
+    if (a.tag() != b.tag()) return false;
+    if (a.is_hash()) {
+        const auto* ha = a.as_hash();
+        const auto* hb = b.as_hash();
+        if (!ha || !hb || !*ha || !*hb) return false;
+        const auto& da = (*ha)->data;
+        const auto& db = (*hb)->data;
+        if (da.size() != db.size()) return false;
+        for (const auto& [k, v] : da) {
+            auto it = db.find(k);
+            if (it == db.end() || !deep_equal(v, it->second)) return false;
+        }
+        return true;
+    }
+    if (a.is_vector()) {
+        const auto* va = a.as_vector();
+        const auto* vb = b.as_vector();
+        if (!va || !vb || !*va || !*vb) return false;
+        const auto& ea = (*va)->elements;
+        const auto& eb = (*vb)->elements;
+        if (ea.size() != eb.size()) return false;
+        for (size_t i = 0; i < ea.size(); ++i) {
+            if (!deep_equal(ea[i], eb[i])) return false;
+        }
+        return true;
+    }
+    if (!a.is_list()) return a == b;
+
+    const auto* la = a.as_list();
+    const auto* lb = b.as_list();
+    if (!la || !lb) return false;
+    if (!*la || !*lb) return !*la && !*lb;
+    if ((*la)->elements.size() != (*lb)->elements.size()) return false;
+    for (size_t i = 0; i < (*la)->elements.size(); ++i) {
+        if (!deep_equal((*la)->elements[i], (*lb)->elements[i])) return false;
+    }
+    return true;
+}
+
 // ── expr_to_value: Convert an AST Expr to a runtime Value ─────────────────────
 
 /// Convert an AST expression to a runtime value.
@@ -707,6 +749,150 @@ Result<EvalResult> eval_cond(
         if (!test_val) return std::unexpected(test_val.error());
 
         if (is_truthy(*test_val)) {
+            // Evaluate all expressions in this clause, return last
+            for (size_t j = 1; j < clause_list->size(); ++j) {
+                if (j + 1 == clause_list->size()) {
+                    return evaluate((*clause_list)[j], env);
+                }
+                auto val = eval_to_value((*clause_list)[j], env);
+                if (!val) return std::unexpected(val.error());
+            }
+            return Value(nullptr);
+        }
+    }
+
+    return Value(nullptr);  // no clause matched → nil
+}
+
+// ── when: (when <condition> <body>...) ─────────────────────────────────────
+
+Result<EvalResult> eval_when(
+    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    if (expr.size() < 3) {
+        return std::unexpected(general_error(
+            "when expects at least 2 arguments (condition and body)"));
+    }
+
+    auto cond = eval_to_value(expr[1], env);
+    if (!cond) {
+        return std::unexpected(cond.error());
+    }
+
+    if (is_truthy(*cond)) {
+        // Evaluate all body expressions, return last
+        for (size_t i = 2; i < expr.size(); ++i) {
+            if (i + 1 == expr.size()) {
+                // Last expression — return as EvalResult (may be TailCall)
+                return evaluate(expr[i], env);
+            }
+            auto val = eval_to_value(expr[i], env);
+            if (!val) return std::unexpected(val.error());
+        }
+    }
+
+    return Value(nullptr);  // condition false → nil
+}
+
+// ── unless: (unless <condition> <body>...) ───────────────────────────────
+
+Result<EvalResult> eval_unless(
+    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    if (expr.size() < 3) {
+        return std::unexpected(general_error(
+            "unless expects at least 2 arguments (condition and body)"));
+    }
+
+    auto cond = eval_to_value(expr[1], env);
+    if (!cond) {
+        return std::unexpected(cond.error());
+    }
+
+    if (!is_truthy(*cond)) {
+        // Evaluate all body expressions, return last
+        for (size_t i = 2; i < expr.size(); ++i) {
+            if (i + 1 == expr.size()) {
+                // Last expression — return as EvalResult (may be TailCall)
+                return evaluate(expr[i], env);
+            }
+            auto val = eval_to_value(expr[i], env);
+            if (!val) return std::unexpected(val.error());
+        }
+    }
+
+    return Value(nullptr);  // condition true → nil
+}
+
+// ── case: (case <key> (<value> <expr>...) ... (else <expr>...)) ─────────
+
+Result<EvalResult> eval_case(
+    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    if (expr.size() < 3) {
+        return std::unexpected(general_error(
+            "case expects at least 2 arguments (key and clauses)"));
+    }
+
+    // Evaluate the key expression
+    auto key_val = eval_to_value(expr[1], env);
+    if (!key_val) {
+        return std::unexpected(key_val.error());
+    }
+
+    // Iterate over clauses (expr[2:])
+    for (size_t i = 2; i < expr.size(); ++i) {
+        const Expr& clause = expr[i];
+
+        // Clause must be a list: (<value(s)> <expr>...)
+        const auto* clause_list = get_list(clause);
+        if (!clause_list || clause_list->empty()) {
+            return std::unexpected(
+                type_error("case clause must be a non-empty list"));
+        }
+
+        const Expr& first = (*clause_list)[0];
+
+        // Check for else clause
+        bool is_else = false;
+        if (const auto* first_sym = std::get_if<Symbol>(&first)) {
+            if (first_sym->name == "else") {
+                is_else = true;
+            }
+        }
+
+        if (is_else) {
+            // Evaluate all expressions in the else clause, return last
+            for (size_t j = 1; j < clause_list->size(); ++j) {
+                if (j + 1 == clause_list->size()) {
+                    return evaluate((*clause_list)[j], env);
+                }
+                auto val = eval_to_value((*clause_list)[j], env);
+                if (!val) return std::unexpected(val.error());
+            }
+            return Value(nullptr);
+        }
+
+        // Check if key matches any value in the clause
+        bool matched = false;
+
+        // If first element is a list, check each element
+        if (const auto* values_list = get_list(first)) {
+            for (const auto& val_expr : *values_list) {
+                auto val = eval_to_value(val_expr, env);
+                if (!val) return std::unexpected(val.error());
+                if (deep_equal(*key_val, *val)) {
+                    matched = true;
+                    break;
+                }
+            }
+        } else {
+            // Single value — evaluate it and compare
+            auto val = eval_to_value(first, env);
+            if (!val) return std::unexpected(val.error());
+            if (deep_equal(*key_val, *val)) {
+                matched = true;
+            }
+        }
+
+        if (matched) {
             // Evaluate all expressions in this clause, return last
             for (size_t j = 1; j < clause_list->size(); ++j) {
                 if (j + 1 == clause_list->size()) {
@@ -1459,6 +1645,50 @@ Result<EvalResult> eval_gensym(
     return Value(Symbol(std::format("{}{}", prefix, id), id));
 }
 
+// ── with-exception-handler: (with-exception-handler <handler> <thunk>) ──────
+//
+// Evaluates <thunk>; if it raises an error, calls <handler> with the error
+// converted to a Value (list: (error <ErrorType> <message>)) and returns the
+// handler's result.  If <thunk> succeeds, returns its value directly.
+
+Result<EvalResult> eval_with_exception_handler(
+    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    if (expr.size() != 3) {
+        return std::unexpected(
+            arity_error(SourceLocation{}, 2,
+                        static_cast<int>(expr.size()) - 1));
+    }
+
+    // Evaluate the handler so we can call it on error.
+    auto handler_val = eval_to_value(expr[1], env);
+    if (!handler_val) return std::unexpected(handler_val.error());
+
+    // Evaluate the thunk to get a procedure, then call it with no args.
+    auto thunk_val = eval_to_value(expr[2], env);
+    if (!thunk_val) return std::unexpected(thunk_val.error());
+
+    // Fully resolve the thunk call via trampoline so that any error from
+    // the thunk's body (e.g. (error "boom")) is caught here, not deferred
+    // as a TailCall.
+    auto body_result = trampoline(apply_function(*thunk_val, {}, {}, env));
+    if (body_result) return Value(*body_result);
+
+    // Error occurred — convert PMLException to a Value.
+    const auto& err = body_result.error();
+    std::string type_name(to_string(err.code));
+    Value error_value = make_list_value({
+        Value(Symbol("error")),
+        Value(Symbol(type_name)),
+        Value(err.message),
+    });
+
+    // Fully resolve the handler call too.
+    auto handler_result = trampoline(
+        apply_function(*handler_val, {error_value}, {}, env));
+    if (handler_result) return Value(*handler_result);
+    return std::unexpected(handler_result.error());
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Special forms dispatch table
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1485,6 +1715,10 @@ std::unordered_map<std::string, SpecialForm>& get_mutable_special_forms() {
         {"macroexpand", eval_macroexpand},
         {"assert", eval_assert},
         {"gensym", eval_gensym},
+        {"when", eval_when},
+        {"unless", eval_unless},
+        {"case", eval_case},
+        {"with-exception-handler", eval_with_exception_handler},
     };
     return forms;
 }

@@ -211,6 +211,11 @@ using SpecialForm = std::function<Result<EvalResult>(
 [[nodiscard]] Result<EvalResult> eval_gensym(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
 
+/// (with-exception-handler <handler> <thunk>) — catch errors from thunk.
+/// Calls handler with the error as a value (list: (error <type> <message>)).
+[[nodiscard]] Result<EvalResult> eval_with_exception_handler(
+    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+
 // ── Special forms dispatch table ───────────────────────────────────────────
 
 /// Get the special forms dispatch table (function-local static).
