@@ -103,7 +103,7 @@ const std::unordered_map<std::string, TimeColors> k_time_colors = {
             double h = uniform(rng, 3.0, 6.0);
             parts.emplace_back(
                 "line",
-                std::unordered_map<std::string, Value>{{"x1", x}, {"y1", y}, {"x2", x + uniform(rng, -1.0, 1.0)}, {"y2", y - h}},
+                Params{{ParamKey::x1, x}, {ParamKey::y1, y}, {ParamKey::x2, x + uniform(rng, -1.0, 1.0)}, {ParamKey::y2, y - h}},
                 std::nullopt,
                 colors.detail,
                 1.0);
@@ -115,7 +115,7 @@ const std::unordered_map<std::string, TimeColors> k_time_colors = {
             double r = uniform(rng, 2.0, 4.0);
             parts.emplace_back(
                 "ellipse",
-                std::unordered_map<std::string, Value>{{"cx", x}, {"cy", y}, {"rx", r}, {"ry", r * 0.7}},
+                Params{{ParamKey::cx, x}, {ParamKey::cy, y}, {ParamKey::rx, r}, {ParamKey::ry, r * 0.7}},
                 colors.detail,
                 std::nullopt,
                 0.0);
@@ -125,7 +125,7 @@ const std::unordered_map<std::string, TimeColors> k_time_colors = {
             double y = -half + (i + 1) * (sz / 4.0);
             parts.emplace_back(
                 "line",
-                std::unordered_map<std::string, Value>{{"x1", -half}, {"y1", y}, {"x2", half}, {"y2", y}},
+                Params{{ParamKey::x1, -half}, {ParamKey::y1, y}, {ParamKey::x2, half}, {ParamKey::y2, y}},
                 std::nullopt,
                 colors.detail,
                 1.0);
@@ -136,7 +136,7 @@ const std::unordered_map<std::string, TimeColors> k_time_colors = {
             double y = uniform(rng, -half * 0.8, half * 0.8);
             parts.emplace_back(
                 "circle",
-                std::unordered_map<std::string, Value>{{"cx", x}, {"cy", y}, {"r", 1.0}},
+                Params{{ParamKey::cx, x}, {ParamKey::cy, y}, {ParamKey::r, 1.0}},
                 colors.detail,
                 std::nullopt,
                 0.0);
@@ -146,7 +146,7 @@ const std::unordered_map<std::string, TimeColors> k_time_colors = {
             double y = -half * 0.4 + i * (sz * 0.4);
             parts.emplace_back(
                 "line",
-                std::unordered_map<std::string, Value>{{"x1", -half * 0.6}, {"y1", y}, {"x2", half * 0.6}, {"y2", y + 2.0}},
+                Params{{ParamKey::x1, -half * 0.6}, {ParamKey::y1, y}, {ParamKey::x2, half * 0.6}, {ParamKey::y2, y + 2.0}},
                 std::nullopt,
                 colors.detail,
                 1.5);
@@ -157,7 +157,7 @@ const std::unordered_map<std::string, TimeColors> k_time_colors = {
             double y = uniform(rng, -half * 0.7, half * 0.7);
             parts.emplace_back(
                 "circle",
-                std::unordered_map<std::string, Value>{{"cx", x}, {"cy", y}, {"r", uniform(rng, 1.0, 2.0)}},
+                Params{{ParamKey::cx, x}, {ParamKey::cy, y}, {ParamKey::r, uniform(rng, 1.0, 2.0)}},
                 colors.detail,
                 std::nullopt,
                 0.0);
@@ -172,7 +172,7 @@ const std::unordered_map<std::string, TimeColors> k_time_colors = {
                 double x = -half + col * brick_w + offset;
                 parts.emplace_back(
                     "rect",
-                    std::unordered_map<std::string, Value>{{"x", x + 0.5}, {"y", y + 0.5}, {"w", brick_w - 1.0}, {"h", brick_h - 1.0}},
+                    Params{{ParamKey::x, x + 0.5}, {ParamKey::y, y + 0.5}, {ParamKey::w, brick_w - 1.0}, {ParamKey::h, brick_h - 1.0}},
                     std::nullopt,
                     colors.edge,
                     0.8);
@@ -191,7 +191,7 @@ const std::unordered_map<std::string, TimeColors> k_time_colors = {
     if (edge == "top") {
         return {GraphicObject(
             "line",
-            std::unordered_map<std::string, Value>{{"x1", -half}, {"y1", -half}, {"x2", half}, {"y2", -half}},
+            Params{{ParamKey::x1, -half}, {ParamKey::y1, -half}, {ParamKey::x2, half}, {ParamKey::y2, -half}},
             std::nullopt,
             colors.edge,
             2.0)};
@@ -199,7 +199,7 @@ const std::unordered_map<std::string, TimeColors> k_time_colors = {
     if (edge == "bottom") {
         return {GraphicObject(
             "line",
-            std::unordered_map<std::string, Value>{{"x1", -half}, {"y1", half}, {"x2", half}, {"y2", half}},
+            Params{{ParamKey::x1, -half}, {ParamKey::y1, half}, {ParamKey::x2, half}, {ParamKey::y2, half}},
             std::nullopt,
             colors.edge,
             2.0)};
@@ -207,7 +207,7 @@ const std::unordered_map<std::string, TimeColors> k_time_colors = {
     if (edge == "left") {
         return {GraphicObject(
             "line",
-            std::unordered_map<std::string, Value>{{"x1", -half}, {"y1", -half}, {"x2", -half}, {"y2", half}},
+            Params{{ParamKey::x1, -half}, {ParamKey::y1, -half}, {ParamKey::x2, -half}, {ParamKey::y2, half}},
             std::nullopt,
             colors.edge,
             2.0)};
@@ -215,7 +215,7 @@ const std::unordered_map<std::string, TimeColors> k_time_colors = {
     if (edge == "right") {
         return {GraphicObject(
             "line",
-            std::unordered_map<std::string, Value>{{"x1", half}, {"y1", -half}, {"x2", half}, {"y2", half}},
+            Params{{ParamKey::x1, half}, {ParamKey::y1, -half}, {ParamKey::x2, half}, {ParamKey::y2, half}},
             std::nullopt,
             colors.edge,
             2.0)};
@@ -233,7 +233,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
 
     parts.emplace_back(
         "rect",
-        std::unordered_map<std::string, Value>{{"x", -trunk_w / 2.0}, {"y", 0.0}, {"w", trunk_w}, {"h", trunk_h}},
+        Params{{ParamKey::x, -trunk_w / 2.0}, {ParamKey::y, 0.0}, {ParamKey::w, trunk_w}, {ParamKey::h, trunk_h}},
         sc.trunk,
         "#3e2723",
         1.0);
@@ -246,7 +246,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
         double r = canopy_r * (1.0 - i * 0.15);
         parts.emplace_back(
             "ellipse",
-            std::unordered_map<std::string, Value>{{"cx", ox}, {"cy", oy}, {"rx", r}, {"ry", r * 0.85}},
+            Params{{ParamKey::cx, ox}, {ParamKey::cy, oy}, {ParamKey::rx, r}, {ParamKey::ry, r * 0.85}},
             sc.leaf,
             "#1b5e20",
             1.0);
@@ -264,7 +264,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
         double ox = (i - 1) * r * 0.6 + uniform(rng, -2.0, 2.0);
         parts.emplace_back(
             "ellipse",
-            std::unordered_map<std::string, Value>{{"cx", ox}, {"cy", -r * 0.3}, {"rx", r * 0.7}, {"ry", r * 0.5}},
+            Params{{ParamKey::cx, ox}, {ParamKey::cy, -r * 0.3}, {ParamKey::rx, r * 0.7}, {ParamKey::ry, r * 0.5}},
             sc.leaf,
             "#2e7d32",
             1.0);
@@ -289,13 +289,13 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
 
     parts.emplace_back(
         "polygon",
-        std::unordered_map<std::string, Value>{{"points", make_points(points)}},
+        Params{{ParamKey::points, make_points(points)}},
         "#78909c",
         "#455a64",
         1.5);
     parts.emplace_back(
         "ellipse",
-        std::unordered_map<std::string, Value>{{"cx", -r * 0.2}, {"cy", -r * 0.2}, {"rx", r * 0.25}, {"ry", r * 0.15}},
+        Params{{ParamKey::cx, -r * 0.2}, {ParamKey::cy, -r * 0.2}, {ParamKey::rx, r * 0.25}, {ParamKey::ry, r * 0.15}},
         "#90a4ae",
         std::nullopt,
         0.0);
@@ -310,7 +310,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
 
     parts.emplace_back(
         "line",
-        std::unordered_map<std::string, Value>{{"x1", 0.0}, {"y1", 0.0}, {"x2", 0.0}, {"y2", -stem_h}},
+        Params{{ParamKey::x1, 0.0}, {ParamKey::y1, 0.0}, {ParamKey::x2, 0.0}, {ParamKey::y2, -stem_h}},
         std::nullopt,
         "#4caf50",
         1.5);
@@ -323,7 +323,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
         double py = cy + std::sin(angle) * petal_r * 1.5;
         parts.emplace_back(
             "ellipse",
-            std::unordered_map<std::string, Value>{{"cx", px}, {"cy", py}, {"rx", petal_r}, {"ry", petal_r * 0.7}},
+            Params{{ParamKey::cx, px}, {ParamKey::cy, py}, {ParamKey::rx, petal_r}, {ParamKey::ry, petal_r * 0.7}},
             sc.flower,
             std::nullopt,
             0.0);
@@ -331,7 +331,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
 
     parts.emplace_back(
         "circle",
-        std::unordered_map<std::string, Value>{{"cx", 0.0}, {"cy", cy}, {"r", petal_r * 0.6}},
+        Params{{ParamKey::cx, 0.0}, {ParamKey::cy, cy}, {ParamKey::r, petal_r * 0.6}},
         "#ffeb3b",
         std::nullopt,
         0.0);
@@ -347,13 +347,13 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
 
     parts.emplace_back(
         "rect",
-        std::unordered_map<std::string, Value>{{"x", -stem_w / 2.0}, {"y", -stem_h}, {"w", stem_w}, {"h", stem_h}},
+        Params{{ParamKey::x, -stem_w / 2.0}, {ParamKey::y, -stem_h}, {ParamKey::w, stem_w}, {ParamKey::h, stem_h}},
         "#f5f5dc",
         "#bfae8e",
         1.0);
     parts.emplace_back(
         "ellipse",
-        std::unordered_map<std::string, Value>{{"cx", 0.0}, {"cy", -stem_h - cap_r * 0.3}, {"rx", cap_r}, {"ry", cap_r * 0.6}},
+        Params{{ParamKey::cx, 0.0}, {ParamKey::cy, -stem_h - cap_r * 0.3}, {ParamKey::rx, cap_r}, {ParamKey::ry, cap_r * 0.6}},
         "#e53935",
         "#b71c1c",
         1.0);
@@ -364,7 +364,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
         double sy = -stem_h - cap_r * 0.3 + uniform(rng, -cap_r * 0.2, cap_r * 0.1);
         parts.emplace_back(
             "circle",
-            std::unordered_map<std::string, Value>{{"cx", sx}, {"cy", sy}, {"r", 2.0 * scale}},
+            Params{{ParamKey::cx, sx}, {ParamKey::cy, sy}, {ParamKey::r, 2.0 * scale}},
             "#ffffff",
             std::nullopt,
             0.0);
@@ -379,19 +379,19 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
 
     parts.emplace_back(
         "rect",
-        std::unordered_map<std::string, Value>{{"x", -sz / 2.0}, {"y", -sz}, {"w", sz}, {"h", sz}},
+        Params{{ParamKey::x, -sz / 2.0}, {ParamKey::y, -sz}, {ParamKey::w, sz}, {ParamKey::h, sz}},
         "#a1887f",
         "#5d4037",
         1.5);
     parts.emplace_back(
         "line",
-        std::unordered_map<std::string, Value>{{"x1", -sz / 2.0}, {"y1", -sz / 2.0}, {"x2", sz / 2.0}, {"y2", -sz / 2.0}},
+        Params{{ParamKey::x1, -sz / 2.0}, {ParamKey::y1, -sz / 2.0}, {ParamKey::x2, sz / 2.0}, {ParamKey::y2, -sz / 2.0}},
         std::nullopt,
         "#6d4c41",
         1.5);
     parts.emplace_back(
         "line",
-        std::unordered_map<std::string, Value>{{"x1", 0.0}, {"y1", -sz}, {"x2", 0.0}, {"y2", 0.0}},
+        Params{{ParamKey::x1, 0.0}, {ParamKey::y1, -sz}, {ParamKey::x2, 0.0}, {ParamKey::y2, 0.0}},
         std::nullopt,
         "#6d4c41",
         1.5);
@@ -406,7 +406,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
 
     parts.emplace_back(
         "rect",
-        std::unordered_map<std::string, Value>{{"x", -w / 2.0}, {"y", -h}, {"w", w}, {"h", h}},
+        Params{{ParamKey::x, -w / 2.0}, {ParamKey::y, -h}, {ParamKey::w, w}, {ParamKey::h, h}},
         "#8d6e63",
         "#4e342e",
         1.5);
@@ -415,7 +415,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
         double by = -h + h * frac;
         parts.emplace_back(
             "line",
-            std::unordered_map<std::string, Value>{{"x1", -w / 2.0}, {"y1", by}, {"x2", w / 2.0}, {"y2", by}},
+            Params{{ParamKey::x1, -w / 2.0}, {ParamKey::y1, by}, {ParamKey::x2, w / 2.0}, {ParamKey::y2, by}},
             std::nullopt,
             "#5d4037",
             2.0);
@@ -430,7 +430,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
 
     parts.emplace_back(
         "line",
-        std::unordered_map<std::string, Value>{{"x1", 0.0}, {"y1", 0.0}, {"x2", 0.0}, {"y2", -stick_h}},
+        Params{{ParamKey::x1, 0.0}, {ParamKey::y1, 0.0}, {ParamKey::x2, 0.0}, {ParamKey::y2, -stick_h}},
         std::nullopt,
         "#6d4c41",
         3.0 * scale);
@@ -438,13 +438,13 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
     double flame_y = -stick_h - 6.0 * scale;
     parts.emplace_back(
         "ellipse",
-        std::unordered_map<std::string, Value>{{"cx", 0.0}, {"cy", flame_y}, {"rx", 5.0 * scale}, {"ry", 8.0 * scale}},
+        Params{{ParamKey::cx, 0.0}, {ParamKey::cy, flame_y}, {ParamKey::rx, 5.0 * scale}, {ParamKey::ry, 8.0 * scale}},
         "#ff9800",
         std::nullopt,
         0.0);
     parts.emplace_back(
         "ellipse",
-        std::unordered_map<std::string, Value>{{"cx", 0.0}, {"cy", flame_y - 2.0 * scale}, {"rx", 3.0 * scale}, {"ry", 5.0 * scale}},
+        Params{{ParamKey::cx, 0.0}, {ParamKey::cy, flame_y - 2.0 * scale}, {ParamKey::rx, 3.0 * scale}, {ParamKey::ry, 5.0 * scale}},
         "#ffeb3b",
         std::nullopt,
         0.0);
@@ -460,7 +460,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
 
     parts.emplace_back(
         "line",
-        std::unordered_map<std::string, Value>{{"x1", 0.0}, {"y1", 0.0}, {"x2", 0.0}, {"y2", -post_h}},
+        Params{{ParamKey::x1, 0.0}, {ParamKey::y1, 0.0}, {ParamKey::x2, 0.0}, {ParamKey::y2, -post_h}},
         std::nullopt,
         "#6d4c41",
         3.0 * scale);
@@ -468,7 +468,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
     double board_y = -post_h + board_h / 2.0;
     parts.emplace_back(
         "rect",
-        std::unordered_map<std::string, Value>{{"x", -board_w / 2.0}, {"y", board_y - board_h / 2.0}, {"w", board_w}, {"h", board_h}},
+        Params{{ParamKey::x, -board_w / 2.0}, {ParamKey::y, board_y - board_h / 2.0}, {ParamKey::w, board_w}, {ParamKey::h, board_h}},
         "#d7ccc8",
         "#5d4037",
         1.5);
@@ -485,7 +485,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
     for (double x : {-rail_w / 2.0, rail_w / 2.0}) {
         parts.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", x - post_w / 2.0}, {"y", -post_h}, {"w", post_w}, {"h", post_h}},
+            Params{{ParamKey::x, x - post_w / 2.0}, {ParamKey::y, -post_h}, {ParamKey::w, post_w}, {ParamKey::h, post_h}},
             "#8d6e63",
             "#4e342e",
             1.0);
@@ -495,7 +495,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
         double ry = -post_h * frac;
         parts.emplace_back(
             "line",
-            std::unordered_map<std::string, Value>{{"x1", -rail_w / 2.0}, {"y1", ry}, {"x2", rail_w / 2.0}, {"y2", ry}},
+            Params{{ParamKey::x1, -rail_w / 2.0}, {ParamKey::y1, ry}, {ParamKey::x2, rail_w / 2.0}, {ParamKey::y2, ry}},
             std::nullopt,
             "#6d4c41",
             2.0 * scale);
@@ -511,7 +511,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
 
     parts.emplace_back(
         "line",
-        std::unordered_map<std::string, Value>{{"x1", 0.0}, {"y1", 0.0}, {"x2", 0.0}, {"y2", -post_h}},
+        Params{{ParamKey::x1, 0.0}, {ParamKey::y1, 0.0}, {ParamKey::x2, 0.0}, {ParamKey::y2, -post_h}},
         std::nullopt,
         "#37474f",
         3.0 * scale);
@@ -519,13 +519,13 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
     double ly = -post_h - lantern_r;
     parts.emplace_back(
         "rect",
-        std::unordered_map<std::string, Value>{{"x", -lantern_r}, {"y", ly - lantern_r}, {"w", lantern_r * 2.0}, {"h", lantern_r * 2.0}},
+        Params{{ParamKey::x, -lantern_r}, {ParamKey::y, ly - lantern_r}, {ParamKey::w, lantern_r * 2.0}, {ParamKey::h, lantern_r * 2.0}},
         "#455a64",
         "#263238",
         1.0);
     parts.emplace_back(
         "ellipse",
-        std::unordered_map<std::string, Value>{{"cx", 0.0}, {"cy", ly}, {"rx", lantern_r * 0.7}, {"ry", lantern_r * 0.7}},
+        Params{{ParamKey::cx, 0.0}, {ParamKey::cy, ly}, {ParamKey::rx, lantern_r * 0.7}, {ParamKey::ry, lantern_r * 0.7}},
         "#fff9c4",
         std::nullopt,
         0.0);
@@ -575,10 +575,10 @@ std::shared_ptr<GraphicObject> create_tile(
     const std::unordered_map<std::string, Value>& kwargs) {
     auto p = validate_params(tile_schema(), kwargs);
 
-    std::string tile_type = std::get<std::string>(p["type"]);
-    int sz = static_cast<int>(std::get<double>(p["size"]));
-    int variant = static_cast<int>(std::get<double>(p["variant"]));
-    std::string edge = std::get<std::string>(p["edge"]);
+    std::string tile_type = *p["type"].as_string();
+    int sz = static_cast<int>(p["size"].double_val());
+    int variant = static_cast<int>(p["variant"].double_val());
+    std::string edge = *p["edge"].as_string();
 
     auto it = k_tile_colors.find(tile_type);
     const TileColors& colors = (it != k_tile_colors.end()) ? it->second : k_tile_colors.at("grass");
@@ -588,7 +588,7 @@ std::shared_ptr<GraphicObject> create_tile(
 
     children.emplace_back(
         "rect",
-        std::unordered_map<std::string, Value>{{"x", -half}, {"y", -half}, {"w", static_cast<double>(sz)}, {"h", static_cast<double>(sz)}},
+        Params{{ParamKey::x, -half}, {ParamKey::y, -half}, {ParamKey::w, static_cast<double>(sz)}, {ParamKey::h, static_cast<double>(sz)}},
         colors.base,
         std::nullopt,
         0.0);
@@ -603,7 +603,7 @@ std::shared_ptr<GraphicObject> create_tile(
 
     return std::make_shared<GraphicObject>(
         "group",
-        std::unordered_map<std::string, Value>{},
+        Params{},
         std::nullopt,
         std::nullopt,
         1.0,
@@ -625,10 +625,10 @@ std::shared_ptr<GraphicObject> create_decoration(
     const std::unordered_map<std::string, Value>& kwargs) {
     auto p = validate_params(decoration_schema(), kwargs);
 
-    std::string dec_type = std::get<std::string>(p["type"]);
-    double scale = k_size_scale.at(std::get<std::string>(p["size"]));
-    std::string season = std::get<std::string>(p["season"]);
-    int variant = static_cast<int>(std::get<double>(p["variant"]));
+    std::string dec_type = *p["type"].as_string();
+    double scale = k_size_scale.at(*p["size"].as_string());
+    std::string season = *p["season"].as_string();
+    int variant = static_cast<int>(p["variant"].double_val());
 
     auto season_it = k_season_colors.find(season);
     const SeasonColors& sc = (season_it != k_season_colors.end()) ? season_it->second : k_season_colors.at("summer");
@@ -651,7 +651,7 @@ std::shared_ptr<GraphicObject> create_decoration(
 
     return std::make_shared<GraphicObject>(
         "group",
-        std::unordered_map<std::string, Value>{},
+        Params{},
         std::nullopt,
         std::nullopt,
         1.0,
@@ -660,7 +660,7 @@ std::shared_ptr<GraphicObject> create_decoration(
         std::unordered_map<std::string, Value>{
             {"component", std::string("decoration")},
             {"deco_type", dec_type},
-            {"size", std::get<std::string>(p["size"])},
+            {"size", *p["size"].as_string()},
             {"season", season},
             {"variant", static_cast<int64_t>(variant)}});
 }
@@ -699,7 +699,7 @@ namespace {
     const auto& tc2 = it->second;
     parts.emplace_back(
         "rect",
-        std::unordered_map<std::string, Value>{{"x", -half_w}, {"y", ground_y}, {"w", static_cast<double>(w)}, {"h", h / 2.0 - ground_y + h * 0.05}},
+        Params{{ParamKey::x, -half_w}, {ParamKey::y, ground_y}, {ParamKey::w, static_cast<double>(w)}, {ParamKey::h, h / 2.0 - ground_y + h * 0.05}},
         tc2.ground,
         std::nullopt,
         0.0);
@@ -711,13 +711,13 @@ namespace {
             double tree_h = uniform(rng, 30.0, 50.0);
             parts.emplace_back(
                 "line",
-                std::unordered_map<std::string, Value>{{"x1", tx}, {"y1", ground_y}, {"x2", tx}, {"y2", ground_y - tree_h}},
+                Params{{ParamKey::x1, tx}, {ParamKey::y1, ground_y}, {ParamKey::x2, tx}, {ParamKey::y2, ground_y - tree_h}},
                 std::nullopt,
                 "#5d4037",
                 4.0);
             parts.emplace_back(
                 "ellipse",
-                std::unordered_map<std::string, Value>{{"cx", tx}, {"cy", ground_y - tree_h - 10.0}, {"rx", 15.0}, {"ry", 18.0}},
+                Params{{ParamKey::cx, tx}, {ParamKey::cy, ground_y - tree_h - 10.0}, {ParamKey::rx, 15.0}, {ParamKey::ry, 18.0}},
                 tc2.detail,
                 std::nullopt,
                 0.0);
@@ -728,7 +728,7 @@ namespace {
             double mh = 40.0 + i * 15.0;
             parts.emplace_back(
                 "polygon",
-                std::unordered_map<std::string, Value>{{"points", make_points({mx - 30.0, ground_y, mx, ground_y - mh, mx + 30.0, ground_y})}},
+                Params{{ParamKey::points, make_points({mx - 30.0, ground_y, mx, ground_y - mh, mx + 30.0, ground_y})}},
                 tc2.detail,
                 "#37474f",
                 1.0);
@@ -739,7 +739,7 @@ namespace {
             double wy = ground_y + 5.0 + i * 8.0;
             parts.emplace_back(
                 "line",
-                std::unordered_map<std::string, Value>{{"x1", -half_w * 0.8}, {"y1", wy}, {"x2", half_w * 0.8}, {"y2", wy + uniform(rng, -2.0, 2.0)}},
+                Params{{ParamKey::x1, -half_w * 0.8}, {ParamKey::y1, wy}, {ParamKey::x2, half_w * 0.8}, {ParamKey::y2, wy + uniform(rng, -2.0, 2.0)}},
                 std::nullopt,
                 "#0288d1",
                 1.5);
@@ -752,7 +752,7 @@ namespace {
             double bh = uniform(rng, 25.0, 45.0);
             parts.emplace_back(
                 "rect",
-                std::unordered_map<std::string, Value>{{"x", bx - bw / 2.0}, {"y", ground_y - bh}, {"w", bw}, {"h", bh}},
+                Params{{ParamKey::x, bx - bw / 2.0}, {ParamKey::y, ground_y - bh}, {ParamKey::w, bw}, {ParamKey::h, bh}},
                 "#a1887f",
                 "#5d4037",
                 1.0);
@@ -762,7 +762,7 @@ namespace {
             double px = -half_w * 0.6 + i * half_w * 0.6;
             parts.emplace_back(
                 "rect",
-                std::unordered_map<std::string, Value>{{"x", px - 6.0}, {"y", ground_y - 50.0}, {"w", 12.0}, {"h", 50.0}},
+                Params{{ParamKey::x, px - 6.0}, {ParamKey::y, ground_y - 50.0}, {ParamKey::w, 12.0}, {ParamKey::h, 50.0}},
                 "#616161",
                 "#424242",
                 1.0);
@@ -787,7 +787,7 @@ namespace {
             double cy = uniform(rng, -half_h * 0.7, -half_h * 0.3);
             parts.emplace_back(
                 "ellipse",
-                std::unordered_map<std::string, Value>{{"cx", cx}, {"cy", cy}, {"rx", 25.0}, {"ry", 12.0}},
+                Params{{ParamKey::cx, cx}, {ParamKey::cy, cy}, {ParamKey::rx, 25.0}, {ParamKey::ry, 12.0}},
                 "#b0bec580",
                 std::nullopt,
                 0.0);
@@ -798,7 +798,7 @@ namespace {
             double ry = uniform(rng, -half_h, half_h);
             parts.emplace_back(
                 "line",
-                std::unordered_map<std::string, Value>{{"x1", rx}, {"y1", ry}, {"x2", rx - 1.0}, {"y2", ry + 8.0}},
+                Params{{ParamKey::x1, rx}, {ParamKey::y1, ry}, {ParamKey::x2, rx - 1.0}, {ParamKey::y2, ry + 8.0}},
                 std::nullopt,
                 "#90a4ae80",
                 1.0);
@@ -809,7 +809,7 @@ namespace {
             double sy = uniform(rng, -half_h, half_h);
             parts.emplace_back(
                 "circle",
-                std::unordered_map<std::string, Value>{{"cx", sx}, {"cy", sy}, {"r", 2.0}},
+                Params{{ParamKey::cx, sx}, {ParamKey::cy, sy}, {ParamKey::r, 2.0}},
                 "#ffffffcc",
                 std::nullopt,
                 0.0);
@@ -817,7 +817,7 @@ namespace {
     } else if (weather == "fog") {
         parts.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -half_w}, {"y", -half_h * 0.3}, {"w", static_cast<double>(w)}, {"h", h * 0.6}},
+            Params{{ParamKey::x, -half_w}, {ParamKey::y, -half_h * 0.3}, {ParamKey::w, static_cast<double>(w)}, {ParamKey::h, h * 0.6}},
             "#cfd8dc60",
             std::nullopt,
             0.0);
@@ -832,12 +832,12 @@ std::shared_ptr<GraphicObject> create_background(
     const std::unordered_map<std::string, Value>& kwargs) {
     auto p = validate_params(background_schema(), kwargs);
 
-    std::string bg_type = std::get<std::string>(p["type"]);
-    std::string time = std::get<std::string>(p["time"]);
-    std::string weather = std::get<std::string>(p["weather"]);
-    int w = static_cast<int>(std::get<double>(p["width"]));
-    int h = static_cast<int>(std::get<double>(p["height"]));
-    double parallax = std::get<double>(p["parallax"]);
+    std::string bg_type = *p["type"].as_string();
+    std::string time = *p["time"].as_string();
+    std::string weather = *p["weather"].as_string();
+    int w = static_cast<int>(p["width"].double_val());
+    int h = static_cast<int>(p["height"].double_val());
+    double parallax = p["parallax"].double_val();
 
     auto time_it = k_time_colors.find(time);
     const TimeColors& tc = (time_it != k_time_colors.end()) ? time_it->second : k_time_colors.at("day");
@@ -848,13 +848,13 @@ std::shared_ptr<GraphicObject> create_background(
 
     children.emplace_back(
         "rect",
-        std::unordered_map<std::string, Value>{{"x", -half_w}, {"y", -half_h}, {"w", static_cast<double>(w)}, {"h", h / 2.0}},
+        Params{{ParamKey::x, -half_w}, {ParamKey::y, -half_h}, {ParamKey::w, static_cast<double>(w)}, {ParamKey::h, h / 2.0}},
         tc.sky_top,
         std::nullopt,
         0.0);
     children.emplace_back(
         "rect",
-        std::unordered_map<std::string, Value>{{"x", -half_w}, {"y", 0.0}, {"w", static_cast<double>(w)}, {"h", h / 2.0}},
+        Params{{ParamKey::x, -half_w}, {ParamKey::y, 0.0}, {ParamKey::w, static_cast<double>(w)}, {ParamKey::h, h / 2.0}},
         tc.sky_bot,
         std::nullopt,
         0.0);
@@ -867,7 +867,7 @@ std::shared_ptr<GraphicObject> create_background(
 
     return std::make_shared<GraphicObject>(
         "group",
-        std::unordered_map<std::string, Value>{},
+        Params{},
         std::nullopt,
         std::nullopt,
         1.0,

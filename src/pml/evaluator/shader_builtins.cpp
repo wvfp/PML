@@ -13,6 +13,7 @@
 #include "pml/backend/registry.h"
 #include "environment.h"
 #include "error.h"
+#include "kwargs.h"
 #include "pml/graphics/graphic_object.h"
 #include "types.h"
 
@@ -24,28 +25,7 @@
 
 namespace pml {
 
-namespace {
-
-[[nodiscard]] std::optional<std::string> value_to_opt_string(const Value& v)
-{
-    return std::visit([](const auto& arg) -> std::optional<std::string> {
-        using T = std::decay_t<decltype(arg)>;
-        if constexpr (std::is_same_v<T, std::string>) {
-            return arg;
-        } else if constexpr (std::is_same_v<T, Symbol>) {
-            return arg.name;
-        } else if constexpr (std::is_same_v<T, Keyword>) {
-            return arg.name;
-        } else if constexpr (std::is_same_v<T, int64_t>) {
-            return std::to_string(arg);
-        } else if constexpr (std::is_same_v<T, double>) {
-            return std::to_string(arg);
-        }
-        return std::nullopt;
-    }, v);
-}
-
-}  // anonymous namespace
+using pml::kwargs::value_to_opt_string;
 
 void register_shader_builtins(std::shared_ptr<Environment> env) {
     if (!env) return;
@@ -86,17 +66,17 @@ void register_shader_builtins(std::shared_ptr<Environment> env) {
                 SourceLocation{}, 2, static_cast<int>(args.size())));
         }
 
-        const auto* obj = std::get_if<std::shared_ptr<GraphicObject>>(&args[0]);
+        const auto* obj = args[0].as_graphic_object();
         if (!obj || !*obj) {
             return std::unexpected(type_error(
                 "apply-shader!: first argument must be a GraphicObject"));
         }
 
         int64_t handle = 0;
-        if (std::holds_alternative<int64_t>(args[1])) {
-            handle = std::get<int64_t>(args[1]);
-        } else if (std::holds_alternative<double>(args[1])) {
-            handle = static_cast<int64_t>(std::get<double>(args[1]));
+        if (args[1].is_int()) {
+            handle = args[1].int_val();
+        } else if (args[1].is_double()) {
+            handle = static_cast<int64_t>(args[1].double_val());
         } else {
             return std::unexpected(type_error(
                 "apply-shader!: second argument must be a shader handle"));

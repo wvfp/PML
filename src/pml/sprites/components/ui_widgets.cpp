@@ -57,8 +57,8 @@ namespace {
 }
 
 [[nodiscard]] std::string label_string(const Value& v) {
-    if (const auto* s = std::get_if<std::string>(&v)) return *s;
-    if (const auto* sym = std::get_if<Symbol>(&v)) return sym->name;
+    if (const auto* s = v.as_string()) return *s;
+    if (const auto* sym = v.as_symbol()) return sym->name;
     return value_to_string(v);
 }
 
@@ -115,12 +115,12 @@ std::shared_ptr<GraphicObject> create_button(
     const std::unordered_map<std::string, Value>& kwargs) {
     auto p = validate_params(button_schema(), kwargs);
 
-    double w = std::get<double>(p["width"]);
-    double h = std::get<double>(p["height"]);
-    std::string state = std::get<std::string>(p["state"]);
-    std::string base_color = std::get<std::string>(p["color"]);
-    std::string text_color = std::get<std::string>(p["text-color"]);
-    std::string style = std::get<std::string>(p["style"]);
+    double w = p["width"].double_val();
+    double h = p["height"].double_val();
+    std::string state = *p["state"].as_string();
+    std::string base_color = *p["color"].as_string();
+    std::string text_color = *p["text-color"].as_string();
+    std::string style = *p["style"].as_string();
 
     int shift = 0;
     if (state == "hover") shift = 20;
@@ -134,13 +134,13 @@ std::shared_ptr<GraphicObject> create_button(
         double r = std::min(h / 3.0, 10.0);
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -w / 2.0 + r}, {"y", -h / 2.0}, {"w", w - 2.0 * r}, {"h", h}},
+            Params{{ParamKey::x, -w / 2.0 + r}, {ParamKey::y, -h / 2.0}, {ParamKey::w, w - 2.0 * r}, {ParamKey::h, h}},
             color,
             "#1a1a1a",
             2.0);
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -w / 2.0}, {"y", -h / 2.0 + r}, {"w", w}, {"h", h - 2.0 * r}},
+            Params{{ParamKey::x, -w / 2.0}, {ParamKey::y, -h / 2.0 + r}, {ParamKey::w, w}, {ParamKey::h, h - 2.0 * r}},
             color,
             std::nullopt,
             0.0);
@@ -151,7 +151,7 @@ std::shared_ptr<GraphicObject> create_button(
                  {w / 2.0 - r, h / 2.0 - r}}) {
             children.emplace_back(
                 "ellipse",
-                std::unordered_map<std::string, Value>{{"cx", cx}, {"cy", cy}, {"rx", r}, {"ry", r}},
+                Params{{ParamKey::cx, cx}, {ParamKey::cy, cy}, {ParamKey::rx, r}, {ParamKey::ry, r}},
                 color,
                 std::nullopt,
                 0.0);
@@ -159,20 +159,20 @@ std::shared_ptr<GraphicObject> create_button(
     } else if (style == "pixel") {
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -w / 2.0}, {"y", -h / 2.0}, {"w", w}, {"h", h}},
+            Params{{ParamKey::x, -w / 2.0}, {ParamKey::y, -h / 2.0}, {ParamKey::w, w}, {ParamKey::h, h}},
             color,
             "#000000",
             3.0);
         children.emplace_back(
             "line",
-            std::unordered_map<std::string, Value>{{"x1", -w / 2.0 + 2.0}, {"y1", -h / 2.0 + 2.0}, {"x2", w / 2.0 - 2.0}, {"y2", -h / 2.0 + 2.0}},
+            Params{{ParamKey::x1, -w / 2.0 + 2.0}, {ParamKey::y1, -h / 2.0 + 2.0}, {ParamKey::x2, w / 2.0 - 2.0}, {ParamKey::y2, -h / 2.0 + 2.0}},
             std::nullopt,
             "#FFFFFF60",
             2.0);
     } else if (style == "ornate") {
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -w / 2.0}, {"y", -h / 2.0}, {"w", w}, {"h", h}},
+            Params{{ParamKey::x, -w / 2.0}, {ParamKey::y, -h / 2.0}, {ParamKey::w, w}, {ParamKey::h, h}},
             color,
             "#d4ac0f",
             3.0);
@@ -183,7 +183,7 @@ std::shared_ptr<GraphicObject> create_button(
                  {w / 2.0, h / 2.0}}) {
             children.emplace_back(
                 "ellipse",
-                std::unordered_map<std::string, Value>{{"cx", cx}, {"cy", cy}, {"rx", 4.0}, {"ry", 4.0}},
+                Params{{ParamKey::cx, cx}, {ParamKey::cy, cy}, {ParamKey::rx, 4.0}, {ParamKey::ry, 4.0}},
                 "#d4ac0f",
                 std::nullopt,
                 0.0);
@@ -192,7 +192,7 @@ std::shared_ptr<GraphicObject> create_button(
         // sharp
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -w / 2.0}, {"y", -h / 2.0}, {"w", w}, {"h", h}},
+            Params{{ParamKey::x, -w / 2.0}, {ParamKey::y, -h / 2.0}, {ParamKey::w, w}, {ParamKey::h, h}},
             color,
             "#1a1a1a",
             2.0);
@@ -203,7 +203,7 @@ std::shared_ptr<GraphicObject> create_button(
         double x = -static_cast<double>(label.size()) * 3.5;
         children.emplace_back(
             "text",
-            std::unordered_map<std::string, Value>{{"text", label}, {"x", x}, {"y", 4.0}, {"font-size", static_cast<int64_t>(h * 0.4)}},
+            Params{{ParamKey::text, label}, {ParamKey::x, x}, {ParamKey::y, 4.0}, {ParamKey::font_size, static_cast<int64_t>(h * 0.4)}},
             text_color,
             std::nullopt,
             0.0);
@@ -211,7 +211,7 @@ std::shared_ptr<GraphicObject> create_button(
 
     return std::make_shared<GraphicObject>(
         "group",
-        std::unordered_map<std::string, Value>{},
+        Params{},
         std::nullopt,
         std::nullopt,
         1.0,
@@ -228,11 +228,11 @@ std::shared_ptr<GraphicObject> create_panel(
     const std::unordered_map<std::string, Value>& kwargs) {
     auto p = validate_params(panel_schema(), kwargs);
 
-    double w = std::get<double>(p["width"]);
-    double h = std::get<double>(p["height"]);
-    double bw = std::get<double>(p["border-width"]);
-    std::string style = std::get<std::string>(p["style"]);
-    std::string bg = std::get<std::string>(p["color"]);
+    double w = p["width"].double_val();
+    double h = p["height"].double_val();
+    double bw = p["border-width"].double_val();
+    std::string style = *p["style"].as_string();
+    std::string bg = *p["color"].as_string();
     std::string border_c = style == "ornate" ? "#d4ac0f" : "#1a1a1a";
 
     if (style == "glass") {
@@ -243,7 +243,7 @@ std::shared_ptr<GraphicObject> create_panel(
 
     children.emplace_back(
         "rect",
-        std::unordered_map<std::string, Value>{{"x", -w / 2.0}, {"y", -h / 2.0}, {"w", w}, {"h", h}},
+        Params{{ParamKey::x, -w / 2.0}, {ParamKey::y, -h / 2.0}, {ParamKey::w, w}, {ParamKey::h, h}},
         bg,
         border_c,
         bw);
@@ -253,13 +253,13 @@ std::shared_ptr<GraphicObject> create_panel(
         const double title_h = 20.0;
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -w / 2.0}, {"y", -h / 2.0}, {"w", w}, {"h", title_h}},
+            Params{{ParamKey::x, -w / 2.0}, {ParamKey::y, -h / 2.0}, {ParamKey::w, w}, {ParamKey::h, title_h}},
             shift_color(bg, 20),
             border_c,
             1.0);
         children.emplace_back(
             "text",
-            std::unordered_map<std::string, Value>{{"text", title}, {"x", -w / 2.0 + 8.0}, {"y", -h / 2.0 + 14.0}, {"font-size", static_cast<int64_t>(12)}},
+            Params{{ParamKey::text, title}, {ParamKey::x, -w / 2.0 + 8.0}, {ParamKey::y, -h / 2.0 + 14.0}, {ParamKey::font_size, static_cast<int64_t>(12)}},
             "#FFFFFF",
             std::nullopt,
             0.0);
@@ -274,7 +274,7 @@ std::shared_ptr<GraphicObject> create_panel(
                  {w / 2.0, h / 2.0}}) {
             children.emplace_back(
                 "ellipse",
-                std::unordered_map<std::string, Value>{{"cx", cx}, {"cy", cy}, {"rx", corner_r}, {"ry", corner_r}},
+                Params{{ParamKey::cx, cx}, {ParamKey::cy, cy}, {ParamKey::rx, corner_r}, {ParamKey::ry, corner_r}},
                 "#d4ac0f",
                 "#1a1a1a",
                 1.0);
@@ -283,7 +283,7 @@ std::shared_ptr<GraphicObject> create_panel(
 
     return std::make_shared<GraphicObject>(
         "group",
-        std::unordered_map<std::string, Value>{},
+        Params{},
         std::nullopt,
         std::nullopt,
         1.0,
@@ -300,18 +300,18 @@ std::shared_ptr<GraphicObject> create_health_bar(
     const std::unordered_map<std::string, Value>& kwargs) {
     auto p = validate_params(health_bar_schema(), kwargs);
 
-    double w = std::get<double>(p["width"]);
-    double h = std::get<double>(p["height"]);
-    double value = std::get<double>(p["value"]);
-    std::string bar_color = std::get<std::string>(p["color"]);
-    std::string bg_color = std::get<std::string>(p["bg-color"]);
-    std::string bar_style = std::get<std::string>(p["style"]);
+    double w = p["width"].double_val();
+    double h = p["height"].double_val();
+    double value = p["value"].double_val();
+    std::string bar_color = *p["color"].as_string();
+    std::string bg_color = *p["bg-color"].as_string();
+    std::string bar_style = *p["style"].as_string();
 
     std::vector<GraphicObject> children;
 
     children.emplace_back(
         "rect",
-        std::unordered_map<std::string, Value>{{"x", -w / 2.0}, {"y", -h / 2.0}, {"w", w}, {"h", h}},
+        Params{{ParamKey::x, -w / 2.0}, {ParamKey::y, -h / 2.0}, {ParamKey::w, w}, {ParamKey::h, h}},
         bg_color,
         "#1a1a1a",
         1.5);
@@ -325,7 +325,7 @@ std::shared_ptr<GraphicObject> create_health_bar(
         for (int i = 0; i < filled_segs; ++i) {
             children.emplace_back(
                 "rect",
-                std::unordered_map<std::string, Value>{{"x", -w / 2.0 + 2.0 + i * seg_w}, {"y", -h / 2.0 + 2.0}, {"w", seg_w - 1.0}, {"h", h - 4.0}},
+                Params{{ParamKey::x, -w / 2.0 + 2.0 + i * seg_w}, {ParamKey::y, -h / 2.0 + 2.0}, {ParamKey::w, seg_w - 1.0}, {ParamKey::h, h - 4.0}},
                 bar_color,
                 std::nullopt,
                 0.0);
@@ -334,14 +334,14 @@ std::shared_ptr<GraphicObject> create_health_bar(
         double mid_w = fill_w / 2.0;
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -w / 2.0 + 2.0}, {"y", -h / 2.0 + 2.0}, {"w", mid_w}, {"h", h - 4.0}},
+            Params{{ParamKey::x, -w / 2.0 + 2.0}, {ParamKey::y, -h / 2.0 + 2.0}, {ParamKey::w, mid_w}, {ParamKey::h, h - 4.0}},
             shift_color(bar_color, 30),
             std::nullopt,
             0.0);
         if (fill_w > mid_w) {
             children.emplace_back(
                 "rect",
-                std::unordered_map<std::string, Value>{{"x", -w / 2.0 + 2.0 + mid_w}, {"y", -h / 2.0 + 2.0}, {"w", fill_w - mid_w}, {"h", h - 4.0}},
+                Params{{ParamKey::x, -w / 2.0 + 2.0 + mid_w}, {ParamKey::y, -h / 2.0 + 2.0}, {ParamKey::w, fill_w - mid_w}, {ParamKey::h, h - 4.0}},
                 bar_color,
                 std::nullopt,
                 0.0);
@@ -350,7 +350,7 @@ std::shared_ptr<GraphicObject> create_health_bar(
         // flat
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -w / 2.0 + 2.0}, {"y", -h / 2.0 + 2.0}, {"w", fill_w}, {"h", h - 4.0}},
+            Params{{ParamKey::x, -w / 2.0 + 2.0}, {ParamKey::y, -h / 2.0 + 2.0}, {ParamKey::w, fill_w}, {ParamKey::h, h - 4.0}},
             bar_color,
             std::nullopt,
             0.0);
@@ -358,7 +358,7 @@ std::shared_ptr<GraphicObject> create_health_bar(
 
     return std::make_shared<GraphicObject>(
         "group",
-        std::unordered_map<std::string, Value>{},
+        Params{},
         std::nullopt,
         std::nullopt,
         1.0,
@@ -375,9 +375,9 @@ std::shared_ptr<GraphicObject> create_icon(
     const std::unordered_map<std::string, Value>& kwargs) {
     auto p = validate_params(icon_schema(), kwargs);
 
-    std::string itype = std::get<std::string>(p["type"]);
-    double s = std::get<double>(p["size"]) / 24.0;
-    std::string color = std::get<std::string>(p["color"]);
+    std::string itype = *p["type"].as_string();
+    double s = p["size"].double_val() / 24.0;
+    std::string color = *p["color"].as_string();
 
     std::vector<GraphicObject> children;
 
@@ -385,19 +385,19 @@ std::shared_ptr<GraphicObject> create_icon(
         double r = 7.0 * s;
         children.emplace_back(
             "ellipse",
-            std::unordered_map<std::string, Value>{{"cx", -5.0 * s}, {"cy", -3.0 * s}, {"rx", r}, {"ry", r}},
+            Params{{ParamKey::cx, -5.0 * s}, {ParamKey::cy, -3.0 * s}, {ParamKey::rx, r}, {ParamKey::ry, r}},
             color,
             "#1a1a1a",
             1.5);
         children.emplace_back(
             "ellipse",
-            std::unordered_map<std::string, Value>{{"cx", 5.0 * s}, {"cy", -3.0 * s}, {"rx", r}, {"ry", r}},
+            Params{{ParamKey::cx, 5.0 * s}, {ParamKey::cy, -3.0 * s}, {ParamKey::rx, r}, {ParamKey::ry, r}},
             color,
             "#1a1a1a",
             1.5);
         children.emplace_back(
             "polygon",
-            std::unordered_map<std::string, Value>{{"points", make_points({-12.0 * s, 0.0, 12.0 * s, 0.0, 0.0, 14.0 * s})}},
+            Params{{ParamKey::points, make_points({-12.0 * s, 0.0, 12.0 * s, 0.0, 0.0, 14.0 * s})}},
             color,
             "#1a1a1a",
             1.5);
@@ -412,27 +412,27 @@ std::shared_ptr<GraphicObject> create_icon(
         }
         children.emplace_back(
             "polygon",
-            std::unordered_map<std::string, Value>{{"points", make_points(points)}},
+            Params{{ParamKey::points, make_points(points)}},
             color,
             "#1a1a1a",
             1.5);
     } else if (itype == "coin") {
         children.emplace_back(
             "ellipse",
-            std::unordered_map<std::string, Value>{{"cx", 0.0}, {"cy", 0.0}, {"rx", 10.0 * s}, {"ry", 10.0 * s}},
+            Params{{ParamKey::cx, 0.0}, {ParamKey::cy, 0.0}, {ParamKey::rx, 10.0 * s}, {ParamKey::ry, 10.0 * s}},
             color,
             "#1a1a1a",
             2.0);
         children.emplace_back(
             "ellipse",
-            std::unordered_map<std::string, Value>{{"cx", 0.0}, {"cy", 0.0}, {"rx", 7.0 * s}, {"ry", 7.0 * s}},
+            Params{{ParamKey::cx, 0.0}, {ParamKey::cy, 0.0}, {ParamKey::rx, 7.0 * s}, {ParamKey::ry, 7.0 * s}},
             std::nullopt,
             shift_color(color, -40),
             1.0);
     } else if (itype == "gem") {
         children.emplace_back(
             "polygon",
-            std::unordered_map<std::string, Value>{{"points", make_points({
+            Params{{ParamKey::points, make_points({
                 0.0, -12.0 * s,
                 10.0 * s, -4.0 * s,
                 8.0 * s, 8.0 * s,
@@ -443,14 +443,14 @@ std::shared_ptr<GraphicObject> create_icon(
             1.5);
         children.emplace_back(
             "line",
-            std::unordered_map<std::string, Value>{{"x1", -4.0 * s}, {"y1", -6.0 * s}, {"x2", 2.0 * s}, {"y2", -2.0 * s}},
+            Params{{ParamKey::x1, -4.0 * s}, {ParamKey::y1, -6.0 * s}, {ParamKey::x2, 2.0 * s}, {ParamKey::y2, -2.0 * s}},
             std::nullopt,
             "#FFFFFF80",
             2.0);
     } else if (itype == "shield") {
         children.emplace_back(
             "polygon",
-            std::unordered_map<std::string, Value>{{"points", make_points({
+            Params{{ParamKey::points, make_points({
                 0.0, -12.0 * s,
                 12.0 * s, -6.0 * s,
                 10.0 * s, 8.0 * s,
@@ -462,27 +462,27 @@ std::shared_ptr<GraphicObject> create_icon(
             2.0);
         children.emplace_back(
             "line",
-            std::unordered_map<std::string, Value>{{"x1", 0.0}, {"y1", -10.0 * s}, {"x2", 0.0}, {"y2", 12.0 * s}},
+            Params{{ParamKey::x1, 0.0}, {ParamKey::y1, -10.0 * s}, {ParamKey::x2, 0.0}, {ParamKey::y2, 12.0 * s}},
             std::nullopt,
             "#1a1a1a",
             1.5);
     } else if (itype == "skull") {
         children.emplace_back(
             "ellipse",
-            std::unordered_map<std::string, Value>{{"cx", 0.0}, {"cy", -4.0 * s}, {"rx", 10.0 * s}, {"ry", 10.0 * s}},
+            Params{{ParamKey::cx, 0.0}, {ParamKey::cy, -4.0 * s}, {ParamKey::rx, 10.0 * s}, {ParamKey::ry, 10.0 * s}},
             color,
             "#1a1a1a",
             2.0);
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -6.0 * s}, {"y", 4.0 * s}, {"w", 12.0 * s}, {"h", 6.0 * s}},
+            Params{{ParamKey::x, -6.0 * s}, {ParamKey::y, 4.0 * s}, {ParamKey::w, 12.0 * s}, {ParamKey::h, 6.0 * s}},
             color,
             "#1a1a1a",
             1.5);
         for (double dx : {-4.0 * s, 4.0 * s}) {
             children.emplace_back(
                 "ellipse",
-                std::unordered_map<std::string, Value>{{"cx", dx}, {"cy", -5.0 * s}, {"rx", 3.0 * s}, {"ry", 3.0 * s}},
+                Params{{ParamKey::cx, dx}, {ParamKey::cy, -5.0 * s}, {ParamKey::rx, 3.0 * s}, {ParamKey::ry, 3.0 * s}},
                 "#1a1a1a",
                 std::nullopt,
                 0.0);
@@ -491,7 +491,7 @@ std::shared_ptr<GraphicObject> create_icon(
 
     return std::make_shared<GraphicObject>(
         "group",
-        std::unordered_map<std::string, Value>{},
+        Params{},
         std::nullopt,
         std::nullopt,
         1.0,

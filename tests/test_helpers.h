@@ -45,7 +45,7 @@ inline Result<Value> eval(const std::string& source,
 
     Value last = make_nil_value();
     for (const auto& expr : *expanded) {
-        auto result = evaluate(expr, env);
+        auto result = eval_to_value(expr, env);
         if (!result) return result;
         last = *result;
     }
@@ -56,30 +56,30 @@ inline int64_t eval_int(const std::string& source,
                         std::shared_ptr<Environment> env = nullptr) {
     auto r = eval(source, env);
     if (!r) throw std::runtime_error("eval failed: " + r.error().message);
-    return std::get<int64_t>(*r);
+    return r->int_val();
 }
 
 inline double eval_double(const std::string& source,
                           std::shared_ptr<Environment> env = nullptr) {
     auto r = eval(source, env);
     if (!r) throw std::runtime_error("eval failed: " + r.error().message);
-    if (std::holds_alternative<int64_t>(*r))
-        return static_cast<double>(std::get<int64_t>(*r));
-    return std::get<double>(*r);
+    if (r->is_int())
+        return static_cast<double>(r->int_val());
+    return r->double_val();
 }
 
 inline std::string eval_string(const std::string& source,
                                std::shared_ptr<Environment> env = nullptr) {
     auto r = eval(source, env);
     if (!r) throw std::runtime_error("eval failed: " + r.error().message);
-    return std::get<std::string>(*r);
+    return *r->as_string();
 }
 
 inline bool eval_bool(const std::string& source,
                       std::shared_ptr<Environment> env = nullptr) {
     auto r = eval(source, env);
     if (!r) throw std::runtime_error("eval failed: " + r.error().message);
-    return std::get<bool>(*r);
+    return r->bool_val();
 }
 
 } // namespace pml::test

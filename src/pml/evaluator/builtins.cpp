@@ -13,6 +13,7 @@
 
 #include "error.h"
 #include "evaluator.h"
+#include "module_loader.h"
 #include "types.h"
 
 #include <algorithm>
@@ -37,22 +38,22 @@ namespace {
 /// Return true if any argument is a double (prompts float promotion).
 bool has_float(const std::vector<Value>& args) noexcept {
     for (const auto& v : args) {
-        if (std::holds_alternative<double>(v)) return true;
+        if (v.is_double()) return true;
     }
     return false;
 }
 
 /// Convert a numeric Value to double. Assumes is_number(v) is true.
 double to_double(const Value& v) {
-    if (const auto* i = std::get_if<int64_t>(&v)) return static_cast<double>(*i);
-    if (const auto* d = std::get_if<double>(&v)) return *d;
+    if (v.is_int()) return static_cast<double>(v.int_val());
+    if (v.is_double()) return v.double_val();
     return 0.0;  // unreachable for valid numeric values
 }
 
 /// Convert a numeric Value to int64_t. Assumes is_number(v) is true.
 int64_t to_int64(const Value& v) {
-    if (const auto* i = std::get_if<int64_t>(&v)) return *i;
-    if (const auto* d = std::get_if<double>(&v)) return static_cast<int64_t>(*d);
+    if (v.is_int()) return v.int_val();
+    if (v.is_double()) return static_cast<int64_t>(v.double_val());
     return 0;  // unreachable for valid numeric values
 }
 
@@ -103,115 +104,75 @@ Result<void> expect_arity_one_of(const std::vector<size_t>& allowed,
 
 /// Return the PML type name as a Symbol for a runtime value.
 Symbol typeof_value(const Value& v) {
-    return std::visit(
-        [](const auto& arg) -> Symbol {
-            using T = std::decay_t<decltype(arg)>;
-
-            if constexpr (std::is_same_v<T, std::nullptr_t>) {
-                return Symbol("nil");
-            } else if constexpr (std::is_same_v<T, int64_t>) {
-                return Symbol("integer");
-            } else if constexpr (std::is_same_v<T, double>) {
-                return Symbol("float");
-            } else if constexpr (std::is_same_v<T, std::string>) {
-                return Symbol("string");
-            } else if constexpr (std::is_same_v<T, bool>) {
-                return Symbol("boolean");
-            } else if constexpr (std::is_same_v<T, Symbol>) {
-                return Symbol("symbol");
-            } else if constexpr (std::is_same_v<T, Keyword>) {
-                return Symbol("keyword");
-            } else if constexpr (std::is_same_v<T,
-                                      std::shared_ptr<ValueList>>) {
-                return Symbol("list");
-            } else if constexpr (std::is_same_v<T,
-                                      std::shared_ptr<Procedure>>) {
-                return Symbol("procedure");
-            } else if constexpr (std::is_same_v<T,
-                                      std::shared_ptr<BuiltinProcedure>>) {
-                return Symbol("procedure");
-            } else if constexpr (std::is_same_v<T,
-                                      std::shared_ptr<Macro>>) {
-                return Symbol("macro");
-            } else if constexpr (std::is_same_v<T,
-                                      std::shared_ptr<Module>>) {
-                return Symbol("module");
-            } else if constexpr (std::is_same_v<T,
-                                      std::shared_ptr<GraphicObject>>) {
-                return Symbol("graphic-object");
-            } else if constexpr (std::is_same_v<T,
-                                      std::shared_ptr<Canvas>>) {
-                return Symbol("canvas");
-            } else if constexpr (std::is_same_v<T,
-                                      std::shared_ptr<AffineTransform>>) {
-                return Symbol("matrix");
-            } else if constexpr (std::is_same_v<T,
-                                      std::shared_ptr<Animation>>) {
-                return Symbol("animation");
-            } else if constexpr (std::is_same_v<T,
-                                      std::shared_ptr<SkeletonInstance>>) {
-                return Symbol("skeleton");
-            } else if constexpr (std::is_same_v<T,
-                                      std::shared_ptr<StyleDescriptor>>) {
-                return Symbol("style");
-            } else if constexpr (std::is_same_v<T,
-                                      std::shared_ptr<Palette>>) {
-                return Symbol("palette");
-            } else if constexpr (std::is_same_v<T,
-                                      std::shared_ptr<Timeline>>) {
-                return Symbol("timeline");
-            } else {
-                return Symbol("unknown");
-            }
-        },
-        v);
+    if (v.is_nil()) return Symbol("nil");
+    if (v.is_int()) return Symbol("integer");
+    if (v.is_double()) return Symbol("float");
+    if (v.is_string()) return Symbol("string");
+    if (v.is_bool()) return Symbol("boolean");
+    if (v.is_symbol()) return Symbol("symbol");
+    if (v.is_keyword()) return Symbol("keyword");
+    if (v.is_list()) return Symbol("list");
+    if (v.is_hash()) return Symbol("hash");
+    if (v.is_vector()) return Symbol("vector");
+    if (v.is_procedure() || v.is_builtin()) return Symbol("procedure");
+    if (v.is_macro()) return Symbol("macro");
+    if (v.is_module()) return Symbol("module");
+    if (v.is_graphic_object()) return Symbol("graphic-object");
+    if (v.is_canvas()) return Symbol("canvas");
+    if (v.is_transform()) return Symbol("matrix");
+    if (v.is_animation()) return Symbol("animation");
+    if (v.is_skeleton_template() || v.is_skeleton_instance())
+        return Symbol("skeleton");
+    if (v.is_style()) return Symbol("style");
+    if (v.is_palette()) return Symbol("palette");
+    if (v.is_timeline()) return Symbol("timeline");
+    if (v.is_layer()) return Symbol("layer");
+    if (v.is_composition()) return Symbol("composition");
+    if (v.is_image_filter()) return Symbol("filter");
+    return Symbol("unknown");
 }
 
 // ── Structural equality (deep compare) ─────────────────────────────────────
 
 /// Recursive structural equality check.
 bool deep_equal(const Value& a, const Value& b) {
-    // Different variant alternatives → not equal
-    if (a.index() != b.index()) return false;
+    if (a.tag() != b.tag()) return false;
+    if (a.is_hash()) {
+        const auto* ha = a.as_hash();
+        const auto* hb = b.as_hash();
+        if (!ha || !hb || !*ha || !*hb) return false;
+        const auto& da = (*ha)->data;
+        const auto& db = (*hb)->data;
+        if (da.size() != db.size()) return false;
+        for (const auto& [k, v] : da) {
+            auto it = db.find(k);
+            if (it == db.end() || !deep_equal(v, it->second)) return false;
+        }
+        return true;
+    }
+    if (a.is_vector()) {
+        const auto* va = a.as_vector();
+        const auto* vb = b.as_vector();
+        if (!va || !vb || !*va || !*vb) return false;
+        const auto& ea = (*va)->elements;
+        const auto& eb = (*vb)->elements;
+        if (ea.size() != eb.size()) return false;
+        for (size_t i = 0; i < ea.size(); ++i) {
+            if (!deep_equal(ea[i], eb[i])) return false;
+        }
+        return true;
+    }
+    if (!a.is_list()) return a == b;
 
-    return std::visit(
-        [&](const auto& arg) -> bool {
-            using T = std::decay_t<decltype(arg)>;
-
-            const auto& other = std::get<T>(b);
-
-            if constexpr (std::is_same_v<T, std::nullptr_t>) {
-                return true;  // both nil
-            } else if constexpr (std::is_same_v<T, int64_t>) {
-                return arg == other;
-            } else if constexpr (std::is_same_v<T, double>) {
-                return arg == other;
-            } else if constexpr (std::is_same_v<T, std::string>) {
-                return arg == other;
-            } else if constexpr (std::is_same_v<T, bool>) {
-                return arg == other;
-            } else if constexpr (std::is_same_v<T, Symbol>) {
-                return arg.name == other.name;
-            } else if constexpr (std::is_same_v<T, Keyword>) {
-                return arg.name == other.name;
-            } else if constexpr (std::is_same_v<T,
-                                      std::shared_ptr<ValueList>>) {
-                // Both are shared_ptr<ValueList> — compare element by element
-                if (!arg && !other) return true;
-                if (!arg || !other) return false;
-                if (arg->elements.size() != other->elements.size()) return false;
-                for (size_t i = 0; i < arg->elements.size(); ++i) {
-                    if (!deep_equal(arg->elements[i], other->elements[i])) {
-                        return false;
-                    }
-                }
-                return true;
-            } else {
-                // For all shared_ptr complex types: reference equality
-                return arg == other;
-            }
-        },
-        a);
+    const auto* la = a.as_list();
+    const auto* lb = b.as_list();
+    if (!la || !lb) return false;
+    if (!*la || !*lb) return !*la && !*lb;
+    if ((*la)->elements.size() != (*lb)->elements.size()) return false;
+    for (size_t i = 0; i < (*la)->elements.size(); ++i) {
+        if (!deep_equal((*la)->elements[i], (*lb)->elements[i])) return false;
+    }
+    return true;
 }
 
 // ── Numeric type promotion for arithmetic ──────────────────────────────────
@@ -235,7 +196,7 @@ Result<PromotedArgs> promote_numeric(const std::vector<Value>& args) {
             return std::unexpected(type_error(
                 "expected numeric argument"));
         }
-        if (std::holds_alternative<double>(v)) {
+        if (v.is_double()) {
             result.is_float = true;
         }
     }
@@ -377,6 +338,80 @@ void register_builtins(std::shared_ptr<Environment> env) {
         }
     });
 
+    def("modulo", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 2) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+        if (!is_number(args[0]) || !is_number(args[1])) {
+            return std::unexpected(type_error("modulo expected numeric arguments"));
+        }
+        if (has_float(args)) {
+            double a = to_double(args[0]);
+            double b = to_double(args[1]);
+            if (b == 0) {
+                return std::unexpected(general_error("modulo: division by zero"));
+            }
+            double r = std::fmod(a, b);
+            if (r != 0 && ((r < 0) != (b < 0))) {
+                r += b;
+            }
+            return Value(r);
+        } else {
+            int64_t a = to_int64(args[0]);
+            int64_t b = to_int64(args[1]);
+            if (b == 0) {
+                return std::unexpected(general_error("modulo: division by zero"));
+            }
+            int64_t r = a % b;
+            if (r != 0 && ((r < 0) != (b < 0))) {
+                r += b;
+            }
+            return Value(r);
+        }
+    });
+
+    def("remainder", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 2) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+        if (!is_number(args[0]) || !is_number(args[1])) {
+            return std::unexpected(type_error("remainder expected numeric arguments"));
+        }
+        if (has_float(args)) {
+            double a = to_double(args[0]);
+            double b = to_double(args[1]);
+            if (b == 0) {
+                return std::unexpected(general_error("remainder: division by zero"));
+            }
+            return Value(std::fmod(a, b));
+        } else {
+            int64_t a = to_int64(args[0]);
+            int64_t b = to_int64(args[1]);
+            if (b == 0) {
+                return std::unexpected(general_error("remainder: division by zero"));
+            }
+            return Value(a % b);
+        }
+    });
+
+    def("quotient", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 2) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+        if (!is_number(args[0]) || !is_number(args[1])) {
+            return std::unexpected(type_error("quotient expected numeric arguments"));
+        }
+        double a = to_double(args[0]);
+        double b = to_double(args[1]);
+        if (b == 0) {
+            return std::unexpected(general_error("quotient: division by zero"));
+        }
+        return Value(static_cast<int64_t>(a / b));
+    });
+
     def("abs", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
         if (args.size() != 1) {
             return std::unexpected(
@@ -385,7 +420,7 @@ void register_builtins(std::shared_ptr<Environment> env) {
         if (!is_number(args[0])) {
             return std::unexpected(type_error("abs expected numeric argument"));
         }
-        if (std::holds_alternative<double>(args[0])) {
+        if (args[0].is_double()) {
             return Value(std::abs(to_double(args[0])));
         } else {
             int64_t v = to_int64(args[0]);
@@ -458,6 +493,63 @@ void register_builtins(std::shared_ptr<Environment> env) {
             return std::unexpected(type_error("round expected numeric argument"));
         }
         return Value(std::round(to_double(args[0])));
+    });
+
+    def("even?", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 1) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        if (!is_number(args[0])) {
+            return std::unexpected(type_error("even?: expected numeric argument"));
+        }
+        int64_t v = to_int64(args[0]);
+        return Value((v % 2) == 0);
+    });
+
+    def("odd?", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 1) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        if (!is_number(args[0])) {
+            return std::unexpected(type_error("odd?: expected numeric argument"));
+        }
+        int64_t v = to_int64(args[0]);
+        return Value((v % 2) != 0);
+    });
+
+    def("zero?", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 1) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        if (!is_number(args[0])) {
+            return std::unexpected(type_error("zero?: expected numeric argument"));
+        }
+        return Value(to_double(args[0]) == 0.0);
+    });
+
+    def("positive?", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 1) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        if (!is_number(args[0])) {
+            return std::unexpected(type_error("positive?: expected numeric argument"));
+        }
+        return Value(to_double(args[0]) > 0.0);
+    });
+
+    def("negative?", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 1) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        if (!is_number(args[0])) {
+            return std::unexpected(type_error("negative?: expected numeric argument"));
+        }
+        return Value(to_double(args[0]) < 0.0);
     });
 
     def("sqrt", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
@@ -652,10 +744,10 @@ void register_builtins(std::shared_ptr<Environment> env) {
             return std::unexpected(
                 type_error("eq? requires at least 2 arguments"));
         }
-        // Reference equality: same variant alternative AND same value/pointer
+        // Reference equality: same tag AND same value/pointer
         const Value& first = args[0];
         for (size_t i = 1; i < args.size(); ++i) {
-            if (args[i].index() != first.index()) return Value(false);
+            if (args[i].tag() != first.tag()) return Value(false);
             // Compare the values directly
             if (first != args[i]) return Value(false);
         }
@@ -672,6 +764,14 @@ void register_builtins(std::shared_ptr<Environment> env) {
             if (!deep_equal(first, args[i])) return Value(false);
         }
         return Value(true);
+    });
+
+    def("not", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 1) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        return Value(!is_truthy(args[0]));
     });
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -737,7 +837,7 @@ void register_builtins(std::shared_ptr<Environment> env) {
             return std::unexpected(
                 arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
         }
-        const auto* lst = std::get_if<std::shared_ptr<ValueList>>(&args[0]);
+        const auto* lst = args[0].as_list();
         if (!lst || !*lst || (*lst)->elements.empty()) {
             return std::unexpected(
                 type_error("car: expected non-empty list"));
@@ -750,7 +850,7 @@ void register_builtins(std::shared_ptr<Environment> env) {
             return std::unexpected(
                 arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
         }
-        const auto* lst = std::get_if<std::shared_ptr<ValueList>>(&args[0]);
+        const auto* lst = args[0].as_list();
         if (!lst || !*lst || (*lst)->elements.empty()) {
             return std::unexpected(
                 type_error("cdr: expected non-empty list"));
@@ -770,7 +870,7 @@ void register_builtins(std::shared_ptr<Environment> env) {
         const Value& b = args[1];
 
         // If second arg is a list, prepend a
-        if (const auto* lst = std::get_if<std::shared_ptr<ValueList>>(&b)) {
+        if (const auto* lst = b.as_list()) {
             if (*lst) {
                 std::vector<Value> result;
                 result.reserve(1 + (*lst)->elements.size());
@@ -794,7 +894,7 @@ void register_builtins(std::shared_ptr<Environment> env) {
             return std::unexpected(
                 arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
         }
-        const auto* lst = std::get_if<std::shared_ptr<ValueList>>(&args[0]);
+        const auto* lst = args[0].as_list();
         if (!lst || !*lst) {
             return std::unexpected(
                 type_error("length: expected list"));
@@ -805,7 +905,7 @@ void register_builtins(std::shared_ptr<Environment> env) {
     def("append", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
         std::vector<Value> result;
         for (const auto& arg : args) {
-            const auto* lst = std::get_if<std::shared_ptr<ValueList>>(&arg);
+            const auto* lst = arg.as_list();
             if (!lst || !*lst) {
                 return std::unexpected(
                     type_error("append: expected list arguments"));
@@ -822,7 +922,7 @@ void register_builtins(std::shared_ptr<Environment> env) {
             return std::unexpected(
                 arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
         }
-        const auto* lst = std::get_if<std::shared_ptr<ValueList>>(&args[0]);
+        const auto* lst = args[0].as_list();
         if (!lst || !*lst) {
             return std::unexpected(
                 type_error("reverse: expected list"));
@@ -837,7 +937,7 @@ void register_builtins(std::shared_ptr<Environment> env) {
             return std::unexpected(
                 arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
         }
-        const auto* lst = std::get_if<std::shared_ptr<ValueList>>(&args[0]);
+        const auto* lst = args[0].as_list();
         if (!lst || !*lst) {
             return std::unexpected(
                 type_error("nth: first argument must be list"));
@@ -850,6 +950,89 @@ void register_builtins(std::shared_ptr<Environment> env) {
                                            (*lst)->elements.size())));
         }
         return (*lst)->elements[static_cast<size_t>(index)];
+    });
+
+    def("list-ref", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 2) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+        const auto* lst = args[0].as_list();
+        if (!lst || !*lst) {
+            return std::unexpected(
+                type_error("list-ref: first argument must be list"));
+        }
+        int64_t index = to_int64(args[1]);
+        if (index < 0 || static_cast<size_t>(index) >= (*lst)->elements.size()) {
+            return std::unexpected(
+                general_error(std::format("list-ref: index {} out of range for list of "
+                                           "length {}", index,
+                                           (*lst)->elements.size())));
+        }
+        return (*lst)->elements[static_cast<size_t>(index)];
+    });
+
+    def("list-tail", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 2) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+        const auto* lst = args[0].as_list();
+        if (!lst || !*lst) {
+            return std::unexpected(
+                type_error("list-tail: first argument must be list"));
+        }
+        int64_t index = to_int64(args[1]);
+        if (index < 0 || static_cast<size_t>(index) > (*lst)->elements.size()) {
+            return std::unexpected(
+                general_error(std::format("list-tail: index {} out of range for list of "
+                                           "length {}", index,
+                                           (*lst)->elements.size())));
+        }
+        std::vector<Value> tail((*lst)->elements.begin() + static_cast<size_t>(index),
+                                (*lst)->elements.end());
+        return make_list_value(std::move(tail));
+    });
+
+    def("member", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 2) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+        const auto* lst = args[1].as_list();
+        if (!lst || !*lst) {
+            return std::unexpected(
+                type_error("member: second argument must be list"));
+        }
+        const auto& elems = (*lst)->elements;
+        for (size_t i = 0; i < elems.size(); ++i) {
+            if (deep_equal(elems[i], args[0])) {
+                std::vector<Value> tail(elems.begin() + i, elems.end());
+                return make_list_value(std::move(tail));
+            }
+        }
+        return Value(false);
+    });
+
+    def("assoc", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 2) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+        const auto* lst = args[1].as_list();
+        if (!lst || !*lst) {
+            return std::unexpected(
+                type_error("assoc: second argument must be list"));
+        }
+        for (const auto& item : (*lst)->elements) {
+            const auto* pair = item.as_list();
+            if (pair && *pair && !(*pair)->elements.empty()) {
+                if (deep_equal((*pair)->elements[0], args[0])) {
+                    return item;
+                }
+            }
+        }
+        return Value(false);
     });
 
     def("range", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
@@ -885,14 +1068,14 @@ void register_builtins(std::shared_ptr<Environment> env) {
             return std::unexpected(
                 arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
         }
-        const auto* lst = std::get_if<std::shared_ptr<ValueList>>(&args[1]);
+        const auto* lst = args[1].as_list();
         if (!lst || !*lst) {
             return std::unexpected(type_error("map: second argument must be a list"));
         }
         std::vector<Value> out;
         out.reserve((*lst)->elements.size());
         for (const auto& item : (*lst)->elements) {
-            auto r = apply_function(args[0], {item}, {}, env.shared_from_this());
+            auto r = trampoline(apply_function(args[0], {item}, {}, env.shared_from_this()));
             if (!r) return std::unexpected(std::move(r.error()));
             out.push_back(std::move(*r));
         }
@@ -904,13 +1087,13 @@ void register_builtins(std::shared_ptr<Environment> env) {
             return std::unexpected(
                 arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
         }
-        const auto* lst = std::get_if<std::shared_ptr<ValueList>>(&args[1]);
+        const auto* lst = args[1].as_list();
         if (!lst || !*lst) {
             return std::unexpected(type_error("filter: second argument must be a list"));
         }
         std::vector<Value> out;
         for (const auto& item : (*lst)->elements) {
-            auto r = apply_function(args[0], {item}, {}, env.shared_from_this());
+            auto r = trampoline(apply_function(args[0], {item}, {}, env.shared_from_this()));
             if (!r) return std::unexpected(std::move(r.error()));
             if (is_truthy(*r)) out.push_back(item);
         }
@@ -922,17 +1105,50 @@ void register_builtins(std::shared_ptr<Environment> env) {
             return std::unexpected(
                 arity_error(SourceLocation{}, 3, static_cast<int>(args.size())));
         }
-        const auto* lst = std::get_if<std::shared_ptr<ValueList>>(&args[2]);
+        const auto* lst = args[2].as_list();
         if (!lst || !*lst) {
             return std::unexpected(type_error("reduce: third argument must be a list"));
         }
         Value acc = args[1];
         for (const auto& item : (*lst)->elements) {
-            auto r = apply_function(args[0], {acc, item}, {}, env.shared_from_this());
+            auto r = trampoline(apply_function(args[0], {acc, item}, {}, env.shared_from_this()));
             if (!r) return std::unexpected(std::move(r.error()));
             acc = std::move(*r);
         }
         return acc;
+    });
+
+    def("for-each", [](const std::vector<Value>& args, Environment& env) -> Result<Value> {
+        if (args.size() != 2) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+        const auto* lst = args[1].as_list();
+        if (!lst || !*lst) {
+            return std::unexpected(type_error("for-each: second argument must be a list"));
+        }
+        for (const auto& item : (*lst)->elements) {
+            auto r = trampoline(apply_function(args[0], {item}, {}, env.shared_from_this()));
+            if (!r) return std::unexpected(std::move(r.error()));
+        }
+        return make_nil_value();
+    });
+
+    def("apply", [](const std::vector<Value>& args, Environment& env) -> Result<Value> {
+        if (args.size() < 2) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+        std::vector<Value> call_args;
+        for (size_t i = 1; i + 1 < args.size(); ++i) {
+            call_args.push_back(args[i]);
+        }
+        const auto* lst = args.back().as_list();
+        if (!lst || !*lst) {
+            return std::unexpected(type_error("apply: last argument must be a list"));
+        }
+        call_args.insert(call_args.end(), (*lst)->elements.begin(), (*lst)->elements.end());
+        return trampoline(apply_function(args[0], call_args, {}, env.shared_from_this()));
     });
 
     def("null?", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
@@ -942,7 +1158,7 @@ void register_builtins(std::shared_ptr<Environment> env) {
         }
         // nil or empty list
         if (is_nil(args[0])) return Value(true);
-        if (const auto* lst = std::get_if<std::shared_ptr<ValueList>>(&args[0])) {
+        if (const auto* lst = args[0].as_list()) {
             if (*lst && (*lst)->elements.empty()) return Value(true);
         }
         return Value(false);
@@ -961,7 +1177,7 @@ void register_builtins(std::shared_ptr<Environment> env) {
         [](const std::vector<Value>& args, Environment&) -> Result<Value> {
             std::string result;
             for (const auto& arg : args) {
-                const auto* s = std::get_if<std::string>(&arg);
+                const auto* s = arg.as_string();
                 if (!s) {
                     return std::unexpected(
                         type_error("string-append: expected string arguments"));
@@ -977,7 +1193,7 @@ void register_builtins(std::shared_ptr<Environment> env) {
                 return std::unexpected(arity_error(
                     SourceLocation{}, 1, static_cast<int>(args.size())));
             }
-            const auto* s = std::get_if<std::string>(&args[0]);
+            const auto* s = args[0].as_string();
             if (!s) {
                 return std::unexpected(
                     type_error("string-length: expected string"));
@@ -991,7 +1207,7 @@ void register_builtins(std::shared_ptr<Environment> env) {
                 return std::unexpected(arity_error(
                     SourceLocation{}, 3, static_cast<int>(args.size())));
             }
-            const auto* s = std::get_if<std::string>(&args[0]);
+            const auto* s = args[0].as_string();
             if (!s) {
                 return std::unexpected(
                     type_error("substring: expected string"));
@@ -1014,7 +1230,7 @@ void register_builtins(std::shared_ptr<Environment> env) {
                 return std::unexpected(arity_error(
                     SourceLocation{}, 2, static_cast<int>(args.size())));
             }
-            const auto* s = std::get_if<std::string>(&args[0]);
+            const auto* s = args[0].as_string();
             if (!s) {
                 return std::unexpected(
                     type_error("string-ref: expected string"));
@@ -1039,7 +1255,7 @@ void register_builtins(std::shared_ptr<Environment> env) {
                 return std::unexpected(
                     type_error("number->string: expected numeric argument"));
             }
-            if (std::holds_alternative<double>(args[0])) {
+            if (args[0].is_double()) {
                 // Use value_to_string's formatting (removes trailing zeros)
                 return Value(value_to_string(args[0]));
             }
@@ -1052,20 +1268,33 @@ void register_builtins(std::shared_ptr<Environment> env) {
                 return std::unexpected(arity_error(
                     SourceLocation{}, 1, static_cast<int>(args.size())));
             }
-            const auto* s = std::get_if<std::string>(&args[0]);
+            const auto* s = args[0].as_string();
             if (!s) {
                 return std::unexpected(
                     type_error("string->number: expected string"));
             }
             try {
+                size_t idx = 0;
                 // Check for decimal point or exponent → parse as double
                 if (s->find('.') != std::string::npos ||
                     s->find('e') != std::string::npos ||
                     s->find('E') != std::string::npos) {
-                    return Value(std::stod(*s));
+                    double val = std::stod(*s, &idx);
+                    if (idx != s->size()) {
+                        return std::unexpected(type_error(
+                            std::format("string->number: cannot convert '{}'",
+                                        *s)));
+                    }
+                    return Value(val);
                 }
                 // Otherwise parse as integer
-                return Value(static_cast<int64_t>(std::stoll(*s)));
+                int64_t val = std::stoll(*s, &idx);
+                if (idx != s->size()) {
+                    return std::unexpected(type_error(
+                        std::format("string->number: cannot convert '{}'",
+                                    *s)));
+                }
+                return Value(val);
             } catch (const std::exception&) {
                 return std::unexpected(
                     type_error(std::format("string->number: cannot convert '{}'",
@@ -1079,7 +1308,7 @@ void register_builtins(std::shared_ptr<Environment> env) {
                 return std::unexpected(
                     type_error("format: expected at least 1 argument"));
             }
-            const auto* fmt = std::get_if<std::string>(&args[0]);
+            const auto* fmt = args[0].as_string();
             if (!fmt) {
                 return std::unexpected(
                     type_error("format: first argument must be string"));
@@ -1091,6 +1320,177 @@ void register_builtins(std::shared_ptr<Environment> env) {
                 result.replace(pos, 2, value_to_string(args[i]));
             }
             return Value(std::move(result));
+        });
+
+    def("string->symbol",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() != 1) {
+                return std::unexpected(arity_error(
+                    SourceLocation{}, 1, static_cast<int>(args.size())));
+            }
+            const auto* s = args[0].as_string();
+            if (!s) {
+                return std::unexpected(
+                    type_error("string->symbol: expected string"));
+            }
+            return Value(Symbol(*s));
+        });
+
+    def("symbol->string",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() != 1) {
+                return std::unexpected(arity_error(
+                    SourceLocation{}, 1, static_cast<int>(args.size())));
+            }
+            const auto* sym = args[0].as_symbol();
+            if (!sym) {
+                return std::unexpected(
+                    type_error("symbol->string: expected symbol"));
+            }
+            return Value(std::string(sym->name));
+        });
+
+    def("string->list",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() != 1) {
+                return std::unexpected(arity_error(
+                    SourceLocation{}, 1, static_cast<int>(args.size())));
+            }
+            const auto* s = args[0].as_string();
+            if (!s) {
+                return std::unexpected(
+                    type_error("string->list: expected string"));
+            }
+            std::vector<Value> chars;
+            for (char c : *s) {
+                chars.push_back(Value(std::string(1, c)));
+            }
+            return make_list_value(std::move(chars));
+        });
+
+    def("list->string",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() != 1) {
+                return std::unexpected(arity_error(
+                    SourceLocation{}, 1, static_cast<int>(args.size())));
+            }
+            const auto* lst = args[0].as_list();
+            if (!lst || !*lst) {
+                return std::unexpected(
+                    type_error("list->string: expected list of strings"));
+            }
+            std::string result;
+            for (const auto& v : (*lst)->elements) {
+                const auto* s = v.as_string();
+                if (!s) {
+                    return std::unexpected(
+                        type_error("list->string: list elements must be strings"));
+                }
+                result += *s;
+            }
+            return Value(std::move(result));
+        });
+
+    def("string=?",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() < 2) {
+                return std::unexpected(
+                    type_error("string=? requires at least 2 arguments"));
+            }
+            const auto* first = args[0].as_string();
+            if (!first) {
+                return std::unexpected(
+                    type_error("string=?: expected string arguments"));
+            }
+            for (size_t i = 1; i < args.size(); ++i) {
+                const auto* s = args[i].as_string();
+                if (!s || *s != *first) return Value(false);
+            }
+            return Value(true);
+        });
+
+    def("string<?",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() < 2) {
+                return std::unexpected(
+                    type_error("string<? requires at least 2 arguments"));
+            }
+            std::vector<const std::string*> strs;
+            for (const auto& arg : args) {
+                const auto* s = arg.as_string();
+                if (!s) {
+                    return std::unexpected(
+                        type_error("string<?: expected string arguments"));
+                }
+                strs.push_back(s);
+            }
+            for (size_t i = 1; i < strs.size(); ++i) {
+                if (!(*strs[i - 1] < *strs[i])) return Value(false);
+            }
+            return Value(true);
+        });
+
+    def("string>?",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() < 2) {
+                return std::unexpected(
+                    type_error("string>? requires at least 2 arguments"));
+            }
+            std::vector<const std::string*> strs;
+            for (const auto& arg : args) {
+                const auto* s = arg.as_string();
+                if (!s) {
+                    return std::unexpected(
+                        type_error("string>?: expected string arguments"));
+                }
+                strs.push_back(s);
+            }
+            for (size_t i = 1; i < strs.size(); ++i) {
+                if (!(*strs[i - 1] > *strs[i])) return Value(false);
+            }
+            return Value(true);
+        });
+
+    def("string<=?",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() < 2) {
+                return std::unexpected(
+                    type_error("string<=? requires at least 2 arguments"));
+            }
+            std::vector<const std::string*> strs;
+            for (const auto& arg : args) {
+                const auto* s = arg.as_string();
+                if (!s) {
+                    return std::unexpected(
+                        type_error("string<=?: expected string arguments"));
+                }
+                strs.push_back(s);
+            }
+            for (size_t i = 1; i < strs.size(); ++i) {
+                if (!(*strs[i - 1] <= *strs[i])) return Value(false);
+            }
+            return Value(true);
+        });
+
+    def("string>=?",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() < 2) {
+                return std::unexpected(
+                    type_error("string>=? requires at least 2 arguments"));
+            }
+            std::vector<const std::string*> strs;
+            for (const auto& arg : args) {
+                const auto* s = arg.as_string();
+                if (!s) {
+                    return std::unexpected(
+                        type_error("string>=?: expected string arguments"));
+                }
+                strs.push_back(s);
+            }
+            for (size_t i = 1; i < strs.size(); ++i) {
+                if (!(*strs[i - 1] >= *strs[i])) return Value(false);
+            }
+            return Value(true);
         });
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -1180,11 +1580,343 @@ void register_builtins(std::shared_ptr<Environment> env) {
                 arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
         }
         // A pair is a non-empty list
-        if (const auto* lst = std::get_if<std::shared_ptr<ValueList>>(&args[0])) {
+        if (const auto* lst = args[0].as_list()) {
             if (*lst && !(*lst)->elements.empty()) return Value(true);
         }
         return Value(false);
     });
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Hash Tables
+    // ═══════════════════════════════════════════════════════════════════════
+
+    def("make-hash",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            auto hash = std::make_shared<ValueHashMap>();
+            if (!args.empty()) {
+                if (args.size() != 1) {
+                    return std::unexpected(arity_error(
+                        SourceLocation{}, 1, static_cast<int>(args.size())));
+                }
+                const auto* lst = args[0].as_list();
+                if (!lst || !*lst) {
+                    return std::unexpected(type_error(
+                        "make-hash: expected list of key-value pairs"));
+                }
+                for (const auto& pair : (*lst)->elements) {
+                    const auto* pair_lst = pair.as_list();
+                    if (!pair_lst || !*pair_lst ||
+                        (*pair_lst)->elements.size() != 2) {
+                        return std::unexpected(type_error(
+                            "make-hash: each entry must be a key-value pair"));
+                    }
+                    const auto* key = (*pair_lst)->elements[0].as_string();
+                    if (!key) {
+                        return std::unexpected(type_error(
+                            "make-hash: key must be a string"));
+                    }
+                    hash->data[*key] = (*pair_lst)->elements[1];
+                }
+            }
+            return Value(hash);
+        });
+
+    def("hash-ref",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() != 2 && args.size() != 3) {
+                return std::unexpected(arity_error(
+                    SourceLocation{}, 2, static_cast<int>(args.size())));
+            }
+            const auto* hash = args[0].as_hash();
+            if (!hash || !*hash) {
+                return std::unexpected(
+                    type_error("hash-ref: expected hash table"));
+            }
+            const auto* key = args[1].as_string();
+            if (!key) {
+                return std::unexpected(
+                    type_error("hash-ref: key must be a string"));
+            }
+            auto it = (*hash)->data.find(*key);
+            if (it == (*hash)->data.end()) {
+                if (args.size() == 3) return args[2];
+                return std::unexpected(access_error(
+                    std::format("hash-ref: key not found: '{}'", *key)));
+            }
+            return it->second;
+        });
+
+    def("hash-set!",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() != 3) {
+                return std::unexpected(arity_error(
+                    SourceLocation{}, 3, static_cast<int>(args.size())));
+            }
+            const auto* hash = args[0].as_hash();
+            if (!hash || !*hash) {
+                return std::unexpected(
+                    type_error("hash-set!: expected hash table"));
+            }
+            const auto* key = args[1].as_string();
+            if (!key) {
+                return std::unexpected(
+                    type_error("hash-set!: key must be a string"));
+            }
+            (*hash)->data[*key] = args[2];
+            return Value(true);
+        });
+
+    def("hash-delete!",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() != 2) {
+                return std::unexpected(arity_error(
+                    SourceLocation{}, 2, static_cast<int>(args.size())));
+            }
+            const auto* hash = args[0].as_hash();
+            if (!hash || !*hash) {
+                return std::unexpected(
+                    type_error("hash-delete!: expected hash table"));
+            }
+            const auto* key = args[1].as_string();
+            if (!key) {
+                return std::unexpected(
+                    type_error("hash-delete!: key must be a string"));
+            }
+            (*hash)->data.erase(*key);
+            return Value(true);
+        });
+
+    def("hash-keys",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() != 1) {
+                return std::unexpected(arity_error(
+                    SourceLocation{}, 1, static_cast<int>(args.size())));
+            }
+            const auto* hash = args[0].as_hash();
+            if (!hash || !*hash) {
+                return std::unexpected(
+                    type_error("hash-keys: expected hash table"));
+            }
+            std::vector<Value> keys;
+            keys.reserve((*hash)->data.size());
+            for (const auto& [k, _] : (*hash)->data) {
+                keys.emplace_back(k);
+            }
+            return Value(std::make_shared<ValueList>(std::move(keys)));
+        });
+
+    def("hash-values",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() != 1) {
+                return std::unexpected(arity_error(
+                    SourceLocation{}, 1, static_cast<int>(args.size())));
+            }
+            const auto* hash = args[0].as_hash();
+            if (!hash || !*hash) {
+                return std::unexpected(
+                    type_error("hash-values: expected hash table"));
+            }
+            std::vector<Value> values;
+            values.reserve((*hash)->data.size());
+            for (const auto& [_, v] : (*hash)->data) {
+                values.push_back(v);
+            }
+            return Value(std::make_shared<ValueList>(std::move(values)));
+        });
+
+    def("hash?",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() != 1) {
+                return std::unexpected(arity_error(
+                    SourceLocation{}, 1, static_cast<int>(args.size())));
+            }
+            return Value(is_hash(args[0]));
+        });
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Vectors
+    // ═══════════════════════════════════════════════════════════════════════
+
+    def("make-vector",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() != 1 && args.size() != 2) {
+                return std::unexpected(arity_error(
+                    SourceLocation{}, 2, static_cast<int>(args.size())));
+            }
+            if (!args[0].is_int()) {
+                return std::unexpected(type_error(
+                    "make-vector: size must be an integer"));
+            }
+            size_t n = static_cast<size_t>(args[0].int_val());
+            Value init = args.size() == 2 ? args[1] : Value();
+            return Value(std::make_shared<ValueVector>(n, init));
+        });
+
+    def("vector-ref",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() != 2) {
+                return std::unexpected(arity_error(
+                    SourceLocation{}, 2, static_cast<int>(args.size())));
+            }
+            const auto* vec = args[0].as_vector();
+            if (!vec || !*vec) {
+                return std::unexpected(
+                    type_error("vector-ref: expected vector"));
+            }
+            if (!args[1].is_int()) {
+                return std::unexpected(type_error(
+                    "vector-ref: index must be an integer"));
+            }
+            size_t idx = static_cast<size_t>(args[1].int_val());
+            if (idx >= (*vec)->elements.size()) {
+                return std::unexpected(general_error(
+                    std::format("vector-ref: index {} out of bounds", idx)));
+            }
+            return (*vec)->elements[idx];
+        });
+
+    def("vector-set!",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() != 3) {
+                return std::unexpected(arity_error(
+                    SourceLocation{}, 3, static_cast<int>(args.size())));
+            }
+            const auto* vec = args[0].as_vector();
+            if (!vec || !*vec) {
+                return std::unexpected(
+                    type_error("vector-set!: expected vector"));
+            }
+            if (!args[1].is_int()) {
+                return std::unexpected(type_error(
+                    "vector-set!: index must be an integer"));
+            }
+            size_t idx = static_cast<size_t>(args[1].int_val());
+            if (idx >= (*vec)->elements.size()) {
+                return std::unexpected(general_error(
+                    std::format("vector-set!: index {} out of bounds", idx)));
+            }
+            (*vec)->elements[idx] = args[2];
+            return Value(true);
+        });
+
+    def("vector-length",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() != 1) {
+                return std::unexpected(arity_error(
+                    SourceLocation{}, 1, static_cast<int>(args.size())));
+            }
+            const auto* vec = args[0].as_vector();
+            if (!vec || !*vec) {
+                return std::unexpected(type_error(
+                    "vector-length: expected vector"));
+            }
+            return Value(static_cast<int64_t>((*vec)->elements.size()));
+        });
+
+    def("vector->list",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() != 1) {
+                return std::unexpected(arity_error(
+                    SourceLocation{}, 1, static_cast<int>(args.size())));
+            }
+            const auto* vec = args[0].as_vector();
+            if (!vec || !*vec) {
+                return std::unexpected(type_error(
+                    "vector->list: expected vector"));
+            }
+            return Value(std::make_shared<ValueList>((*vec)->elements));
+        });
+
+    def("list->vector",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() != 1) {
+                return std::unexpected(arity_error(
+                    SourceLocation{}, 1, static_cast<int>(args.size())));
+            }
+            const auto* lst = args[0].as_list();
+            if (!lst || !*lst) {
+                return std::unexpected(
+                    type_error("list->vector: expected list"));
+            }
+            return Value(std::make_shared<ValueVector>((*lst)->elements));
+        });
+
+    def("vector?",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() != 1) {
+                return std::unexpected(arity_error(
+                    SourceLocation{}, 1, static_cast<int>(args.size())));
+            }
+            return Value(is_vector(args[0]));
+        });
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Module Introspection
+    // ═══════════════════════════════════════════════════════════════════════
+
+    auto current_source_file = [](const Environment& env) -> std::string {
+        auto v = env.try_lookup("__source_file__");
+        if (v && v->is_string()) {
+            const auto* s = v->as_string();
+            if (s) return *s;
+        }
+        return "";
+    };
+
+    def("module-available?",
+        [&current_source_file](const std::vector<Value>& args,
+                               Environment& env) -> Result<Value> {
+            if (args.size() != 1) {
+                return std::unexpected(arity_error(
+                    SourceLocation{}, 1, static_cast<int>(args.size())));
+            }
+            const auto* path = args[0].as_string();
+            if (!path) {
+                return std::unexpected(
+                    type_error("module-available?: expected string path"));
+            }
+            auto loader = get_global_loader(env.shared_from_this());
+            return Value(loader->is_available(*path, current_source_file(env)));
+        });
+
+    def("module-list",
+        [&current_source_file](const std::vector<Value>& args,
+                               Environment& env) -> Result<Value> {
+            if (!args.empty()) {
+                return std::unexpected(arity_error(
+                    SourceLocation{}, 0, static_cast<int>(args.size())));
+            }
+            auto loader = get_global_loader(env.shared_from_this());
+            auto modules = loader->loaded_modules();
+            std::vector<Value> names;
+            names.reserve(modules.size());
+            for (const auto& mod : modules) {
+                names.emplace_back(mod->name);
+            }
+            return Value(std::make_shared<ValueList>(std::move(names)));
+        });
+
+    def("module-exports",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() != 1) {
+                return std::unexpected(arity_error(
+                    SourceLocation{}, 1, static_cast<int>(args.size())));
+            }
+            const auto* mod = args[0].as_module();
+            if (!mod || !*mod) {
+                return std::unexpected(
+                    type_error("module-exports: expected module"));
+            }
+            std::vector<std::string> sorted((*mod)->exports.begin(),
+                                            (*mod)->exports.end());
+            std::sort(sorted.begin(), sorted.end());
+            std::vector<Value> symbols;
+            symbols.reserve(sorted.size());
+            for (const auto& name : sorted) {
+                symbols.emplace_back(Symbol(name));
+            }
+            return Value(std::make_shared<ValueList>(std::move(symbols)));
+        });
 }
 
 void register_builtins(Environment& env) {

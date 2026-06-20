@@ -15,5 +15,9 @@ add_library(pml_sprites
     components/scene_elements.cpp
 )
 
-target_include_directories(pml_sprites PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(pml_sprites PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/..        # src/pml/
+    ${CMAKE_CURRENT_SOURCE_DIR}/../..     # src/ (for pml/api/context.h style paths)
+)
 target_link_libraries(pml_sprites PUBLIC pml_graphics pml_core pml_evaluator)

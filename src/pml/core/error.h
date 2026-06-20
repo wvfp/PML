@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace pml {
 
@@ -15,6 +16,12 @@ struct SourceLocation {
 
     /// Format as "filename:line:col" or "line N:M" when filename is empty.
     [[nodiscard]] auto to_string() const -> std::string;
+};
+
+/// A single frame in the runtime call stack.
+struct CallFrame {
+    std::string function_name;   ///< Name of the called function (may be empty).
+    SourceLocation call_site;    ///< Source location of the call expression.
 };
 
 /// Error codes matching Python PML error hierarchy.
@@ -30,18 +37,25 @@ enum class ErrorCode {
     ResourceError,
     IKNoSolutionError,
     PMLAssertionError,
+    LayerError,
+    CompositionError,
+    BlendModeNotSupported,
+    FilterError,
+    FilterNotSupported,
     GeneralError,
 };
 
 /// Convert ErrorCode to human-readable name (e.g. "PMLSyntaxError").
 [[nodiscard]] auto to_string(ErrorCode code) -> std::string_view;
 
-/// A PML error with code, optional location, message, and optional repair hint.
+/// A PML error with code, optional location, message, optional repair hint,
+/// and optional runtime call stack.
 struct PMLException {
     ErrorCode code;
     std::optional<SourceLocation> location;
     std::string message;
     std::optional<std::string> repair_hint;
+    std::vector<CallFrame> call_stack;
 
     /// Format: "filename:line:col: PMLErrorName: message" or "PMLErrorName: message".
     [[nodiscard]] auto what() const -> std::string;
@@ -78,6 +92,21 @@ using Result = std::expected<T, PMLException>;
 [[nodiscard]] auto ik_no_solution_error(std::string_view name) -> PMLException;
 
 [[nodiscard]] auto assertion_error(SourceLocation loc, std::string msg) -> PMLException;
+
+[[nodiscard]] auto layer_error(SourceLocation loc, std::string msg,
+                               std::optional<std::string> hint = std::nullopt) -> PMLException;
+
+[[nodiscard]] auto composition_error(SourceLocation loc, std::string msg,
+                                     std::optional<std::string> hint = std::nullopt) -> PMLException;
+
+[[nodiscard]] auto blend_mode_error(SourceLocation loc, std::string msg,
+                                    std::optional<std::string> hint = std::nullopt) -> PMLException;
+
+[[nodiscard]] auto filter_error(SourceLocation loc, std::string msg,
+                                std::optional<std::string> hint = std::nullopt) -> PMLException;
+
+[[nodiscard]] auto filter_not_supported(SourceLocation loc, std::string msg,
+                                        std::optional<std::string> hint = std::nullopt) -> PMLException;
 
 [[nodiscard]] auto general_error(std::string msg,
                                  std::optional<std::string> hint = std::nullopt) -> PMLException;

@@ -10,6 +10,7 @@
 #include "test_helpers.h"
 #include "pml/animation/easing.h"
 #include "pml/animation/timeline.h"
+#include "pml/graphics/params.h"
 
 #include <cmath>
 #include <string>
@@ -126,8 +127,8 @@ TEST(Animation, Construction) {
     pml::Animation anim(42, "x", pml::Value(0.0), pml::Value(100.0), 2.0f, pml::easing_linear);
     EXPECT_EQ(anim.target_id, 42u);
     EXPECT_EQ(anim.property_name, "x");
-    EXPECT_DOUBLE_EQ(std::get<double>(anim.from_value), 0.0);
-    EXPECT_DOUBLE_EQ(std::get<double>(anim.to_value), 100.0);
+    EXPECT_DOUBLE_EQ(anim.from_value.double_val(), 0.0);
+    EXPECT_DOUBLE_EQ(anim.to_value.double_val(), 100.0);
     EXPECT_FLOAT_EQ(anim.duration, 2.0f);
     // Default easing should be linear
     EXPECT_DOUBLE_EQ(anim.easing(0.5), 0.5);
@@ -193,7 +194,7 @@ TEST_F(TimelineTest, EvaluateAtMidpoint) {
     EXPECT_EQ(tid, 1u);
     EXPECT_EQ(prop, "x");
     // At t=1.0 out of 2.0s, linear interpolation → 50.0
-    EXPECT_NEAR(std::get<double>(val), 50.0, 1e-6);
+    EXPECT_NEAR(val.double_val(), 50.0, 1e-6);
 }
 
 TEST_F(TimelineTest, EvaluateAtStart) {
@@ -204,7 +205,7 @@ TEST_F(TimelineTest, EvaluateAtStart) {
     ASSERT_EQ(results.size(), 1u);
 
     auto& [tid, prop, val] = results[0];
-    EXPECT_NEAR(std::get<double>(val), 10.0, 1e-6);  // from_value
+    EXPECT_NEAR(val.double_val(), 10.0, 1e-6);  // from_value
 }
 
 TEST_F(TimelineTest, EvaluateAtEnd) {
@@ -215,7 +216,7 @@ TEST_F(TimelineTest, EvaluateAtEnd) {
     ASSERT_EQ(results.size(), 1u);
 
     auto& [tid, prop, val] = results[0];
-    EXPECT_NEAR(std::get<double>(val), 110.0, 1e-6);  // to_value
+    EXPECT_NEAR(val.double_val(), 110.0, 1e-6);  // to_value
 }
 
 TEST_F(TimelineTest, EvaluateAtMultipleAnimations) {
@@ -308,19 +309,19 @@ TEST_F(TimelineTest, StateToString) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 TEST(ApplyModifications, ChangeXParam) {
-    pml::GraphicObject obj("circle", {{"x", pml::Value(int64_t(10))}});
+    pml::GraphicObject obj("circle", pml::Params{{pml::ParamKey::x, pml::Value(int64_t(10))}});
 
     std::unordered_map<std::string, pml::Value> mods = {{"x", pml::Value(50.0)}};
     auto result = pml::_apply_modifications(obj, mods);
 
     // The result should have x=50 in its params
-    auto it = result.params.find("x");
-    ASSERT_NE(it, result.params.end());
+    const pml::Value* v = result.params.find(pml::ParamKey::x);
+    ASSERT_NE(v, nullptr);
     // Value could be stored as int64_t or double depending on implementation
-    if (std::holds_alternative<int64_t>(it->second)) {
-        EXPECT_EQ(std::get<int64_t>(it->second), 50);
+    if (v->is_int()) {
+        EXPECT_EQ(v->int_val(), 50);
     } else {
-        EXPECT_DOUBLE_EQ(std::get<double>(it->second), 50.0);
+        EXPECT_DOUBLE_EQ(v->double_val(), 50.0);
     }
 }
 
@@ -344,30 +345,30 @@ TEST(ApplyModifications, ChangeTransformTy) {
 }
 
 TEST(ApplyModifications, OriginalUnchanged) {
-    pml::GraphicObject obj("circle", {{"x", pml::Value(int64_t(10))}});
+    pml::GraphicObject obj("circle", pml::Params{{pml::ParamKey::x, pml::Value(int64_t(10))}});
     double orig_e = obj.transform.e;
 
     std::unordered_map<std::string, pml::Value> mods = {{"x", pml::Value(99.0)}, {"transform.tx", pml::Value(5.0)}};
     auto result = pml::_apply_modifications(obj, mods);
 
     // Original should be unchanged (immutable pattern)
-    auto it = obj.params.find("x");
-    ASSERT_NE(it, obj.params.end());
-    EXPECT_EQ(std::get<int64_t>(it->second), 10);
+    const pml::Value* v = obj.params.find(pml::ParamKey::x);
+    ASSERT_NE(v, nullptr);
+    EXPECT_EQ(v->int_val(), 10);
     EXPECT_DOUBLE_EQ(obj.transform.e, orig_e);
 }
 
 TEST(ApplyModifications, EmptyMods) {
-    pml::GraphicObject obj("circle", {{"x", pml::Value(int64_t(10))}});
+    pml::GraphicObject obj("circle", pml::Params{{pml::ParamKey::x, pml::Value(int64_t(10))}});
 
     std::unordered_map<std::string, pml::Value> mods;
     auto result = pml::_apply_modifications(obj, mods);
 
     // With empty mods, result should match original
     EXPECT_EQ(result.shape_type, "circle");
-    auto it = result.params.find("x");
-    ASSERT_NE(it, result.params.end());
-    EXPECT_EQ(std::get<int64_t>(it->second), 10);
+    const pml::Value* v = result.params.find(pml::ParamKey::x);
+    ASSERT_NE(v, nullptr);
+    EXPECT_EQ(v->int_val(), 10);
 }
 
 TEST(ApplyModifications, ChangeFill) {

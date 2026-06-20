@@ -132,49 +132,49 @@ TEST(EvaluatorList, Car) {
 TEST(EvaluatorList, Cdr) {
     auto result = pml::test::eval("(cdr (list 1 2 3))");
     ASSERT_TRUE(result.has_value());
-    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<pml::ValueList>>(*result));
-    auto list = std::get<std::shared_ptr<pml::ValueList>>(*result);
+    ASSERT_TRUE(result->is_list());
+    auto list = *result->as_list();
     EXPECT_EQ(list->elements.size(), 2);
 }
 
 TEST(EvaluatorList, Cons) {
     auto result = pml::test::eval("(cons 1 (list 2 3))");
     ASSERT_TRUE(result.has_value());
-    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<pml::ValueList>>(*result));
-    auto list = std::get<std::shared_ptr<pml::ValueList>>(*result);
+    ASSERT_TRUE(result->is_list());
+    auto list = *result->as_list();
     EXPECT_EQ(list->elements.size(), 3);
 }
 
 TEST(EvaluatorList, ListCreation) {
     auto result = pml::test::eval("(list 1 2 3)");
     ASSERT_TRUE(result.has_value());
-    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<pml::ValueList>>(*result));
-    auto list = std::get<std::shared_ptr<pml::ValueList>>(*result);
+    ASSERT_TRUE(result->is_list());
+    auto list = *result->as_list();
     EXPECT_EQ(list->elements.size(), 3);
 }
 
 TEST(EvaluatorList, Append) {
     auto result = pml::test::eval("(append (list 1 2) (list 3 4))");
     ASSERT_TRUE(result.has_value());
-    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<pml::ValueList>>(*result));
-    auto list = std::get<std::shared_ptr<pml::ValueList>>(*result);
+    ASSERT_TRUE(result->is_list());
+    auto list = *result->as_list();
     ASSERT_EQ(list->elements.size(), 4);
-    EXPECT_EQ(std::get<int64_t>(list->elements[0]), 1);
-    EXPECT_EQ(std::get<int64_t>(list->elements[1]), 2);
-    EXPECT_EQ(std::get<int64_t>(list->elements[2]), 3);
-    EXPECT_EQ(std::get<int64_t>(list->elements[3]), 4);
+    EXPECT_EQ(list->elements[0].int_val(), 1);
+    EXPECT_EQ(list->elements[1].int_val(), 2);
+    EXPECT_EQ(list->elements[2].int_val(), 3);
+    EXPECT_EQ(list->elements[3].int_val(), 4);
 }
 
 TEST(EvaluatorList, Reverse) {
     auto result = pml::test::eval("(reverse (list 1 2 3 4))");
     ASSERT_TRUE(result.has_value());
-    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<pml::ValueList>>(*result));
-    auto list = std::get<std::shared_ptr<pml::ValueList>>(*result);
+    ASSERT_TRUE(result->is_list());
+    auto list = *result->as_list();
     ASSERT_EQ(list->elements.size(), 4);
-    EXPECT_EQ(std::get<int64_t>(list->elements[0]), 4);
-    EXPECT_EQ(std::get<int64_t>(list->elements[1]), 3);
-    EXPECT_EQ(std::get<int64_t>(list->elements[2]), 2);
-    EXPECT_EQ(std::get<int64_t>(list->elements[3]), 1);
+    EXPECT_EQ(list->elements[0].int_val(), 4);
+    EXPECT_EQ(list->elements[1].int_val(), 3);
+    EXPECT_EQ(list->elements[2].int_val(), 2);
+    EXPECT_EQ(list->elements[3].int_val(), 1);
 }
 
 // ============================================================================
@@ -222,12 +222,12 @@ TEST(EvaluatorQuasiquote, QuotedList) {
     // Test quote (') which produces a list of literal values
     auto result = pml::test::eval("'(1 2 3)");
     ASSERT_TRUE(result.has_value());
-    ASSERT_TRUE(std::holds_alternative<std::shared_ptr<pml::ValueList>>(*result));
-    auto list = std::get<std::shared_ptr<pml::ValueList>>(*result);
+    ASSERT_TRUE(result->is_list());
+    auto list = *result->as_list();
     ASSERT_EQ(list->elements.size(), 3);
-    EXPECT_EQ(std::get<int64_t>(list->elements[0]), 1);
-    EXPECT_EQ(std::get<int64_t>(list->elements[1]), 2);
-    EXPECT_EQ(std::get<int64_t>(list->elements[2]), 3);
+    EXPECT_EQ(list->elements[0].int_val(), 1);
+    EXPECT_EQ(list->elements[1].int_val(), 2);
+    EXPECT_EQ(list->elements[2].int_val(), 3);
 }
 
 // ============================================================================

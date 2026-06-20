@@ -11,6 +11,8 @@ add_executable(pml-tests
     test_api.cpp
     test_modules.cpp
     test_animation.cpp
+    test_layer.cpp
+    test_asset.cpp
 )
 
 target_include_directories(pml-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -21,6 +23,11 @@ target_link_libraries(pml-tests PRIVATE
     pml_frontend
     pml_evaluator
     pml_graphics
+    pml_graphics3d
+    pml_backend
+    pml_layer
+    pml_filter
+    pml_asset
     pml_sprites
     pml_animation
     pml_skeleton
@@ -38,9 +45,51 @@ target_link_libraries(pml-builtins-smoke PRIVATE
     pml_core
     pml_frontend
     pml_evaluator
+    pml_graphics
+    pml_graphics3d
+    pml_backend
+    pml_layer
+    pml_asset
     pml_module
+    pml_api
+)
+
+# ── Layer unit tests (isolated from pml_sprites build issues) ────────────────
+add_executable(pml-layer-test
+    test_layer.cpp
+    test_layer_render.cpp
+    test_spritesheet.cpp
+)
+
+target_include_directories(pml-layer-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(pml-layer-test PRIVATE
+    GTest::gtest
+    GTest::gtest_main
+    pml_core
+    pml_graphics
+    pml_backend
+    pml_layer
+    pml_filter
+)
+
+# ── Filter unit tests ────────────────────────────────────────────────────────
+add_executable(pml-filter-test
+    test_filter.cpp
+)
+
+target_include_directories(pml-filter-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(pml-filter-test PRIVATE
+    GTest::gtest
+    GTest::gtest_main
+    pml_core
+    pml_graphics
+    pml_backend
+    pml_layer
+    pml_filter
 )
 
 # Discover tests via CTest
 include(GoogleTest)
 gtest_discover_tests(pml-tests)
+gtest_discover_tests(pml-layer-test)
+gtest_discover_tests(pml-filter-test)

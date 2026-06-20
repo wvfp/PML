@@ -14,6 +14,13 @@
 #include "environment.h"
 #include "types.h"
 
+#include "pml/api/context.h"
+#include "pml/asset/asset_builtins.h"
+#include "pml/evaluator/canvas_builtins.h"
+#include "pml/filter/filter_builtins.h"
+#include "pml/graphics3d/builtins_3d.h"
+#include "pml/layer/layer_builtins.h"
+
 #include <cassert>
 #include <iostream>
 #include <memory>
@@ -46,7 +53,7 @@ pml::Result<pml::Value> eval(const std::string& source,
                               std::shared_ptr<pml::Environment> env) {
     auto expr = parse(source);
     if (!expr) return std::unexpected(expr.error());
-    return pml::evaluate(*expr, env);
+    return pml::eval_to_value(*expr, env);
 }
 
 #define CHECK(label, source, expected) do { \
@@ -88,6 +95,12 @@ int main() {
     // Create global environment and register builtins
     auto _env = std::make_shared<pml::Environment>();
     pml::register_builtins(_env);
+    pml::register_layer_builtins(_env);
+    pml::register_canvas_builtins(_env);
+    pml::register_filter_builtins(_env);
+    pml::register_asset_builtins(_env);
+    pml::register_3d_builtins(_env);
+    pml::PMLContext::current().reset();
 
     std::cout << "═══ PML Builtins Smoke Test ═══\n\n";
 
@@ -149,6 +162,13 @@ int main() {
 
     // equal? tests — use quoted lists since we can build them
     CHECK("equal-self",   "(equal? 5 5)",         "#t");
+    CHECK("equal-list",   "(equal? '(1 2 3) '(1 2 3))", "#t");
+    CHECK("equal-list-f", "(equal? '(1 2 3) '(1 2 4))", "#f");
+    CHECK("equal-nested", "(equal? '((1 2) (3 4)) '((1 2) (3 4)))", "#t");
+    CHECK("equal-hash",   "(equal? (make-hash '((\"a\" 1) (\"b\" 2))) (make-hash '((\"b\" 2) (\"a\" 1))))", "#t");
+    CHECK("equal-hash-f", "(equal? (make-hash '((\"a\" 1))) (make-hash '((\"a\" 2))))", "#f");
+    CHECK("equal-vector", "(equal? (list->vector '(1 2 3)) (list->vector '(1 2 3)))", "#t");
+    CHECK("equal-vector-f","(equal? (list->vector '(1 2 3)) (list->vector '(1 2 4)))", "#f");
 
     // ── Type predicates ─────────────────────────────────────────────────
     std::cout << "\n── Type Predicates ──\n";
@@ -180,6 +200,22 @@ int main() {
 
     // procedure? — define a lambda and check
     CHECK("proc?-lambda", "(procedure? (lambda (x) x))", "#t");
+
+    // ── Quasiquote ──────────────────────────────────────────────────────
+    std::cout << "\n── Quasiquote ──\n";
+
+    CHECK("qq-simple",
+          "(let ((x 2)) (quasiquote (1 (unquote x) 3)))",
+          "(1 2 3)");
+    CHECK("qq-splice",
+          "(let ((xs (list 2 3))) (quasiquote (1 (unquote-splicing xs) 4)))",
+          "(1 2 3 4)");
+    CHECK("qq-nested-preserve",
+          "(let ((x 2)) (quasiquote (quasiquote (1 (unquote x) 3))))",
+          "(quasiquote (1 (unquote x) 3))");
+    CHECK("qq-nested-eval",
+          "(let ((x 2)) (quasiquote (quasiquote (1 (unquote (unquote x)) 3))))",
+          "(quasiquote (1 (unquote 2) 3))");
 
     // ── List operations ─────────────────────────────────────────────────
     std::cout << "\n── List Operations ──\n";
@@ -214,6 +250,10 @@ int main() {
     CHECK("num->str-float","(number->string 3.14)", "3.14");
     CHECK("str->num-int", "(string->number \"42\")", "42");
     CHECK("str->num-flt", "(string->number \"3.14\")", "3.14");
+    CHECK("str->num-exp", "(string->number \"1e3\")", "1000.0");
+    CHECK_ERROR("str->num-junk", "(string->number \"42abc\")");
+    CHECK_ERROR("str->num-empty", "(string->number \"\")");
+    CHECK_ERROR("str->num-space", "(string->number \"   \")");
     CHECK("format",       "(format \"~a + ~a = ~a\" 1 2 3)", "1 + 2 = 3");
 
     // ── IO ───────────────────────────────────────────────────────────────
@@ -250,6 +290,388 @@ int main() {
 
     // comparison with mixed types
     CHECK("eq-mixed",     "(= 5 5.0)",            "#t");
+
+    // ── Macros / Hygiene ─────────────────────────────────────────────────
+    std::cout << "\n── Macros ──\n";
+
+    CHECK("hygienic-swap",
+          "(begin"
+          "  (defmacro swap (a b)"
+          "    (let ((tmp ,a))"
+          "      (set! ,a ,b)"
+          "      (set! ,b tmp)))"
+          "  (define tmp 100)"
+          "  (define x 1)"
+          "  (define y 2)"
+          "  (swap x y)"
+          "  (list tmp x y))",
+          "(100 2 1)");
+
+    // ── Hash Tables ──────────────────────────────────────────────────────
+    std::cout << "\n── Hash Tables ──\n";
+
+    CHECK("hash-ref",
+          "(begin"
+          "  (define h (make-hash '((\"a\" 1) (\"b\" 2))))"
+          "  (hash-ref h \"b\"))",
+          "2");
+    CHECK("hash-ref-default",
+          "(begin (define h (make-hash)) (hash-ref h \"x\" 99))",
+          "99");
+    CHECK("hash-set!",
+          "(begin"
+          "  (define h (make-hash))"
+          "  (hash-set! h \"x\" 42)"
+          "  (hash-ref h \"x\"))",
+          "42");
+    CHECK("hash-delete!",
+          "(begin"
+          "  (define h (make-hash '((\"a\" 1))))"
+          "  (hash-delete! h \"a\")"
+          "  (hash-ref h \"a\" \"gone\"))",
+          "gone");
+    CHECK("hash?",
+          "(hash? (make-hash))",
+          "#t");
+    CHECK("hash?-false",
+          "(hash? (list 1 2))",
+          "#f");
+
+    // ── Vectors ──────────────────────────────────────────────────────────
+    std::cout << "\n── Vectors ──\n";
+
+    CHECK("vector-ref/set!",
+          "(begin"
+          "  (define v (make-vector 3 0))"
+          "  (vector-set! v 1 5)"
+          "  (vector-ref v 1))",
+          "5");
+    CHECK("vector-length",
+          "(vector-length (make-vector 5 'x))",
+          "5");
+    CHECK("vector->list",
+          "(vector->list (make-vector 3 7))",
+          "(7 7 7)");
+    CHECK("list->vector",
+          "(begin"
+          "  (define v (list->vector (list 1 2 3)))"
+          "  (vector-ref v 2))",
+          "3");
+    CHECK("vector?",
+          "(vector? (make-vector 2 0))",
+          "#t");
+
+    // ── Module Introspection ─────────────────────────────────────────────
+    std::cout << "\n── Module Introspection ──\n";
+
+    CHECK("module-available-true",
+          "(module-available? \"tests/_smoke_module.pml\")",
+          "#t");
+    CHECK("module-available-false",
+          "(module-available? \"tests/_nonexistent_module.pml\")",
+          "#f");
+    CHECK("module-exports",
+          "(begin"
+          "  (import \"tests/_smoke_module.pml\" as m)"
+          "  (module-exports m))",
+          "(add pi)");
+    CHECK("module-list",
+          "(begin"
+          "  (import \"tests/_smoke_module.pml\" as m2)"
+          "  (> (length (module-list)) 0))",
+          "#t");
+
+    // ── Tail-Call Optimization ───────────────────────────────────────────
+    std::cout << "\n── Tail-Call Optimization ──\n";
+
+    // Deep recursive countdown via tail call must not overflow the C++ stack.
+    CHECK("tco-countdown",
+          "(begin"
+          "  (define countdown"
+          "    (lambda (n acc)"
+          "      (if (= n 0)"
+          "          acc"
+          "          (countdown (- n 1) (+ acc 1)))))"
+          "  (countdown 50000 0))",
+          "50000");
+
+    // Tail-recursive factorial.
+    CHECK("tco-factorial",
+          "(begin"
+          "  (define fact"
+          "    (lambda (n acc)"
+          "      (if (= n 0)"
+          "          acc"
+          "          (fact (- n 1) (* acc n)))))"
+          "  (fact 20 1))",
+          "2432902008176640000");
+
+    // ── Exception Handling ───────────────────────────────────────────────
+    std::cout << "\n── Exception Handling ──\n";
+
+    CHECK("exn-catch",
+          "(with-exception-handler"
+          "  (lambda (err) (list 'caught err))"
+          "  (lambda () (error \"boom\")))",
+          "(caught (error GeneralError boom))");
+
+    CHECK("exn-no-error",
+          "(with-exception-handler"
+          "  (lambda (err) 'caught)"
+          "  (lambda () 42))",
+          "42");
+
+    CHECK("exn-nested",
+          "(with-exception-handler"
+          "  (lambda (err) (list 'outer err))"
+          "  (lambda ()"
+          "    (with-exception-handler"
+          "      (lambda (err) 'inner)"
+          "      (lambda () (error \"nested\")))))",
+          "inner");
+
+    CHECK("exn-handler-returns-value",
+          "(with-exception-handler"
+          "  (lambda (err) 99)"
+          "  (lambda () (error \"boom\")))",
+          "99");
+
+    // ── New Arithmetic ───────────────────────────────────────────────────
+    std::cout << "\n── New Arithmetic ──\n";
+
+    CHECK("modulo-pos",    "(modulo 10 3)",        "1");
+    CHECK("modulo-neg",    "(modulo -10 3)",       "2");
+    CHECK("remainder-pos", "(remainder 10 3)",     "1");
+    CHECK("remainder-neg", "(remainder -10 3)",    "-1");
+    CHECK("quotient",      "(quotient 10 3)",      "3");
+    CHECK("quotient-neg",  "(quotient -10 3)",     "-3");
+    CHECK("even?-t",       "(even? 4)",            "#t");
+    CHECK("even?-f",       "(even? 5)",            "#f");
+    CHECK("odd?-t",        "(odd? 5)",             "#t");
+    CHECK("odd?-f",        "(odd? 4)",             "#f");
+    CHECK("zero?-t",       "(zero? 0)",            "#t");
+    CHECK("zero?-f",       "(zero? 1)",            "#f");
+    CHECK("positive?-t",   "(positive? 1)",        "#t");
+    CHECK("positive?-f",   "(positive? -1)",       "#f");
+    CHECK("negative?-t",   "(negative? -1)",       "#t");
+    CHECK("negative?-f",   "(negative? 1)",        "#f");
+    CHECK("gcd",           "(gcd 48 18)",          "6");
+    CHECK("gcd-multi",     "(gcd 48 18 30)",       "6");
+    CHECK("lcm",           "(lcm 4 6)",            "12");
+    CHECK("log",           "(log 1)",              "0.0");
+    CHECK("exp",           "(exp 0)",              "1.0");
+    CHECK("asin",          "(asin 0)",             "0.0");
+    CHECK("acos",          "(acos 1)",             "0.0");
+    CHECK("atan",          "(atan 0)",             "0.0");
+    CHECK("atan2",         "(atan 1 1)",           "0.785398");
+    CHECK("random-range",  "(< -1 (random 100) 100)", "#t");
+
+    // ── Logic / Comparison extensions ────────────────────────────────────
+    std::cout << "\n── Logic / Comparison Extensions ──\n";
+
+    CHECK("not-t",         "(not #f)",             "#t");
+    CHECK("not-f",         "(not #t)",             "#f");
+    CHECK("not-nil",       "(not ())",             "#t");
+    CHECK("string=?-t",    "(string=? \"a\" \"a\" \"a\")", "#t");
+    CHECK("string=?-f",    "(string=? \"a\" \"b\")",     "#f");
+    CHECK("string<?-t",    "(string<? \"a\" \"b\" \"c\")", "#t");
+    CHECK("string>?-t",    "(string>? \"c\" \"b\" \"a\")", "#t");
+    CHECK("string<=?-t",   "(string<=? \"a\" \"a\" \"b\")", "#t");
+    CHECK("string>=?-t",   "(string>=? \"b\" \"a\" \"a\")", "#t");
+
+    // ── List extensions ──────────────────────────────────────────────────
+    std::cout << "\n── List Extensions ──\n";
+
+    CHECK("list-ref",      "(list-ref '(a b c) 1)",   "b");
+    CHECK("list-tail",     "(list-tail '(a b c) 1)",  "(b c)");
+    CHECK("list-tail-end", "(list-tail '(a b c) 3)",  "()");
+    CHECK("member",        "(member 'b '(a b c))",     "(b c)");
+    CHECK("member-miss",   "(member 'x '(a b c))",     "#f");
+    CHECK("memq",          "(memq 'b '(a b c))",       "(b c)");
+    CHECK("assoc",         "(assoc 'b '((a 1) (b 2) (c 3)))", "(b 2)");
+    CHECK("assoc-miss",    "(assoc 'x '((a 1) (b 2)))", "#f");
+    CHECK("assq",          "(assq 'b '((a 1) (b 2)))", "(b 2)");
+    CHECK("for-each",      "(begin (define s \"\") (for-each (lambda (c) (set! s (string-append s c))) '(\"a\" \"b\" \"c\")) s)", "abc");
+    CHECK("sort",          "(sort '(3 1 4 1 5) <)",  "(1 1 3 4 5)");
+    CHECK("apply",         "(apply + '(1 2 3))",      "6");
+    CHECK("apply-args",    "(apply + 1 2 '(3 4))",    "10");
+
+    // ── String extensions ────────────────────────────────────────────────
+    std::cout << "\n── String Extensions ──\n";
+
+    CHECK("str->sym",      "(symbol? (string->symbol \"foo\"))", "#t");
+    CHECK("sym->str",      "(symbol->string 'foo)",    "foo");
+    CHECK("str->list",     "(string? (car (string->list \"abc\")))", "#t");
+    CHECK("list->str",     "(list->string '(\"a\" \"b\" \"c\"))", "abc");
+    CHECK("string-copy",   "(string=? (string-copy \"abc\") \"abc\")", "#t");
+    CHECK("make-string",   "(make-string 3 \"x\")",   "xxx");
+
+    // ── Vector extensions ────────────────────────────────────────────────
+    std::cout << "\n── Vector Extensions ──\n";
+
+    CHECK("vector-fill!",
+          "(begin (define v (make-vector 3 0)) (vector-fill! v 1 9) (vector-ref v 1))",
+          "9");
+    CHECK("vector-copy",
+          "(vector->list (vector-copy (list->vector '(1 2 3 4)) 1 3))",
+          "(2 3)");
+
+    // ── Efficiency special forms ─────────────────────────────────────────
+    std::cout << "\n── Efficiency Special Forms ──\n";
+
+    CHECK("when-true",
+          "(when #t 1 2 3)",
+          "3");
+    CHECK("when-false",
+          "(when #f 1 2 3)",
+          "nil");
+    CHECK("unless-true",
+          "(unless #f 1 2 3)",
+          "3");
+    CHECK("unless-false",
+          "(unless #t 1 2 3)",
+          "nil");
+    CHECK("case-match",
+          "(case 2 ((1) 'one) ((2) 'two) (else 'other))",
+          "two");
+    CHECK("case-else",
+          "(case 5 ((1) 'one) ((2 3) 'small) (else 'other))",
+          "other");
+    CHECK("case-multi",
+          "(case 3 ((1) 'one) ((2 3) 'small) (else 'other))",
+          "small");
+
+    // ── Layer / Composition ──────────────────────────────────────────────
+    std::cout << "\n── Layer / Composition ──\n";
+    pml::PMLContext::current().reset();
+
+    CHECK("make-layer",
+          "(layer? (make-layer \"l\" (circle 0 0 10)))",
+          "#t");
+    CHECK("layer-with",
+          "(let ((l (make-layer \"l\" (circle 0 0 10))))"
+          "  (layer? (layer-with l :opacity 0.5)))",
+          "#t");
+    CHECK("make-composition",
+          "(composition? (make-composition \"c\" 64 64))",
+          "#t");
+    CHECK("composition-add",
+          "(let ((c (make-composition \"c\" 64 64))"
+          "      (l (make-layer \"l\" (circle 0 0 10))))"
+          "  (composition? (composition-add c l)))",
+          "#t");
+    CHECK("layer-predicate-false",
+          "(layer? (make-composition \"c\" 64 64))",
+          "#f");
+    CHECK("composition-predicate-false",
+          "(composition? (make-layer \"l\" (circle 0 0 10)))",
+          "#f");
+    CHECK_ERROR("make-layer-no-name", "(make-layer)");
+    CHECK_ERROR("make-layer-bad-arg", "(make-layer \"l\" 123)");
+
+    // ── Filters ──────────────────────────────────────────────────────────
+    std::cout << "\n── Filters ──\n";
+
+    CHECK("filter?-blur",
+          "(filter? (blur :radius 3.0))",
+          "#t");
+    CHECK("filter?-color-adjust",
+          "(filter? (color-adjust :brightness 0.2))",
+          "#t");
+    CHECK("filter?-false",
+          "(filter? 42)",
+          "#f");
+    CHECK("filter-chain",
+          "(filter? (filter-chain (blur :radius 1.0) (color-adjust :invert #t)))",
+          "#t");
+    CHECK("filter-levels",
+          "(filter? (levels :in-low 10 :in-high 240))",
+          "#t");
+    CHECK("filter-threshold",
+          "(filter? (threshold :value 128))",
+          "#t");
+    CHECK("filter-sharpen",
+          "(filter? (sharpen :amount 1.5))",
+          "#t");
+    CHECK("filter-edge-detect",
+          "(filter? (edge-detect :type \"laplacian\"))",
+          "#t");
+    CHECK("filter-drop-shadow",
+          "(filter? (drop-shadow :dx 5 :dy 5 :blur 4 :color \"#000\"))",
+          "#t");
+    CHECK("filter-inner-shadow",
+          "(filter? (inner-shadow :dx 3 :dy 3 :blur 4 :color \"#000\"))",
+          "#t");
+    CHECK("filter-outer-glow",
+          "(filter? (outer-glow :blur 8 :color \"#ffaa00\"))",
+          "#t");
+    CHECK("filter-inner-glow",
+          "(filter? (inner-glow :blur 6 :color \"#ffffff\"))",
+          "#t");
+    CHECK("filter-bevel-emboss",
+          "(filter? (bevel-emboss :angle 120 :altitude 30 :blur 4))",
+          "#t");
+    CHECK("filter-convolution",
+          "(filter? (convolution :width 3 :height 3 :kernel '(0 -1 0 -1 5 -1 0 -1 0)))",
+          "#t");
+
+    CHECK("layer-with-filter",
+          "(let ((l (make-layer \"l\" (circle 0 0 10))))"
+          "  (layer? (layer-with l :filter (blur :radius 2.0))))",
+          "#t");
+    CHECK("layer-with-filter-list",
+          "(let ((l (make-layer \"l\" (circle 0 0 10))))"
+          "  (layer? (layer-with l :filter (list (blur :radius 1.0) (color-adjust :grayscale #t)))))",
+          "#t");
+
+    // ── Asset / Bitmap I/O ───────────────────────────────────────────────
+    CHECK("image-object",
+          "(typeof (image \"test.png\"))",
+          "graphic-object");
+    CHECK("bitmap-layer-object",
+          "(typeof (bitmap-layer \"test.png\"))",
+          "layer");
+    CHECK("asset-path-exists",
+          "(asset-path? \"CMakeLists.txt\")",
+          "#t");
+    CHECK("asset-path-missing",
+          "(asset-path? \"does-not-exist-12345.png\")",
+          "#f");
+
+    // ── 3D graphics ──────────────────────────────────────────────────────
+    std::cout << "\n── 3D graphics ──\n";
+    pml::PMLContext::current().reset();
+
+    CHECK("cube3d-object",
+          "(typeof (cube3d :size 80 :front (rect 0 0 80 80 :fill \"#7CB342\")))",
+          "graphic-object");
+    CHECK("cuboid3d-object",
+          "(typeof (cuboid3d :width 80 :height 60 :depth 100))",
+          "graphic-object");
+    CHECK("rounded-cuboid3d-object",
+          "(typeof (rounded-cuboid3d :width 80 :height 80 :depth 80 :radius 8))",
+          "graphic-object");
+    CHECK("cone3d-object",
+          "(typeof (cone3d :radius 40 :height 80))",
+          "graphic-object");
+    CHECK("plane3d-object",
+          "(typeof (plane3d :width 80 :depth 80))",
+          "graphic-object");
+    CHECK("sphere3d-object",
+          "(typeof (sphere3d :radius 40))",
+          "graphic-object");
+    CHECK("rotate-y-object",
+          "(typeof (rotate-y (cube3d :size 80) 30))",
+          "graphic-object");
+    CHECK("translate3d-object",
+          "(typeof (translate3d (cube3d :size 80) 100 100 0))",
+          "graphic-object");
+    CHECK("scale3d-object",
+          "(typeof (scale3d (cube3d :size 80) 1.5 1.5 1.5))",
+          "graphic-object");
+    CHECK("camera-nil",
+          "(camera :position '(0 0 300) :projection 'orthographic :size 200)",
+          "nil");
 
     // ── Summary ──────────────────────────────────────────────────────────
     std::cout << "\n═══ Results ═══\n"

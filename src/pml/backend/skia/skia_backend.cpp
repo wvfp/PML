@@ -5,14 +5,21 @@
 // Uses the pre-built Skia static library. All Skia headers are included through
 // the generated aggregate header <skia.h>.
 
+#include "pml/api/context.h"
+#include "pml/asset/asset_cache.h"
 #include "pml/backend/backend.h"
 #include "pml/backend/registry.h"
 #include "pml/backend/color_helpers.h"
 #include "pml/backend/gif/gif_exporter.h"
 #include "pml/graphics/objects.h"
 #include "pml/graphics/transform.h"
+#include "pml/graphics3d/camera3d.h"
+#include "pml/graphics3d/mesh3d.h"
+#include "pml/graphics3d/transform3d.h"
+#include "pml/layer/blend_mode_skia.h"
 
 #include <skia.h>
+#include <codec/SkCodec.h>
 
 #include <png.h>
 
@@ -45,6 +52,16 @@ struct SkiaSurface final : Surface {
         height = h;
         bitmap.allocN32Pixels(w, h);
         bitmap.eraseColor(static_cast<SkColor>(bg_color));
+        surface = SkSurfaces::WrapPixels(
+            bitmap.info(), bitmap.getPixels(), bitmap.rowBytes());
+    }
+
+    // Construct from an already-decoded SkBitmap.
+    explicit SkiaSurface(SkBitmap decoded)
+    {
+        width = decoded.width();
+        height = decoded.height();
+        bitmap = std::move(decoded);
         surface = SkSurfaces::WrapPixels(
             bitmap.info(), bitmap.getPixels(), bitmap.rowBytes());
     }
@@ -117,34 +134,56 @@ void configure_stroke_paint(
 // ═══════════════════════════════════════════════════════════════════════════════
 
 [[nodiscard]] double get_double(
-    const std::unordered_map<std::string, Value>& params,
-    const std::string& key,
+    const Params& params,
+    ParamKey key,
     double default_val)
 {
-    auto it = params.find(key);
-    if (it == params.end()) return default_val;
-    const Value& v = it->second;
-    if (std::holds_alternative<int64_t>(v)) {
-        return static_cast<double>(std::get<int64_t>(v));
+    const Value* v = params.find(key);
+    if (!v) return default_val;
+    if (v->is_int()) {
+        return static_cast<double>(v->int_val());
     }
-    if (std::holds_alternative<double>(v)) {
-        return std::get<double>(v);
+    if (v->is_double()) {
+        return v->double_val();
     }
     return default_val;
 }
 
 [[nodiscard]] std::string get_string(
-    const std::unordered_map<std::string, Value>& params,
-    const std::string& key,
+    const Params& params,
+    ParamKey key,
     const std::string& default_val)
 {
-    auto it = params.find(key);
-    if (it == params.end()) return default_val;
-    const Value& v = it->second;
-    if (std::holds_alternative<std::string>(v)) {
-        return std::get<std::string>(v);
+    const Value* v = params.find(key);
+    if (!v) return default_val;
+    if (const auto* s = v->as_string()) {
+        return *s;
     }
     return default_val;
+}
+
+[[nodiscard]] std::optional<SkRect> parse_rect_value(const Value& v)
+{
+    const auto* lst = v.as_list();
+    if (!lst || !*lst) return std::nullopt;
+    const auto& elems = (*lst)->elements;
+    if (elems.size() < 4) return std::nullopt;
+
+    double vals[4] = {0.0, 0.0, 0.0, 0.0};
+    for (int i = 0; i < 4; ++i) {
+        if (elems[i].is_int()) {
+            vals[i] = static_cast<double>(elems[i].int_val());
+        } else if (elems[i].is_double()) {
+            vals[i] = elems[i].double_val();
+        } else {
+            return std::nullopt;
+        }
+    }
+    return SkRect::MakeXYWH(
+        static_cast<SkScalar>(vals[0]),
+        static_cast<SkScalar>(vals[1]),
+        static_cast<SkScalar>(vals[2]),
+        static_cast<SkScalar>(vals[3]));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -155,6 +194,8 @@ using ShaderLookup = std::function<sk_sp<SkShader>(int64_t)>;
 
 Result<void> draw_object(SkCanvas* canvas, const GraphicObject& obj,
                          sk_sp<SkShader> shader, const ShaderLookup& lookup);
+Result<void> draw_mesh3d(SkCanvas* canvas, const GraphicObject& obj,
+                         const ShaderLookup& lookup);
 
 Result<void> draw_group(SkCanvas* canvas, const GraphicObject& obj,
                         sk_sp<SkShader> shader, const ShaderLookup& lookup)
@@ -169,9 +210,9 @@ Result<void> draw_group(SkCanvas* canvas, const GraphicObject& obj,
 Result<void> draw_circle(SkCanvas* canvas, const GraphicObject& obj,
                          sk_sp<SkShader> shader)
 {
-    double cx = get_double(obj.params, "cx", 0.0);
-    double cy = get_double(obj.params, "cy", 0.0);
-    double r  = get_double(obj.params, "r", 0.0);
+    double cx = get_double(obj.params, ParamKey::cx, 0.0);
+    double cy = get_double(obj.params, ParamKey::cy, 0.0);
+    double r  = get_double(obj.params, ParamKey::r, 0.0);
 
     if (obj.fill || shader) {
         SkPaint paint;
@@ -197,11 +238,11 @@ Result<void> draw_circle(SkCanvas* canvas, const GraphicObject& obj,
 Result<void> draw_rect(SkCanvas* canvas, const GraphicObject& obj,
                        sk_sp<SkShader> shader)
 {
-    double x = get_double(obj.params, "x", 0.0);
-    double y = get_double(obj.params, "y", 0.0);
-    double w = get_double(obj.params, "w", 0.0);
-    double h = get_double(obj.params, "h", 0.0);
-    double rx = get_double(obj.params, "rx", 0.0);
+    double x = get_double(obj.params, ParamKey::x, 0.0);
+    double y = get_double(obj.params, ParamKey::y, 0.0);
+    double w = get_double(obj.params, ParamKey::w, 0.0);
+    double h = get_double(obj.params, ParamKey::h, 0.0);
+    double rx = get_double(obj.params, ParamKey::rx, 0.0);
 
     SkRect rect = SkRect::MakeXYWH(static_cast<SkScalar>(x),
                                    static_cast<SkScalar>(y),
@@ -240,10 +281,10 @@ Result<void> draw_rect(SkCanvas* canvas, const GraphicObject& obj,
 Result<void> draw_ellipse(SkCanvas* canvas, const GraphicObject& obj,
                           sk_sp<SkShader> shader)
 {
-    double cx = get_double(obj.params, "cx", 0.0);
-    double cy = get_double(obj.params, "cy", 0.0);
-    double rx = get_double(obj.params, "rx", 0.0);
-    double ry = get_double(obj.params, "ry", 0.0);
+    double cx = get_double(obj.params, ParamKey::cx, 0.0);
+    double cy = get_double(obj.params, ParamKey::cy, 0.0);
+    double rx = get_double(obj.params, ParamKey::rx, 0.0);
+    double ry = get_double(obj.params, ParamKey::ry, 0.0);
 
     SkRect oval = SkRect::MakeXYWH(static_cast<SkScalar>(cx - rx),
                                    static_cast<SkScalar>(cy - ry),
@@ -270,10 +311,10 @@ Result<void> draw_ellipse(SkCanvas* canvas, const GraphicObject& obj,
 Result<void> draw_line(SkCanvas* canvas, const GraphicObject& obj,
                        sk_sp<SkShader> /*shader*/)
 {
-    double x1 = get_double(obj.params, "x1", 0.0);
-    double y1 = get_double(obj.params, "y1", 0.0);
-    double x2 = get_double(obj.params, "x2", 0.0);
-    double y2 = get_double(obj.params, "y2", 0.0);
+    double x1 = get_double(obj.params, ParamKey::x1, 0.0);
+    double y1 = get_double(obj.params, ParamKey::y1, 0.0);
+    double x2 = get_double(obj.params, ParamKey::x2, 0.0);
+    double y2 = get_double(obj.params, ParamKey::y2, 0.0);
 
     if (obj.stroke) {
         SkPaint paint;
@@ -291,11 +332,10 @@ Result<void> draw_line(SkCanvas* canvas, const GraphicObject& obj,
 Result<void> draw_polygon(SkCanvas* canvas, const GraphicObject& obj,
                           sk_sp<SkShader> shader)
 {
-    auto it = obj.params.find("points");
-    if (it == obj.params.end()) return {};
+    const Value* v = obj.params.find(ParamKey::points);
+    if (!v) return {};
 
-    const Value& v = it->second;
-    const auto* list = std::get_if<std::shared_ptr<ValueList>>(&v);
+    const auto* list = v->as_list();
     if (!list || !*list) return {};
 
     const auto& elems = (*list)->elements;
@@ -303,11 +343,11 @@ Result<void> draw_polygon(SkCanvas* canvas, const GraphicObject& obj,
 
     SkPathBuilder builder;
     auto to_double = [](const Value& val) -> double {
-        if (std::holds_alternative<int64_t>(val)) {
-            return static_cast<double>(std::get<int64_t>(val));
+        if (val.is_int()) {
+            return static_cast<double>(val.int_val());
         }
-        if (std::holds_alternative<double>(val)) {
-            return std::get<double>(val);
+        if (val.is_double()) {
+            return val.double_val();
         }
         return 0.0;
     };
@@ -341,10 +381,10 @@ Result<void> draw_polygon(SkCanvas* canvas, const GraphicObject& obj,
 Result<void> draw_text(SkCanvas* canvas, const GraphicObject& obj,
                        sk_sp<SkShader> shader)
 {
-    double x = get_double(obj.params, "x", 0.0);
-    double y = get_double(obj.params, "y", 0.0);
-    std::string text = get_string(obj.params, "text", "");
-    double font_size = get_double(obj.params, "font-size", 16.0);
+    double x = get_double(obj.params, ParamKey::x, 0.0);
+    double y = get_double(obj.params, ParamKey::y, 0.0);
+    std::string text = get_string(obj.params, ParamKey::text, "");
+    double font_size = get_double(obj.params, ParamKey::font_size, 16.0);
 
     if (text.empty()) return {};
 
@@ -385,7 +425,7 @@ Result<void> draw_text(SkCanvas* canvas, const GraphicObject& obj,
 Result<void> draw_path(SkCanvas* canvas, const GraphicObject& obj,
                        sk_sp<SkShader> /*shader*/)
 {
-    std::string d = get_string(obj.params, "d", "");
+    std::string d = get_string(obj.params, ParamKey::d, "");
     if (d.empty()) return {};
 
     // TODO: parse SVG path data into SkPath.
@@ -398,18 +438,57 @@ Result<void> draw_path(SkCanvas* canvas, const GraphicObject& obj,
 Result<void> draw_image(SkCanvas* canvas, const GraphicObject& obj,
                         sk_sp<SkShader> /*shader*/)
 {
-    std::string src = get_string(obj.params, "src", "");
-    double x = get_double(obj.params, "x", 0.0);
-    double y = get_double(obj.params, "y", 0.0);
+    std::string src = get_string(obj.params, ParamKey::src, "");
+    double x = get_double(obj.params, ParamKey::x, 0.0);
+    double y = get_double(obj.params, ParamKey::y, 0.0);
 
     if (src.empty()) return {};
 
-    // Image loading is temporarily disabled until SkCodec wiring is in place.
-    // For now, treat it as a non-fatal no-op so the rest of the pipeline works.
-    (void)canvas;
-    (void)x;
-    (void)y;
-    (void)src;
+    auto& ctx = PMLContext::current();
+    if (!ctx.assets) {
+        return std::unexpected(resource_error(
+            "skia draw_image: no asset cache available"));
+    }
+
+    auto& backend = BackendRegistry::instance().active();
+    auto surface_result = ctx.assets->load_image(backend, src);
+    if (!surface_result) {
+        return std::unexpected(surface_result.error());
+    }
+
+    auto* skia_surf = dynamic_cast<SkiaSurface*>(surface_result->get());
+    if (!skia_surf) {
+        return std::unexpected(general_error(
+            "skia draw_image: invalid decoded surface type"));
+    }
+
+    const SkScalar sx = static_cast<SkScalar>(x);
+    const SkScalar sy = static_cast<SkScalar>(y);
+    const SkScalar iw = static_cast<SkScalar>(skia_surf->width);
+    const SkScalar ih = static_cast<SkScalar>(skia_surf->height);
+
+    SkRect src_rect = SkRect::MakeWH(iw, ih);
+    if (const Value* crop_val = obj.params.find(ParamKey::crop)) {
+        if (auto rect = parse_rect_value(*crop_val)) {
+            src_rect = *rect;
+        }
+    }
+
+    SkRect dst_rect = SkRect::MakeXYWH(sx, sy, src_rect.width(), src_rect.height());
+    if (obj.params.contains(ParamKey::w) && obj.params.contains(ParamKey::h)) {
+        dst_rect = SkRect::MakeXYWH(
+            sx, sy,
+            static_cast<SkScalar>(get_double(obj.params, ParamKey::w, static_cast<double>(src_rect.width()))),
+            static_cast<SkScalar>(get_double(obj.params, ParamKey::h, static_cast<double>(src_rect.height()))));
+    }
+
+    canvas->drawImageRect(
+        skia_surf->bitmap.asImage().get(),
+        src_rect,
+        dst_rect,
+        SkSamplingOptions(),
+        nullptr,
+        SkCanvas::kFast_SrcRectConstraint);
     return {};
 }
 
@@ -425,12 +504,12 @@ Result<void> draw_object(SkCanvas* canvas, const GraphicObject& obj,
 
     // If this object has its own shader handle, resolve it; otherwise inherit.
     sk_sp<SkShader> local_shader = parent_shader;
-    if (auto it = obj.params.find("shader"); it != obj.params.end()) {
+    if (const Value* shader_val = obj.params.find(ParamKey::shader)) {
         int64_t handle = 0;
-        if (std::holds_alternative<int64_t>(it->second)) {
-            handle = std::get<int64_t>(it->second);
-        } else if (std::holds_alternative<double>(it->second)) {
-            handle = static_cast<int64_t>(std::get<double>(it->second));
+        if (shader_val->is_int()) {
+            handle = shader_val->int_val();
+        } else if (shader_val->is_double()) {
+            handle = static_cast<int64_t>(shader_val->double_val());
         }
         if (handle > 0) {
             local_shader = lookup(handle);
@@ -448,9 +527,266 @@ Result<void> draw_object(SkCanvas* canvas, const GraphicObject& obj,
     if (obj.shape_type == "text")    return draw_text(canvas, obj, local_shader);
     if (obj.shape_type == "path")    return draw_path(canvas, obj, local_shader);
     if (obj.shape_type == "image")   return draw_image(canvas, obj, local_shader);
+    if (obj.shape_type == "mesh3d")  return draw_mesh3d(canvas, obj, lookup);
 
     // Unknown shape type is non-fatal (matching Python's tolerant behaviour).
     return {};
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 3D mesh rendering
+// ═══════════════════════════════════════════════════════════════════════════════
+
+Result<void> draw_mesh3d(SkCanvas* canvas, const GraphicObject& obj,
+                         const ShaderLookup& lookup) {
+    const Value* mesh_val = obj.params.find("mesh");
+    const Value* transform_val = obj.params.find("transform");
+    if (!mesh_val || !transform_val) return {};
+
+    const auto* mesh_ptr = mesh_val->as_mesh3d();
+    const auto* transform_ptr = transform_val->as_transform3d();
+    if (!mesh_ptr || !transform_ptr) return {};
+
+    const auto& mesh = **mesh_ptr;
+    const auto& transform = **transform_ptr;
+    const Camera3D& cam = current_camera();
+    const Mat4 vp = cam.projection_matrix() * cam.view_matrix();
+
+    const int canvas_width = canvas->getBaseLayerSize().width();
+    const int canvas_height = canvas->getBaseLayerSize().height();
+    if (canvas_width <= 0 || canvas_height <= 0) return {};
+
+    struct ProjectedFace {
+        const Mesh3D::Face* face;
+        std::vector<SkPoint> points;
+        std::vector<SkPoint> uvs;
+        double depth;
+    };
+    std::vector<ProjectedFace> visible;
+    visible.reserve(mesh.faces.size());
+
+    for (const auto& face : mesh.faces) {
+        if (face.indices.size() < 3) continue;
+
+        ProjectedFace pf;
+        pf.face = &face;
+        pf.points.reserve(face.indices.size());
+        pf.uvs.reserve(face.indices.size());
+
+        Vec3 world_sum(0, 0, 0);
+        bool clipped = false;
+        for (int idx : face.indices) {
+            Vec3 world = transform.apply(mesh.vertices[idx].position);
+            world_sum = world_sum + world;
+            Vec3 ndc = vp.transform_point(world);
+
+            // Simple clipping: skip faces entirely behind the near plane.
+            if (ndc.z < -1.0 || ndc.z > 1.0) {
+                clipped = true;
+                break;
+            }
+
+            SkPoint p{
+                static_cast<SkScalar>((ndc.x + 1.0) * 0.5 * canvas_width),
+                static_cast<SkScalar>((1.0 - ndc.y) * 0.5 * canvas_height)};
+            pf.points.push_back(p);
+        }
+        if (clipped || pf.points.size() < 3) continue;
+
+        // Backface culling using signed screen-space area.
+        // Our local winding produces front-faces with positive signed area
+        // in screen coordinates (Y down), so cull faces with negative area.
+        if (cam.backface_culling) {
+            double signed_area = 0.0;
+            for (size_t i = 0; i < pf.points.size(); ++i) {
+                const SkPoint& a = pf.points[i];
+                const SkPoint& b = pf.points[(i + 1) % pf.points.size()];
+                signed_area += static_cast<double>(a.x()) * b.y() -
+                               static_cast<double>(b.x()) * a.y();
+            }
+            if (signed_area < 0.0) continue;
+        }
+
+        Vec3 center = world_sum / static_cast<double>(face.indices.size());
+        Vec3 center_ndc = vp.transform_point(center);
+        pf.depth = center_ndc.z;
+
+        for (const auto& uv : face.uvs) {
+            pf.uvs.push_back({static_cast<SkScalar>(uv.x),
+                              static_cast<SkScalar>(uv.y)});
+        }
+        visible.push_back(std::move(pf));
+    }
+
+    // Painter's algorithm: draw from far to near.
+    std::sort(visible.begin(), visible.end(),
+              [](const ProjectedFace& a, const ProjectedFace& b) {
+                  return a.depth > b.depth;
+              });
+
+    for (const auto& pf : visible) {
+        const Mesh3D::Face& face = *pf.face;
+        const int tex_w = std::max(1, static_cast<int>(std::ceil(face.tex_width)));
+        const int tex_h = std::max(1, static_cast<int>(std::ceil(face.tex_height)));
+
+        // Rasterize the material to a temporary surface.
+        SkiaSurface mat_surface(tex_w, tex_h, 0x00000000);
+        auto mat_result = draw_object(mat_surface.surface->getCanvas(),
+                                      face.material, nullptr, lookup);
+        if (!mat_result) return mat_result;
+
+        sk_sp<SkShader> shader = mat_surface.bitmap.asImage()->makeShader(
+            SkTileMode::kClamp, SkTileMode::kClamp, SkSamplingOptions());
+        if (!shader) continue;
+
+        // Triangulate: fan for arbitrary n-gons; our factories use quads.
+        const size_t n = pf.points.size();
+        if (n < 3) continue;
+
+        std::vector<SkPoint> tri_positions;
+        std::vector<SkPoint> tri_uvs;
+        tri_positions.reserve((n - 2) * 3);
+        tri_uvs.reserve((n - 2) * 3);
+
+        for (size_t i = 1; i + 1 < n; ++i) {
+            tri_positions.push_back(pf.points[0]);
+            tri_positions.push_back(pf.points[i]);
+            tri_positions.push_back(pf.points[i + 1]);
+
+            tri_uvs.push_back({pf.uvs[0].x() * tex_w, pf.uvs[0].y() * tex_h});
+            tri_uvs.push_back({pf.uvs[i].x() * tex_w, pf.uvs[i].y() * tex_h});
+            tri_uvs.push_back({pf.uvs[i + 1].x() * tex_w,
+                               pf.uvs[i + 1].y() * tex_h});
+        }
+
+        auto vertices = SkVertices::MakeCopy(
+            SkVertices::kTriangles_VertexMode,
+            static_cast<int>(tri_positions.size()),
+            tri_positions.data(),
+            tri_uvs.data(),
+            nullptr);
+
+        SkPaint paint;
+        paint.setShader(std::move(shader));
+        paint.setBlendMode(SkBlendMode::kSrcOver);
+        canvas->drawVertices(vertices.get(), SkBlendMode::kSrcOver, paint);
+    }
+
+    return {};
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PNG loading helper (libpng)
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// The prebuilt skia.lib in this tree does not expose a working SkPngDecoder,
+// so we decode PNGs through libpng and upload the pixels into an SkBitmap.
+
+static Result<std::unique_ptr<Surface>> load_png_with_libpng(
+    const std::string& path)
+{
+    FILE* fp = nullptr;
+    if (fopen_s(&fp, path.c_str(), "rb") != 0 || !fp) {
+        return std::unexpected(resource_error(
+            std::format("skia: cannot open image file: {}", path)));
+    }
+
+    constexpr size_t png_sig_size = 8;
+    std::array<uint8_t, png_sig_size> sig{};
+    if (fread(sig.data(), 1, png_sig_size, fp) != png_sig_size) {
+        fclose(fp);
+        return std::unexpected(resource_error(
+            std::format("skia: cannot read image file: {}", path)));
+    }
+    if (png_sig_cmp(sig.data(), 0, png_sig_size) != 0) {
+        fclose(fp);
+        return std::unexpected(resource_error(
+            std::format("skia: not a PNG file: {}", path)));
+    }
+
+    png_structp png = png_create_read_struct(
+        PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
+    if (!png) {
+        fclose(fp);
+        return std::unexpected(resource_error(
+            "skia: png_create_read_struct failed"));
+    }
+
+    png_infop info = png_create_info_struct(png);
+    if (!info) {
+        png_destroy_read_struct(&png, nullptr, nullptr);
+        fclose(fp);
+        return std::unexpected(resource_error(
+            "skia: png_create_info_struct failed"));
+    }
+
+    if (setjmp(png_jmpbuf(png))) {
+        png_destroy_read_struct(&png, &info, nullptr);
+        fclose(fp);
+        return std::unexpected(resource_error(
+            std::format("skia: libpng decode error: {}", path)));
+    }
+
+    png_init_io(png, fp);
+    png_set_sig_bytes(png, static_cast<int>(png_sig_size));
+    png_read_info(png, info);
+
+    int w = static_cast<int>(png_get_image_width(png, info));
+    int h = static_cast<int>(png_get_image_height(png, info));
+    png_byte bit_depth = png_get_bit_depth(png, info);
+    png_byte color_type = png_get_color_type(png, info);
+
+    if (color_type == PNG_COLOR_TYPE_PALETTE) {
+        png_set_palette_to_rgb(png);
+    }
+    if (color_type == PNG_COLOR_TYPE_GRAY || color_type == PNG_COLOR_TYPE_GRAY_ALPHA) {
+        png_set_gray_to_rgb(png);
+    }
+    if (png_get_valid(png, info, PNG_INFO_tRNS)) {
+        png_set_tRNS_to_alpha(png);
+    }
+    if (bit_depth == 16) {
+        png_set_strip_16(png);
+    }
+    if (color_type == PNG_COLOR_TYPE_RGB) {
+        png_set_filler(png, 0xFF, PNG_FILLER_AFTER);
+    }
+
+    png_read_update_info(png, info);
+
+    const size_t row_bytes = png_get_rowbytes(png, info);
+    std::vector<uint8_t> temp_row(static_cast<size_t>(row_bytes));
+
+    SkImageInfo sk_info = SkImageInfo::MakeN32Premul(w, h);
+    SkBitmap bitmap;
+    if (!bitmap.tryAllocPixels(sk_info)) {
+        png_destroy_read_struct(&png, &info, nullptr);
+        fclose(fp);
+        return std::unexpected(resource_error(
+            "skia: failed to allocate image pixels"));
+    }
+
+    uint8_t* dst_pixels = static_cast<uint8_t*>(bitmap.getPixels());
+    const size_t dst_row_bytes = bitmap.rowBytes();
+
+    for (int y = 0; y < h; ++y) {
+        png_read_row(png, temp_row.data(), nullptr);
+        uint8_t* dst = dst_pixels + y * dst_row_bytes;
+        for (int x = 0; x < w; ++x) {
+            // libpng gives RGBA; Skia kN32 on little-endian is BGRA.
+            dst[x * 4 + 0] = temp_row[x * 4 + 2];  // B <- R
+            dst[x * 4 + 1] = temp_row[x * 4 + 1];  // G <- G
+            dst[x * 4 + 2] = temp_row[x * 4 + 0];  // R <- B
+            dst[x * 4 + 3] = temp_row[x * 4 + 3];  // A <- A
+        }
+    }
+
+    png_read_end(png, nullptr);
+    png_destroy_read_struct(&png, &info, nullptr);
+    fclose(fp);
+
+    auto skia_surf = std::make_unique<SkiaSurface>(std::move(bitmap));
+    return std::unique_ptr<Surface>(std::move(skia_surf));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -471,7 +807,8 @@ public:
               | BackendCap::VectorOutput
               | BackendCap::AnimationGIF
               | BackendCap::FontRendering
-              | BackendCap::LoadPNG,
+              | BackendCap::LoadPNG
+              | BackendCap::LoadImage,
         };
     }
 
@@ -661,6 +998,49 @@ private:
         return {};
     }
 
+    [[nodiscard]] auto load_image(const std::string& path)
+        -> Result<std::unique_ptr<Surface>> override
+    {
+        // The prebuilt skia.lib does not expose a working PNG decoder, so
+        // route PNGs through libpng. Other formats still try SkCodec.
+        auto png_result = load_png_with_libpng(path);
+        if (png_result.has_value()) {
+            return png_result;
+        }
+
+        // If libpng rejected it (not a PNG / corrupt), fall back to SkCodec.
+        auto data = SkData::MakeFromFileName(path.c_str());
+        if (!data) {
+            return std::unexpected(resource_error(
+                std::format("skia: cannot read image file: {}", path)));
+        }
+
+        auto codec = SkCodec::MakeFromData(std::move(data));
+        if (!codec) {
+            return std::unexpected(resource_error(
+                std::format("skia: cannot decode image format: {}", path)));
+        }
+
+        SkImageInfo info = codec->getInfo().makeColorType(kN32_SkColorType)
+                                          .makeAlphaType(kPremul_SkAlphaType);
+        SkBitmap bitmap;
+        if (!bitmap.tryAllocPixels(info)) {
+            return std::unexpected(resource_error(
+                "skia: failed to allocate image pixels"));
+        }
+
+        SkCodec::Result decode_result = codec->getPixels(
+            info, bitmap.getPixels(), bitmap.rowBytes());
+        if (decode_result != SkCodec::kSuccess
+            && decode_result != SkCodec::kIncompleteInput) {
+            return std::unexpected(resource_error(
+                std::format("skia: image decode failed with code {}",
+                            static_cast<int>(decode_result))));
+        }
+
+        return std::make_unique<SkiaSurface>(std::move(bitmap));
+    }
+
     auto composite(Surface& dst, Surface& src, int x, int y)
         -> Result<void> override
     {
@@ -680,6 +1060,78 @@ private:
             SkSamplingOptions(), &paint);
         return {};
     }
+
+    [[nodiscard]] auto draw_to_new_surface(
+        const GraphicObject& obj, int w, int h, uint32_t bg)
+        -> Result<std::unique_ptr<Surface>> override
+    {
+        auto surface = create_surface(w, h, bg);
+        if (!surface) {
+            return std::unexpected(resource_error("failed to create layer surface"));
+        }
+        auto result = draw(*surface, obj);
+        if (!result) return std::unexpected(result.error());
+        return surface;
+    }
+
+    auto composite_with_blend(Surface& dst, Surface& src, int x, int y,
+                              BlendMode blend, float opacity)
+        -> Result<void> override
+    {
+        auto* dst_surf = dynamic_cast<SkiaSurface*>(&dst);
+        auto* src_surf = dynamic_cast<SkiaSurface*>(&src);
+        if (!dst_surf || !src_surf) {
+            return std::unexpected(general_error(
+                "skia composite_with_blend: invalid surface type"));
+        }
+
+        SkPaint paint;
+        paint.setBlendMode(to_skia_blend_mode(blend));
+        paint.setAlphaf(std::clamp(opacity, 0.0f, 1.0f));
+        dst_surf->surface->getCanvas()->drawImage(
+            src_surf->bitmap.asImage().get(),
+            static_cast<SkScalar>(x),
+            static_cast<SkScalar>(y),
+            SkSamplingOptions(), &paint);
+        return {};
+    }
+
+    auto apply_mask(Surface& dst, Surface& mask) -> Result<void> override {
+        auto* dst_surf = dynamic_cast<SkiaSurface*>(&dst);
+        auto* mask_surf = dynamic_cast<SkiaSurface*>(&mask);
+        if (!dst_surf || !mask_surf) {
+            return std::unexpected(general_error(
+                "skia apply_mask: invalid surface type"));
+        }
+        if (dst_surf->width != mask_surf->width || dst_surf->height != mask_surf->height) {
+            return std::unexpected(general_error(
+                "skia apply_mask: mask and dst sizes must match"));
+        }
+
+        SkPixmap dst_pm;
+        SkPixmap mask_pm;
+        if (!dst_surf->bitmap.peekPixels(&dst_pm) ||
+            !mask_surf->bitmap.peekPixels(&mask_pm)) {
+            return std::unexpected(resource_error("skia apply_mask: cannot access pixels"));
+        }
+
+        for (int y = 0; y < dst_surf->height; ++y) {
+            uint32_t* dst_row = static_cast<uint32_t*>(dst_pm.writable_addr32(0, y));
+            const uint32_t* mask_row = static_cast<const uint32_t*>(mask_pm.addr32(0, y));
+            for (int x = 0; x < dst_surf->width; ++x) {
+                uint32_t d = dst_row[x];
+                uint32_t m = mask_row[x];
+                uint8_t da = (d >> 24) & 0xFF;
+                uint8_t ma = (m >> 24) & 0xFF;
+                uint8_t out_a = static_cast<uint8_t>((da * ma) / 255);
+                dst_row[x] = (d & 0x00FFFFFF) | (out_a << 24);
+            }
+        }
+        return {};
+    }
+
+    [[nodiscard]] auto supports_blend_mode() const noexcept -> bool override { return true; }
+    [[nodiscard]] auto supports_layer_compositing() const noexcept -> bool override { return true; }
 
     auto compile_shader(const std::string& sksl) -> Result<uint64_t> override
     {
@@ -701,6 +1153,231 @@ private:
         uint64_t handle = next_shader_handle_++;
         shader_cache_[handle] = std::move(result.effect);
         return handle;
+    }
+
+    // ── FilterBackend ─────────────────────────────────────────────────
+
+    [[nodiscard]] Result<void> apply_sk_image_filter(
+        SkiaSurface& surf, sk_sp<SkImageFilter> filter)
+    {
+        if (!filter) return {};
+
+        auto tmp = SkSurfaces::Raster(surf.bitmap.info());
+        if (!tmp) {
+            return std::unexpected(filter_error(
+                {}, "skia: failed to create filter scratch surface"));
+        }
+
+        SkPaint paint;
+        paint.setImageFilter(std::move(filter));
+        tmp->getCanvas()->drawImage(
+            surf.bitmap.asImage().get(), 0, 0, SkSamplingOptions(), &paint);
+
+        SkPixmap pixmap;
+        if (!tmp->peekPixels(&pixmap)) {
+            return std::unexpected(filter_error(
+                {}, "skia: failed to read filtered pixels"));
+        }
+        if (!surf.bitmap.writePixels(pixmap)) {
+            return std::unexpected(filter_error(
+                {}, "skia: failed to copy filtered pixels back"));
+        }
+        return {};
+    }
+
+    Result<void> apply_color_matrix(
+        Surface& s, const std::array<float,20>& m) override
+    {
+        auto* surf = dynamic_cast<SkiaSurface*>(&s);
+        if (!surf) {
+            return std::unexpected(filter_error(
+                {}, "skia: invalid surface for color matrix"));
+        }
+        sk_sp<SkColorFilter> cf = SkColorFilters::Matrix(m.data());
+        sk_sp<SkImageFilter> imf = SkImageFilters::ColorFilter(
+            std::move(cf), nullptr);
+        return apply_sk_image_filter(*surf, std::move(imf));
+    }
+
+    Result<void> apply_blur(
+        Surface& s, float rx, float ry, BlurType type) override
+    {
+        auto* surf = dynamic_cast<SkiaSurface*>(&s);
+        if (!surf) {
+            return std::unexpected(filter_error(
+                {}, "skia: invalid surface for blur"));
+        }
+        if (type == BlurType::Gaussian) {
+            auto imf = SkImageFilters::Blur(
+                rx, ry, SkTileMode::kDecal, nullptr);
+            return apply_sk_image_filter(*surf, std::move(imf));
+        }
+        return std::unexpected(filter_not_supported(
+            {}, "skia: only gaussian blur is supported natively"));
+    }
+
+    Result<void> apply_convolution(
+        Surface& s, const ConvolutionKernel& k) override
+    {
+        auto* surf = dynamic_cast<SkiaSurface*>(&s);
+        if (!surf) {
+            return std::unexpected(filter_error(
+                {}, "skia: invalid surface for convolution"));
+        }
+
+        SkISize size{k.width, k.height};
+        std::vector<SkScalar> kernel(k.values.begin(), k.values.end());
+        SkScalar gain = k.divisor != 0.0f ? 1.0f / k.divisor : 1.0f;
+        SkScalar bias = static_cast<SkScalar>(k.offset);
+        SkIPoint target{
+            k.anchor_x >= 0 ? k.anchor_x : k.width / 2,
+            k.anchor_y >= 0 ? k.anchor_y : k.height / 2};
+
+        auto imf = SkImageFilters::MatrixConvolution(
+            size, kernel.data(), gain, bias, target,
+            SkTileMode::kDecal, false, nullptr);
+        return apply_sk_image_filter(*surf, std::move(imf));
+    }
+
+    Result<void> apply_color_table(
+        Surface& s,
+        const std::array<uint8_t,256>& r,
+        const std::array<uint8_t,256>& g,
+        const std::array<uint8_t,256>& b,
+        const std::array<uint8_t,256>& a) override
+    {
+        auto* surf = dynamic_cast<SkiaSurface*>(&s);
+        if (!surf) {
+            return std::unexpected(filter_error(
+                {}, "skia: invalid surface for color table"));
+        }
+        sk_sp<SkColorFilter> cf = SkColorFilters::TableARGB(
+            const_cast<uint8_t*>(a.data()),
+            const_cast<uint8_t*>(r.data()),
+            const_cast<uint8_t*>(g.data()),
+            const_cast<uint8_t*>(b.data()));
+        sk_sp<SkImageFilter> imf = SkImageFilters::ColorFilter(
+            std::move(cf), nullptr);
+        return apply_sk_image_filter(*surf, std::move(imf));
+    }
+
+    Result<void> apply_offset(Surface& s, float dx, float dy) override
+    {
+        auto* surf = dynamic_cast<SkiaSurface*>(&s);
+        if (!surf) {
+            return std::unexpected(filter_error(
+                {}, "skia: invalid surface for offset"));
+        }
+        auto imf = SkImageFilters::Offset(dx, dy, nullptr);
+        return apply_sk_image_filter(*surf, std::move(imf));
+    }
+
+    Result<void> apply_drop_shadow(
+        Surface& s, float dx, float dy,
+        float blur_x, float blur_y, uint32_t color) override
+    {
+        auto* surf = dynamic_cast<SkiaSurface*>(&s);
+        if (!surf) {
+            return std::unexpected(filter_error(
+                {}, "skia: invalid surface for drop shadow"));
+        }
+        auto imf = SkImageFilters::DropShadow(
+            dx, dy, blur_x, blur_y, to_sk_color(color), nullptr);
+        return apply_sk_image_filter(*surf, std::move(imf));
+    }
+
+    Result<void> apply_inner_shadow(
+        Surface& s, float dx, float dy, float blur, uint32_t color) override
+    {
+        auto* surf = dynamic_cast<SkiaSurface*>(&s);
+        if (!surf) {
+            return std::unexpected(filter_error(
+                {}, "skia: invalid surface for inner shadow"));
+        }
+
+        // 1. Render the shadow outside the shape (DropShadowOnly).
+        // 2. Mask it by the source alpha so it only appears inside the shape.
+        // 3. Composite the inner shadow on top of the original source.
+        auto shadow = SkImageFilters::DropShadowOnly(
+            dx, dy, blur, blur, to_sk_color(color), nullptr);
+        auto masked = SkImageFilters::Blend(
+            SkBlendMode::kSrcIn, nullptr, std::move(shadow));
+        auto merge = SkImageFilters::Merge(nullptr, std::move(masked));
+        return apply_sk_image_filter(*surf, std::move(merge));
+    }
+
+    Result<void> apply_outer_glow(
+        Surface& s, float blur, uint32_t color) override
+    {
+        auto* surf = dynamic_cast<SkiaSurface*>(&s);
+        if (!surf) {
+            return std::unexpected(filter_error(
+                {}, "skia: invalid surface for outer glow"));
+        }
+
+        // Glow is a colored blur behind the source.
+        auto glow = SkImageFilters::DropShadowOnly(
+            0, 0, blur, blur, to_sk_color(color), nullptr);
+        auto merge = SkImageFilters::Merge(std::move(glow), nullptr);
+        return apply_sk_image_filter(*surf, std::move(merge));
+    }
+
+    Result<void> apply_inner_glow(
+        Surface& s, float blur, uint32_t color) override
+    {
+        auto* surf = dynamic_cast<SkiaSurface*>(&s);
+        if (!surf) {
+            return std::unexpected(filter_error(
+                {}, "skia: invalid surface for inner glow"));
+        }
+
+        // Same as inner shadow but centered (no offset).
+        auto glow = SkImageFilters::DropShadowOnly(
+            0, 0, blur, blur, to_sk_color(color), nullptr);
+        auto masked = SkImageFilters::Blend(
+            SkBlendMode::kSrcIn, nullptr, std::move(glow));
+        auto merge = SkImageFilters::Merge(nullptr, std::move(masked));
+        return apply_sk_image_filter(*surf, std::move(merge));
+    }
+
+    Result<void> apply_bevel_emboss(
+        Surface& s, float angle, float altitude, float blur,
+        uint32_t highlight, uint32_t shadow) override
+    {
+        auto* surf = dynamic_cast<SkiaSurface*>(&s);
+        if (!surf) {
+            return std::unexpected(filter_error(
+                {}, "skia: invalid surface for bevel/emboss"));
+        }
+
+        // Convert spherical angle/altitude to a normalized light direction.
+        const double deg2rad = 3.14159265358979323846 / 180.0;
+        const double a = angle * deg2rad;
+        const double alt = altitude * deg2rad;
+        const float z = static_cast<float>(std::sin(alt));
+        const float xy = static_cast<float>(std::cos(alt));
+        SkPoint3 dir = SkPoint3::Make(
+            xy * static_cast<float>(std::cos(a)),
+            xy * static_cast<float>(std::sin(a)),
+            z);
+        dir.normalize();
+        SkPoint3 opp = -dir;
+
+        // Use Skia's diffuse lighting filters with the source alpha as bump map.
+        // Two opposite lights give highlight and shadow edges.
+        const SkScalar surface_scale = std::max<SkScalar>(1.0f, blur / 2.0f);
+        auto highlight_lit = SkImageFilters::DistantLitDiffuse(
+            dir, to_sk_color(highlight), surface_scale, 1.0f, nullptr);
+        auto shadow_lit = SkImageFilters::DistantLitDiffuse(
+            opp, to_sk_color(shadow), surface_scale, 1.0f, nullptr);
+
+        sk_sp<SkImageFilter> filters[] = {
+            nullptr,
+            std::move(shadow_lit),
+            std::move(highlight_lit),
+        };
+        auto merge = SkImageFilters::Merge(filters, 3);
+        return apply_sk_image_filter(*surf, std::move(merge));
     }
 };
 

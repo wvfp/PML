@@ -8,7 +8,9 @@
 
 #include "pml/backend/backend.h"
 #include "pml/backend/registry.h"
+#include "pml/layer/blend_mode.h"
 
+#include <array>
 #include <string>
 #include <vector>
 
@@ -93,6 +95,12 @@ public:
         return {};
     }
 
+    [[nodiscard]] auto load_image(const std::string& /*path*/)
+        -> Result<std::unique_ptr<Surface>> override
+    {
+        return std::unexpected(resource_error("null backend cannot load images"));
+    }
+
     // ── Compositing ─────────────────────────────────────────────────
 
     auto composite(Surface& /*dst*/, Surface& /*src*/,
@@ -100,6 +108,75 @@ public:
     {
         ++composite_count_;
         return {};
+    }
+
+    [[nodiscard]] auto draw_to_new_surface(
+        const GraphicObject& /*obj*/, int /*w*/, int /*h*/, uint32_t /*bg*/)
+        -> Result<std::unique_ptr<Surface>> override
+    {
+        return std::unexpected(resource_error("null backend cannot draw layers"));
+    }
+
+    auto composite_with_blend(Surface& /*dst*/, Surface& /*src*/,
+                              int /*x*/, int /*y*/,
+                              BlendMode /*blend*/, float /*opacity*/)
+        -> Result<void> override
+    {
+        return std::unexpected(blend_mode_error({}, "null backend does not support blend modes"));
+    }
+
+    auto apply_mask(Surface& /*dst*/, Surface& /*mask*/) -> Result<void> override {
+        return std::unexpected(layer_error({}, "null backend does not support masks"));
+    }
+
+    [[nodiscard]] auto supports_blend_mode() const noexcept -> bool override { return false; }
+    [[nodiscard]] auto supports_layer_compositing() const noexcept -> bool override { return false; }
+
+    // ── FilterBackend ───────────────────────────────────────────────
+
+    Result<void> apply_color_matrix(Surface&, const std::array<float,20>&) override {
+        return std::unexpected(filter_not_supported({},
+            "null backend does not support color matrix filters"));
+    }
+    Result<void> apply_blur(Surface&, float, float, BlurType) override {
+        return std::unexpected(filter_not_supported({},
+            "null backend does not support blur filters"));
+    }
+    Result<void> apply_convolution(Surface&, const ConvolutionKernel&) override {
+        return std::unexpected(filter_not_supported({},
+            "null backend does not support convolution filters"));
+    }
+    Result<void> apply_color_table(Surface&,
+        const std::array<uint8_t,256>&,
+        const std::array<uint8_t,256>&,
+        const std::array<uint8_t,256>&,
+        const std::array<uint8_t,256>&) override {
+        return std::unexpected(filter_not_supported({},
+            "null backend does not support color table filters"));
+    }
+    Result<void> apply_offset(Surface&, float, float) override {
+        return std::unexpected(filter_not_supported({},
+            "null backend does not support offset filters"));
+    }
+    Result<void> apply_drop_shadow(Surface&, float, float, float, float, uint32_t) override {
+        return std::unexpected(filter_not_supported({},
+            "null backend does not support drop shadow"));
+    }
+    Result<void> apply_inner_shadow(Surface&, float, float, float, uint32_t) override {
+        return std::unexpected(filter_not_supported({},
+            "null backend does not support inner shadow"));
+    }
+    Result<void> apply_outer_glow(Surface&, float, uint32_t) override {
+        return std::unexpected(filter_not_supported({},
+            "null backend does not support outer glow"));
+    }
+    Result<void> apply_inner_glow(Surface&, float, uint32_t) override {
+        return std::unexpected(filter_not_supported({},
+            "null backend does not support inner glow"));
+    }
+    Result<void> apply_bevel_emboss(Surface&, float, float, float, uint32_t, uint32_t) override {
+        return std::unexpected(filter_not_supported({},
+            "null backend does not support bevel/emboss"));
     }
 
     // ── Shaders ─────────────────────────────────────────────────────

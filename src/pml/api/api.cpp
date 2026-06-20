@@ -11,6 +11,7 @@
 #include "pml/frontend/expander.h"
 
 // ── Evaluator & builtins ─────────────────────────────────────────────────
+#include "pml/core/call_stack.h"
 #include "pml/evaluator/evaluator.h"
 #include "pml/evaluator/environment.h"
 #include "pml/evaluator/builtins.h"
@@ -19,6 +20,15 @@
 
 // ── Graphics ─────────────────────────────────────────────────────────────
 #include "pml/graphics/render.h"
+
+// ── Layers / Composition ─────────────────────────────────────────────────
+#include "pml/layer/layer_builtins.h"
+
+// ── Filters ──────────────────────────────────────────────────────────────
+#include "pml/filter/filter_builtins.h"
+
+// ── Assets / Bitmap I/O ──────────────────────────────────────────────────
+#include "pml/asset/asset_builtins.h"
 
 // ── Sprites ──────────────────────────────────────────────────────────────
 #include "pml/sprites/style.h"
@@ -43,6 +53,9 @@
 #include "pml/evaluator/transform_builtins.h"
 #include "pml/evaluator/canvas_builtins.h"
 
+// ── 3D graphics builtins ─────────────────────────────────────────────────
+#include "pml/graphics3d/builtins_3d.h"
+
 #include <algorithm>
 #include <format>
 #include <fstream>
@@ -53,6 +66,37 @@
 #include <nlohmann/json.hpp>
 
 namespace pml {
+
+namespace {
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ArenaScope — activate an arena for the duration of an execute() call
+// ═══════════════════════════════════════════════════════════════════════════
+
+class ArenaScope {
+  public:
+    explicit ArenaScope(Arena* arena)
+        : arena_(arena)
+        , prev_(current_arena()) {
+        current_arena() = arena;
+    }
+
+    ~ArenaScope() {
+        // Reclaim all per-call AST/evaluation temporaries.  Persistent values
+        // (Procedure bodies, macros) are cloned to the heap before storage.
+        arena_->reset();
+        current_arena() = prev_;
+    }
+
+    ArenaScope(const ArenaScope&) = delete;
+    ArenaScope& operator=(const ArenaScope&) = delete;
+
+  private:
+    Arena* arena_;
+    Arena* prev_;
+};
+
+} // namespace
 
 // ═══════════════════════════════════════════════════════════════════════════
 // RenderResult
@@ -78,31 +122,33 @@ nlohmann::json serialize_value(const Value& val) {
     }
     // bool → bool
     if (is_bool(val)) {
-        return std::get<bool>(val);
+        return val.bool_val();
     }
     // int → number
     if (is_integer(val)) {
-        return std::get<int64_t>(val);
+        return val.int_val();
     }
     // float → number
     if (is_float(val)) {
-        return std::get<double>(val);
+        return val.double_val();
     }
     // string → string
-    if (is_string(val)) {
-        return std::get<std::string>(val);
+    if (const auto* s = val.as_string()) {
+        return *s;
     }
     // Symbol → "<symbol:name>"
-    if (is_symbol(val)) {
-        return std::format("<symbol:{}>", std::get<Symbol>(val).name);
+    if (const auto* sym = val.as_symbol()) {
+        return std::format("<symbol:{}>", sym->name);
     }
     // Keyword → "<keyword:name>"
-    if (is_keyword(val)) {
-        return std::format("<keyword:{}>", std::get<Keyword>(val).name);
+    if (const auto* kw = val.as_keyword()) {
+        return std::format("<keyword:{}>", kw->name);
     }
     // List → array (recursive)
-    if (is_list(val)) {
-        const auto& elements = (*std::get<std::shared_ptr<ValueList>>(val)).elements;
+    if (const auto* lst = val.as_list()) {
+        if (!*lst)
+            return nlohmann::json::array();
+        const auto& elements = (*lst)->elements;
         nlohmann::json arr = nlohmann::json::array();
         for (const auto& elem : elements) {
             arr.push_back(serialize_value(elem));
@@ -110,35 +156,38 @@ nlohmann::json serialize_value(const Value& val) {
         return arr;
     }
     // BuiltinProcedure → "<builtin:name>"
-    if (is_builtin(val)) {
-        return std::format("<builtin:{}>",
-                           std::get<std::shared_ptr<BuiltinProcedure>>(val)->name);
+    if (const auto* bp = val.as_builtin()) {
+        if (!*bp)
+            return "<builtin>";
+        return std::format("<builtin:{}>", (*bp)->name);
     }
     // Procedure → "<procedure>"
-    if (is_procedure(val)) {
-        const auto& proc = *std::get<std::shared_ptr<Procedure>>(val);
-        if (proc.name.has_value()) {
-            return std::format("<procedure:{}>", *proc.name);
+    if (const auto* proc = val.as_procedure()) {
+        if (!*proc)
+            return "<procedure>";
+        if ((*proc)->name.has_value()) {
+            return std::format("<procedure:{}>", *(*proc)->name);
         }
         return "<procedure>";
     }
     // Macro → "<macro:name>"
-    if (is_macro(val)) {
-        return std::format("<macro:{}>",
-                           std::get<std::shared_ptr<Macro>>(val)->name);
+    if (const auto* mac = val.as_macro()) {
+        if (!*mac)
+            return "<macro>";
+        return std::format("<macro:{}>", (*mac)->name);
     }
     // GraphicObject → "<graphic-object:type>"
-    if (std::holds_alternative<std::shared_ptr<GraphicObject>>(val)) {
-        return std::format("<graphic-object:{}>",
-                           std::get<std::shared_ptr<GraphicObject>>(val)->shape_type);
+    if (const auto* go = val.as_graphic_object()) {
+        if (!*go)
+            return "<graphic-object>";
+        return std::format("<graphic-object:{}>", (*go)->shape_type);
     }
     // Module → "<module>"
-    // (Module is only forward-declared in types.h, so we can't access its members)
-    if (std::holds_alternative<std::shared_ptr<Module>>(val)) {
+    if (val.is_module()) {
         return "<module>";
     }
     // Canvas → "<canvas>"
-    if (std::holds_alternative<std::shared_ptr<Canvas>>(val)) {
+    if (val.is_canvas()) {
         return "<canvas>";
     }
     // Fallback: use value_to_string
@@ -148,49 +197,63 @@ nlohmann::json serialize_value(const Value& val) {
 std::string generate_hint(ErrorCode code) {
     using enum ErrorCode;
     switch (code) {
-        case UnboundVariableError:
-            return "The variable is not defined in any scope. "
-                   "Use (define name value) to define it, or (import \"path\" as prefix) "
-                   "to import from a module.";
-        case ArityError:
-            return "Check the number of arguments passed to this function or special form.";
-        case PMLSyntaxError:
-            return "Check for unmatched parentheses, unterminated strings, or invalid tokens.";
-        case PMLTypeError:
-            return "Check the types of arguments. Ensure symbols, strings, and numbers are used correctly.";
-        case CircularImportError:
-            return "Circular dependency detected. Break the cycle by removing one of the "
-                   "mutual imports, or restructure into separate modules.";
-        case ImportError:
-            return "Check the file path. Use forward slashes (/) in paths, not backslashes. "
-                   "Paths are resolved relative to the importing file.";
-        case MacroExpansionDepthError:
-            return "A macro is expanding recursively without a base case. "
-                   "Add a termination condition or restructure to avoid infinite expansion.";
-        case AccessError:
-            return "This symbol is not exported from the module. "
-                   "Add it to (provide ...) in the module file.";
-        case ResourceError:
-            return "Check that the referenced resource file exists and is accessible.";
-        case IKNoSolutionError:
-            return "The IK solver could not reach the target. Try increasing :iterations, "
-                   "relaxing joint constraints (:min/:max), or moving the target closer.";
-        default:
-            return "";
+    case UnboundVariableError:
+        return "The variable is not defined in any scope. "
+               "Use (define name value) to define it, or (import \"path\" as prefix) "
+               "to import from a module.";
+    case ArityError:
+        return "Check the number of arguments passed to this function or special form.";
+    case PMLSyntaxError:
+        return "Check for unmatched parentheses, unterminated strings, or invalid tokens.";
+    case PMLTypeError:
+        return "Check the types of arguments. Ensure symbols, strings, and numbers are used "
+               "correctly.";
+    case CircularImportError:
+        return "Circular dependency detected. Break the cycle by removing one of the "
+               "mutual imports, or restructure into separate modules.";
+    case ImportError:
+        return "Check the file path. Use forward slashes (/) in paths, not backslashes. "
+               "Paths are resolved relative to the importing file.";
+    case MacroExpansionDepthError:
+        return "A macro is expanding recursively without a base case. "
+               "Add a termination condition or restructure to avoid infinite expansion.";
+    case AccessError:
+        return "This symbol is not exported from the module. "
+               "Add it to (provide ...) in the module file.";
+    case ResourceError:
+        return "Check that the referenced resource file exists and is accessible.";
+    case IKNoSolutionError:
+        return "The IK solver could not reach the target. Try increasing :iterations, "
+               "relaxing joint constraints (:min/:max), or moving the target closer.";
+    default:
+        return "";
     }
 }
 
 nlohmann::json error_to_dict(const PMLException& e) {
     nlohmann::json d;
-    d["type"]    = std::string(to_string(e.code));
+    d["type"] = std::string(to_string(e.code));
     d["message"] = e.message;
     if (e.location.has_value()) {
         const auto& loc = *e.location;
-        if (loc.line > 0)   d["line"]   = loc.line;
-        if (loc.column > 0) d["column"] = loc.column;
-        if (!loc.filename.empty()) d["filename"] = loc.filename;
+        if (loc.line > 0)
+            d["line"] = loc.line;
+        if (loc.column > 0)
+            d["column"] = loc.column;
+        if (!loc.filename.empty())
+            d["filename"] = loc.filename;
     }
     d["hint"] = e.repair_hint.has_value() ? *e.repair_hint : generate_hint(e.code);
+    if (!e.call_stack.empty()) {
+        nlohmann::json stack = nlohmann::json::array();
+        for (const auto& frame : e.call_stack) {
+            nlohmann::json f;
+            f["function"] = frame.function_name.empty() ? "<anonymous>" : frame.function_name;
+            f["location"] = frame.call_site.to_string();
+            stack.push_back(f);
+        }
+        d["call_stack"] = stack;
+    }
     return d;
 }
 
@@ -199,8 +262,10 @@ nlohmann::json error_to_dict(const PMLException& e) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 PMLRuntime::PMLRuntime()
-    : m_env(std::make_shared<Environment>())
-{
+    : m_env(std::make_shared<Environment>()) {
+    // Initialize per-runtime mutable state (styles, palettes, etc.) so that
+    // each PMLRuntime instance is isolated from others.
+    ctx_.reset();
     init_global_env();
 }
 
@@ -212,10 +277,12 @@ void PMLRuntime::init_global_env() {
     register_render(m_env);
 
     // 3. Skeleton system (defskeleton, instantiate-skeleton, joint-position)
-    register_skeleton(m_env);
+    // [封存] 骨骼系统已封存，不再注册到运行时
+    // register_skeleton(m_env);
 
     // 4. IK solver (ik-solve — dispatches to CCD or FABRIK)
-    register_ik(m_env);
+    // [封存] IK 求解器已封存，不再注册到运行时
+    // register_ik(m_env);
 
     // 5. Style engine (define-style, use-style)
     register_style(m_env);
@@ -230,7 +297,8 @@ void PMLRuntime::init_global_env() {
     register_timeline_builtins(m_env);
 
     // 8. Skin binding (bind-skin)
-    register_skin_binding(m_env);
+    // [封存] 皮肤绑定已封存，不再注册到运行时
+    // register_skin_binding(m_env);
 
     // 9. Backend builtins (list-backends, set-backend!, current-backend,
     //    backend-capabilities, backend-available?)
@@ -250,33 +318,87 @@ void PMLRuntime::init_global_env() {
     //      color/rgb, color/rgba)
     register_canvas_builtins(m_env);
 
+    // 13. 3D graphics builtins
+    //     (camera, cube3d, cuboid3d, rotate-x, rotate-y, rotate-z,
+    //      translate3d, scale3d)
+    register_3d_builtins(m_env);
+
+    // 14. Layer / Composition builtins
+    //     (make-layer, make-group, make-composition, composition-add, layer-with,
+    //      composition-render, composition-animate, project-render-all,
+    //      layer?, composition?)
+    register_layer_builtins(m_env);
+
+    // 15. Filter builtins
+    //     (color-adjust, levels, curves, threshold, posterize,
+    //      blur, sharpen, edge-detect, emboss, convolution,
+    //      drop-shadow, inner-shadow, outer-glow, inner-glow, bevel-emboss,
+    //      filter-chain, filter?)
+    register_filter_builtins(m_env);
+
+    // 16. Asset / Bitmap I/O builtins
+    //     (image, load-image, bitmap-layer, load-spritesheet,
+    //      asset-path?, clear-assets!)
+    register_asset_builtins(m_env);
+
     // ── Module loading is handled via the evaluator's eval_import/eval_provide
     // special forms — no separate module registration call needed.
 }
 
-RenderResult PMLRuntime::execute(
-    const std::string& source,
-    const std::string& filename)
-{
+RenderResult PMLRuntime::execute(const std::string& source, const std::string& filename) {
+
+    // Reset the runtime call stack so that errors from previous executions do
+    // not leak into the current one.
+    CallStack::instance().clear();
+
+    // Activate this runtime's context for the duration of the call.
+    // All singleton-style accessors (current canvas, timeline, styles,
+    // palettes) will see this instance's state.
+    PMLContextScope ctx_scope(ctx_);
+
+    // Activate the per-runtime arena for all short-lived AST nodes and
+    // evaluation temporaries.  The arena is reset when the scope ends.
+    ArenaScope arena_scope(&m_arena);
+
+    // Bind the source file path so that asset loading and imports resolve
+    // relative paths correctly for the top-level file as well as modules.
+    if (!filename.empty() && filename != "<stdin>") {
+        m_env->define("__source_file__", Value(std::string(filename)));
+    }
+
     // Lexer
     auto tokenResult = Lexer(source, filename).tokenize();
     if (!tokenResult.has_value()) {
         RenderResult r;
         r.success = false;
-        r.error   = error_to_dict(tokenResult.error());
+        r.error = error_to_dict(tokenResult.error());
         return r;
     }
     auto& tokens = *tokenResult;
 
-    // Parser
-    auto parseResult = Parser(std::move(tokens), filename).parse();
-    if (!parseResult.has_value()) {
+    // Parser — collect all syntax errors using panic-mode recovery.
+    auto parseResult = Parser(std::move(tokens), filename).parse_all();
+    if (!parseResult.success()) {
         RenderResult r;
         r.success = false;
-        r.error   = error_to_dict(parseResult.error());
+        if (parseResult.errors.size() == 1) {
+            r.error = error_to_dict(parseResult.errors[0]);
+        } else {
+            nlohmann::json aggregate;
+            aggregate["type"] = "PMLSyntaxError";
+            aggregate["message"] =
+                std::format("{} parse errors encountered", parseResult.errors.size());
+            aggregate["hint"] = "Multiple syntax errors were found; see details below.";
+            nlohmann::json details = nlohmann::json::array();
+            for (const auto& e : parseResult.errors) {
+                details.push_back(error_to_dict(e));
+            }
+            aggregate["details"] = details;
+            r.error = aggregate;
+        }
         return r;
     }
-    auto ast = std::move(*parseResult);
+    auto ast = std::move(parseResult.expressions);
 
     // Expander (macro expansion)
     Expander expander(m_env);
@@ -284,7 +406,7 @@ RenderResult PMLRuntime::execute(
     if (!expandResult.has_value()) {
         RenderResult r;
         r.success = false;
-        r.error   = error_to_dict(expandResult.error());
+        r.error = error_to_dict(expandResult.error());
         return r;
     }
     auto expanded = std::move(*expandResult);
@@ -293,11 +415,11 @@ RenderResult PMLRuntime::execute(
     Value last_value;
     bool has_value = false;
     for (const auto& expr : expanded) {
-        auto evalResult = evaluate(expr, m_env);
+        auto evalResult = eval_to_value(expr, m_env);
         if (!evalResult.has_value()) {
             RenderResult r;
             r.success = false;
-            r.error   = error_to_dict(evalResult.error());
+            r.error = error_to_dict(evalResult.error());
             return r;
         }
         last_value = std::move(*evalResult);
@@ -307,8 +429,8 @@ RenderResult PMLRuntime::execute(
     // Build successful result
     RenderResult r;
     r.success = true;
-    r.files   = {};  // Output files are produced by render builtins, not tracked here
-    r.error   = std::nullopt;
+    r.files = PMLContext::current().output_files;
+    r.error = std::nullopt;
     if (has_value) {
         r.value = serialize_value(last_value);
     } else {
@@ -334,10 +456,8 @@ RenderResult PMLRuntime::execute_file(const std::string& path) {
     return execute(ss.str(), path);
 }
 
-nlohmann::json PMLRuntime::execute_pml(
-    const std::string& source,
-    const nlohmann::json& /*options*/)
-{
+nlohmann::json PMLRuntime::execute_pml(const std::string& source,
+                                       const nlohmann::json& /*options*/) {
     auto result = execute(source);
     return result.to_json();
 }
@@ -346,4 +466,4 @@ std::shared_ptr<Environment> PMLRuntime::env() const noexcept {
     return m_env;
 }
 
-}  // namespace pml
+} // namespace pml

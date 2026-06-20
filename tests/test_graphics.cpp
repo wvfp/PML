@@ -137,11 +137,13 @@ TEST(AffineTransformTest, OperatorStarCompose) {
 // ============================================================================
 
 TEST(GraphicObjectTest, Creation) {
-    pml::GraphicObject obj("circle", {{"radius", int64_t{50}}}, "#ff0000");
+    pml::GraphicObject obj("circle", pml::Params{{pml::ParamKey::r, pml::Value(int64_t{50})}}, "#ff0000");
     EXPECT_EQ(obj.shape_type, "circle");
     EXPECT_EQ(obj.fill.value_or(""), "#ff0000");
-    EXPECT_TRUE(obj.params.count("radius") > 0);
-    EXPECT_EQ(std::get<int64_t>(obj.params.at("radius")), 50);
+    EXPECT_TRUE(obj.params.contains(pml::ParamKey::r));
+    const pml::Value* v = obj.params.find(pml::ParamKey::r);
+    ASSERT_NE(v, nullptr);
+    EXPECT_EQ(v->int_val(), 50);
 }
 
 TEST(GraphicObjectTest, UniqueId) {
@@ -151,7 +153,7 @@ TEST(GraphicObjectTest, UniqueId) {
 }
 
 TEST(GraphicObjectTest, WithTransformReturnsNewObject) {
-    pml::GraphicObject obj("circle", {{"radius", int64_t{10}}}, "#00ff00");
+    pml::GraphicObject obj("circle", pml::Params{{pml::ParamKey::r, pml::Value(int64_t{10})}}, "#00ff00");
     auto t = pml::AffineTransform::translate(100.0, 200.0);
 
     auto transformed = obj.with_transform(t);
@@ -217,7 +219,7 @@ TEST(CanvasTest, SpriteCanvas) {
 
 TEST(CanvasTest, AddObject) {
     pml::Canvas canvas(100, 100);
-    pml::GraphicObject obj("circle", {{"radius", int64_t{20}}}, "#ff0000");
+    pml::GraphicObject obj("circle", pml::Params{{pml::ParamKey::r, pml::Value(int64_t{20})}}, "#ff0000");
     canvas.add(obj);
     EXPECT_EQ(canvas.objects.size(), 1);
     EXPECT_EQ(canvas.objects[0].shape_type, "circle");

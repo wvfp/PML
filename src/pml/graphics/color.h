@@ -15,6 +15,6 @@ namespace pml {
 ///   - Functional: "rgb(r,g,b)", "rgba(r,g,b,a)"
 ///
 /// Returns nullopt on parse failure.
-[[nodiscard]] std::optional<std::array<double, 4>> parse_color(const std::string& color);
+[[nodiscard]] std::optional<std::array<double, 4>> parse_color_rgba(const std::string& color);
 
 } // namespace pml

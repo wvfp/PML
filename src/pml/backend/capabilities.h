@@ -22,6 +22,7 @@ enum class BackendCap : uint8_t {
     AnimationGIF   = 1 << 4,  ///< Animated GIF export
     FontRendering  = 1 << 5,  ///< Text / font rendering support
     LoadPNG        = 1 << 6,  ///< PNG image loading
+    LoadImage      = 1 << 7,  ///< General raster image loading (PNG/JPEG/WebP/etc.)
 };
 
 // ── Bitmask operators ─────────────────────────────────────────────────────────

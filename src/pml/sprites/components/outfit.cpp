@@ -33,22 +33,22 @@ namespace {
     if (top == "armor") {
         parts.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{
-                {"x", -torso_w / 2.0 + 2.0},
-                {"y", 2.0},
-                {"w", torso_w - 4.0},
-                {"h", torso_h * 0.6}},
+            Params{
+                {ParamKey::x, -torso_w / 2.0 + 2.0},
+                {ParamKey::y, 2.0},
+                {ParamKey::w, torso_w - 4.0},
+                {ParamKey::h, torso_h * 0.6}},
             "#7f8c8d",
             "#2c3e50",
             2.0);
         for (double dx : {-torso_w / 2.0 - 4.0, torso_w / 2.0 - 8.0}) {
             parts.emplace_back(
                 "ellipse",
-                std::unordered_map<std::string, Value>{
-                    {"cx", dx + 6.0},
-                    {"cy", torso_h * 0.08},
-                    {"rx", 12.0},
-                    {"ry", 8.0}},
+                Params{
+                    {ParamKey::cx, dx + 6.0},
+                    {ParamKey::cy, torso_h * 0.08},
+                    {ParamKey::rx, 12.0},
+                    {ParamKey::ry, 8.0}},
                 "#95a5a6",
                 "#2c3e50",
                 1.5);
@@ -56,100 +56,100 @@ namespace {
     } else if (top == "robe") {
         parts.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{
-                {"x", -torso_w / 2.0 - 4.0},
-                {"y", -4.0},
-                {"w", torso_w + 8.0},
-                {"h", torso_h + 8.0}},
+            Params{
+                {ParamKey::x, -torso_w / 2.0 - 4.0},
+                {ParamKey::y, -4.0},
+                {ParamKey::w, torso_w + 8.0},
+                {ParamKey::h, torso_h + 8.0}},
             color,
             "#1a1a1a",
             2.0);
         parts.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{
-                {"x", -torso_w / 2.0},
-                {"y", torso_h * 0.5},
-                {"w", torso_w},
-                {"h", 6.0}},
+            Params{
+                {ParamKey::x, -torso_w / 2.0},
+                {ParamKey::y, torso_h * 0.5},
+                {ParamKey::w, torso_w},
+                {ParamKey::h, 6.0}},
             "#8B4513",
             "#1a1a1a",
             1.0);
     } else if (top == "hoodie") {
         parts.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{
-                {"x", -torso_w / 2.0 - 2.0},
-                {"y", 0.0},
-                {"w", torso_w + 4.0},
-                {"h", torso_h + 4.0}},
+            Params{
+                {ParamKey::x, -torso_w / 2.0 - 2.0},
+                {ParamKey::y, 0.0},
+                {ParamKey::w, torso_w + 4.0},
+                {ParamKey::h, torso_h + 4.0}},
             color,
             "#1a1a1a",
             2.0);
         parts.emplace_back(
             "ellipse",
-            std::unordered_map<std::string, Value>{
-                {"cx", 0.0},
-                {"cy", -8.0},
-                {"rx", torso_w * 0.4},
-                {"ry", 14.0}},
+            Params{
+                {ParamKey::cx, 0.0},
+                {ParamKey::cy, -8.0},
+                {ParamKey::rx, torso_w * 0.4},
+                {ParamKey::ry, 14.0}},
             color,
             "#1a1a1a",
             1.5);
         parts.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{
-                {"x", -torso_w * 0.3},
-                {"y", torso_h * 0.55},
-                {"w", torso_w * 0.6},
-                {"h", torso_h * 0.2}},
+            Params{
+                {ParamKey::x, -torso_w * 0.3},
+                {ParamKey::y, torso_h * 0.55},
+                {ParamKey::w, torso_w * 0.6},
+                {ParamKey::h, torso_h * 0.2}},
             std::nullopt,
             "#1a1a1a",
             1.0);
     } else if (top == "dress") {
         parts.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{
-                {"x", -torso_w / 2.0 - 2.0},
-                {"y", 0.0},
-                {"w", torso_w + 4.0},
-                {"h", torso_h * 1.2}},
+            Params{
+                {ParamKey::x, -torso_w / 2.0 - 2.0},
+                {ParamKey::y, 0.0},
+                {ParamKey::w, torso_w + 4.0},
+                {ParamKey::h, torso_h * 1.2}},
             color,
             "#1a1a1a",
             2.0);
     } else if (top == "suit") {
         parts.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{
-                {"x", -torso_w / 2.0},
-                {"y", 0.0},
-                {"w", torso_w},
-                {"h", torso_h}},
+            Params{
+                {ParamKey::x, -torso_w / 2.0},
+                {ParamKey::y, 0.0},
+                {ParamKey::w, torso_w},
+                {ParamKey::h, torso_h}},
             color,
             "#1a1a1a",
             2.0);
         parts.emplace_back(
             "line",
-            std::unordered_map<std::string, Value>{
-                {"x1", 0.0},
-                {"y1", 0.0},
-                {"x2", -torso_w * 0.3},
-                {"y2", torso_h * 0.35}},
+            Params{
+                {ParamKey::x1, 0.0},
+                {ParamKey::y1, 0.0},
+                {ParamKey::x2, -torso_w * 0.3},
+                {ParamKey::y2, torso_h * 0.35}},
             std::nullopt,
             "#1a1a1a",
             1.5);
         parts.emplace_back(
             "line",
-            std::unordered_map<std::string, Value>{
-                {"x1", 0.0},
-                {"y1", 0.0},
-                {"x2", torso_w * 0.3},
-                {"y2", torso_h * 0.35}},
+            Params{
+                {ParamKey::x1, 0.0},
+                {ParamKey::y1, 0.0},
+                {ParamKey::x2, torso_w * 0.3},
+                {ParamKey::y2, torso_h * 0.35}},
             std::nullopt,
             "#1a1a1a",
             1.5);
         parts.emplace_back(
             "polygon",
-            std::unordered_map<std::string, Value>{{"points", make_points({
+            Params{{ParamKey::points, make_points({
                 0.0, 2.0,
                 -4.0, torso_h * 0.4,
                 0.0, torso_h * 0.5,
@@ -160,17 +160,17 @@ namespace {
     } else if (top == "sailor") {
         parts.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{
-                {"x", -torso_w / 2.0},
-                {"y", 0.0},
-                {"w", torso_w},
-                {"h", torso_h}},
+            Params{
+                {ParamKey::x, -torso_w / 2.0},
+                {ParamKey::y, 0.0},
+                {ParamKey::w, torso_w},
+                {ParamKey::h, torso_h}},
             "#FFFFFF",
             "#1a1a1a",
             2.0);
         parts.emplace_back(
             "polygon",
-            std::unordered_map<std::string, Value>{{"points", make_points({
+            Params{{ParamKey::points, make_points({
                 -torso_w * 0.4, 0.0,
                 0.0, torso_h * 0.3,
                 torso_w * 0.4, 0.0})}},
@@ -180,11 +180,11 @@ namespace {
     } else if (top == "tank") {
         parts.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{
-                {"x", -torso_w / 2.0 + 6.0},
-                {"y", 0.0},
-                {"w", torso_w - 12.0},
-                {"h", torso_h}},
+            Params{
+                {ParamKey::x, -torso_w / 2.0 + 6.0},
+                {ParamKey::y, 0.0},
+                {ParamKey::w, torso_w - 12.0},
+                {ParamKey::h, torso_h}},
             color,
             "#1a1a1a",
             2.0);
@@ -192,22 +192,22 @@ namespace {
         // t-shirt / jacket default
         parts.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{
-                {"x", -torso_w / 2.0},
-                {"y", 0.0},
-                {"w", torso_w},
-                {"h", torso_h}},
+            Params{
+                {ParamKey::x, -torso_w / 2.0},
+                {ParamKey::y, 0.0},
+                {ParamKey::w, torso_w},
+                {ParamKey::h, torso_h}},
             color,
             "#1a1a1a",
             2.0);
         if (top == "jacket") {
             parts.emplace_back(
                 "line",
-                std::unordered_map<std::string, Value>{
-                    {"x1", 0.0},
-                    {"y1", 0.0},
-                    {"x2", 0.0},
-                    {"y2", torso_h}},
+                Params{
+                    {ParamKey::x1, 0.0},
+                    {ParamKey::y1, 0.0},
+                    {ParamKey::x2, 0.0},
+                    {ParamKey::y2, torso_h}},
                 std::nullopt,
                 "#1a1a1a",
                 1.5);
@@ -219,11 +219,11 @@ namespace {
             double y = torso_h * 0.2 + i * torso_h * 0.25;
             parts.emplace_back(
                 "line",
-                std::unordered_map<std::string, Value>{
-                    {"x1", -torso_w / 2.0 + 4.0},
-                    {"y1", y},
-                    {"x2", torso_w / 2.0 - 4.0},
-                    {"y2", y}},
+                Params{
+                    {ParamKey::x1, -torso_w / 2.0 + 4.0},
+                    {ParamKey::y1, y},
+                    {ParamKey::x2, torso_w / 2.0 - 4.0},
+                    {ParamKey::y2, y}},
                 std::nullopt,
                 "#FFFFFF80",
                 2.0);
@@ -231,11 +231,11 @@ namespace {
     } else if (detail == "badge") {
         parts.emplace_back(
             "ellipse",
-            std::unordered_map<std::string, Value>{
-                {"cx", torso_w * 0.25},
-                {"cy", torso_h * 0.2},
-                {"rx", 6.0},
-                {"ry", 6.0}},
+            Params{
+                {ParamKey::cx, torso_w * 0.25},
+                {ParamKey::cy, torso_h * 0.2},
+                {ParamKey::rx, 6.0},
+                {ParamKey::ry, 6.0}},
             "#e74c3c",
             "#1a1a1a",
             1.0);
@@ -257,7 +257,7 @@ namespace {
     if (bottom == "skirt") {
         parts.emplace_back(
             "polygon",
-            std::unordered_map<std::string, Value>{{"points", make_points({
+            Params{{ParamKey::points, make_points({
                 -torso_w / 2.0, leg_y,
                 torso_w / 2.0, leg_y,
                 torso_w / 2.0 + 8.0, leg_y + leg_h * 0.6,
@@ -268,7 +268,7 @@ namespace {
     } else if (bottom == "long-skirt") {
         parts.emplace_back(
             "polygon",
-            std::unordered_map<std::string, Value>{{"points", make_points({
+            Params{{ParamKey::points, make_points({
                 -torso_w / 2.0, leg_y,
                 torso_w / 2.0, leg_y,
                 torso_w / 2.0 + 12.0, leg_y + leg_h,
@@ -280,11 +280,11 @@ namespace {
         for (double dx : {-leg_w / 2.0 - 2.0, leg_w / 2.0 + 2.0}) {
             parts.emplace_back(
                 "rect",
-                std::unordered_map<std::string, Value>{
-                    {"x", dx - leg_w / 2.0},
-                    {"y", leg_y},
-                    {"w", leg_w},
-                    {"h", leg_h * 0.4}},
+                Params{
+                    {ParamKey::x, dx - leg_w / 2.0},
+                    {ParamKey::y, leg_y},
+                    {ParamKey::w, leg_w},
+                    {ParamKey::h, leg_h * 0.4}},
                 color,
                 "#1a1a1a",
                 2.0);
@@ -293,11 +293,11 @@ namespace {
         for (double dx : {-leg_w / 2.0 - 2.0, leg_w / 2.0 + 2.0}) {
             parts.emplace_back(
                 "rect",
-                std::unordered_map<std::string, Value>{
-                    {"x", dx - leg_w / 2.0},
-                    {"y", leg_y},
-                    {"w", leg_w},
-                    {"h", leg_h}},
+                Params{
+                    {ParamKey::x, dx - leg_w / 2.0},
+                    {ParamKey::y, leg_y},
+                    {ParamKey::w, leg_w},
+                    {ParamKey::h, leg_h}},
                 "#7f8c8d",
                 "#2c3e50",
                 2.0);
@@ -307,11 +307,11 @@ namespace {
         for (double dx : {-leg_w / 2.0 - 2.0, leg_w / 2.0 + 2.0}) {
             parts.emplace_back(
                 "rect",
-                std::unordered_map<std::string, Value>{
-                    {"x", dx - leg_w / 2.0},
-                    {"y", leg_y},
-                    {"w", leg_w},
-                    {"h", leg_h}},
+                Params{
+                    {ParamKey::x, dx - leg_w / 2.0},
+                    {ParamKey::y, leg_y},
+                    {ParamKey::w, leg_w},
+                    {ParamKey::h, leg_h}},
                 color,
                 "#1a1a1a",
                 2.0);
@@ -352,11 +352,11 @@ namespace {
     for (double dx : {-torso_w * 0.2, torso_w * 0.2}) {
         parts.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{
-                {"x", dx - shoe_w / 2.0},
-                {"y", leg_y - 2.0},
-                {"w", shoe_w},
-                {"h", shoe_h}},
+            Params{
+                {ParamKey::x, dx - shoe_w / 2.0},
+                {ParamKey::y, leg_y - 2.0},
+                {ParamKey::w, shoe_w},
+                {ParamKey::h, shoe_h}},
             shoe_color,
             "#1a1a1a",
             1.5);
@@ -389,12 +389,12 @@ std::shared_ptr<GraphicObject> create_outfit(
     const std::unordered_map<std::string, Value>& kwargs) {
     auto p = validate_params(outfit_schema(), kwargs);
 
-    std::string top = std::get<std::string>(p["top"]);
-    std::string bottom = std::get<std::string>(p["bottom"]);
-    std::string shoes = std::get<std::string>(p["shoes"]);
-    std::string color_top = std::get<std::string>(p["color-top"]);
-    std::string color_bottom = std::get<std::string>(p["color-bottom"]);
-    std::string detail = std::get<std::string>(p["detail"]);
+    std::string top = *p["top"].as_string();
+    std::string bottom = *p["bottom"].as_string();
+    std::string shoes = *p["shoes"].as_string();
+    std::string color_top = *p["color-top"].as_string();
+    std::string color_bottom = *p["color-bottom"].as_string();
+    std::string detail = *p["detail"].as_string();
 
     const double torso_w = 50.0;
     const double torso_h = 64.0;
@@ -411,7 +411,7 @@ std::shared_ptr<GraphicObject> create_outfit(
 
     return std::make_shared<GraphicObject>(
         "group",
-        std::unordered_map<std::string, Value>{},
+        Params{},
         std::nullopt,
         std::nullopt,
         1.0,

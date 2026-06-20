@@ -71,18 +71,18 @@ ParamSchema& ParamSchema::any_type(const std::string& name,
 namespace {
 
 [[nodiscard]] std::string value_to_str(const Value& v) {
-    if (const auto* s = std::get_if<std::string>(&v)) return *s;
-    if (const auto* sym = std::get_if<Symbol>(&v)) return sym->name;
-    if (const auto* kw = std::get_if<Keyword>(&v)) return kw->name;
+    if (const auto* s = v.as_string()) return *s;
+    if (const auto* sym = v.as_symbol()) return sym->name;
+    if (const auto* kw = v.as_keyword()) return kw->name;
     return value_to_string(v);
 }
 
 [[nodiscard]] std::optional<double> value_to_number_opt(const Value& v) {
-    if (const auto* i = std::get_if<int64_t>(&v)) {
-        return static_cast<double>(*i);
+    if (v.is_int()) {
+        return static_cast<double>(v.int_val());
     }
-    if (const auto* d = std::get_if<double>(&v)) {
-        return *d;
+    if (v.is_double()) {
+        return v.double_val();
     }
     return std::nullopt;
 }
@@ -100,7 +100,7 @@ std::unordered_map<std::string, Value> validate_params(
 
     for (const auto& [field_name, spec] : schema.fields()) {
         auto it = kwargs.find(field_name);
-        if (it == kwargs.end() || std::holds_alternative<std::nullptr_t>(it->second)) {
+        if (it == kwargs.end() || it->second.is_nil()) {
             result[field_name] = spec.default_value;
             continue;
         }
@@ -132,15 +132,15 @@ std::unordered_map<std::string, Value> validate_params(
                 break;
             }
             case FieldSpec::Boolean: {
-                if (const auto* b = std::get_if<bool>(&value)) {
-                    result[field_name] = *b;
+                if (value.is_bool()) {
+                    result[field_name] = value.bool_val();
                 } else {
                     result[field_name] = spec.default_value;
                 }
                 break;
             }
             case FieldSpec::Color: {
-                if (std::holds_alternative<std::nullptr_t>(value)) {
+                if (value.is_nil()) {
                     result[field_name] = spec.default_value;
                 } else {
                     result[field_name] = value_to_str(value);

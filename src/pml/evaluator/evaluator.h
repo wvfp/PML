@@ -37,6 +37,24 @@ inline int g_macro_depth = 0;
 inline constexpr int MAX_MACRO_DEPTH = 256;
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Tail-call optimization support
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// A pending tail evaluation.  Instead of recursing, the evaluator returns a
+/// TailCall and the trampoline loop evaluates the expression iteratively.
+struct TailCall {
+    Expr expr;
+    std::shared_ptr<Environment> env;
+};
+
+/// Result of a single evaluator step: either a final value or a pending tail
+/// evaluation.
+using EvalResult = std::variant<Value, TailCall>;
+
+/// Convert a step result into a final value by repeatedly applying tail calls.
+[[nodiscard]] Result<Value> trampoline(Result<EvalResult> result);
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Main evaluate function
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -44,13 +62,22 @@ inline constexpr int MAX_MACRO_DEPTH = 256;
 /// Primary overload: takes a shared_ptr to Environment.
 /// Handles self-evaluating atoms, symbol lookup, keyword passthrough,
 /// special forms, macro expansion, and regular function calls.
-[[nodiscard]] Result<Value> evaluate(
+///
+/// Returns either a final Value or a TailCall; callers should use trampoline()
+/// if they need a final Value.
+[[nodiscard]] Result<EvalResult> evaluate(
     const Expr& expr, std::shared_ptr<Environment> env);
 
 /// Convenience overload: takes a reference to Environment.
 /// Calls shared_from_this() to obtain a shared_ptr.
-inline Result<Value> evaluate(const Expr& expr, Environment& env) {
+inline Result<EvalResult> evaluate(const Expr& expr, Environment& env) {
     return evaluate(expr, env.shared_from_this());
+}
+
+/// Evaluate an expression to a final value (runs the trampoline internally).
+[[nodiscard]] inline Result<Value> eval_to_value(
+    const Expr& expr, std::shared_ptr<Environment> env) {
+    return trampoline(evaluate(expr, env));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -75,7 +102,7 @@ struct EvaluatedArguments {
 
 /// Apply a function (Procedure, BuiltinProcedure, or callable Value) to
 /// evaluated positional and keyword arguments.
-[[nodiscard]] Result<Value> apply_function(
+[[nodiscard]] Result<EvalResult> apply_function(
     const Value& func,
     const std::vector<Value>& args,
     const std::unordered_map<std::string, Value>& kwargs,
@@ -93,95 +120,95 @@ struct EvaluatedArguments {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /// Signature for all special form handlers.
-using SpecialForm = std::function<Result<Value>(
+using SpecialForm = std::function<Result<EvalResult>(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env)>;
 
 // ── Core special forms ──────────────────────────────────────────────────────
 
 /// (quote <expr>) → return expr unevaluated.
-[[nodiscard]] Result<Value> eval_quote(
+[[nodiscard]] Result<EvalResult> eval_quote(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
 
 /// (if <cond> <then> [<else>])
-[[nodiscard]] Result<Value> eval_if(
+[[nodiscard]] Result<EvalResult> eval_if(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
 
 /// (cond (<test> <expr> ...) ... (else <default> ...))
-[[nodiscard]] Result<Value> eval_cond(
+[[nodiscard]] Result<EvalResult> eval_cond(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
 
 /// (define <name> <expr>) or (define (<name> <params>) <body>...)
-[[nodiscard]] Result<Value> eval_define(
+[[nodiscard]] Result<EvalResult> eval_define(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
 
 /// (lambda (<params>) <body>...)
-[[nodiscard]] Result<Value> eval_lambda(
+[[nodiscard]] Result<EvalResult> eval_lambda(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
 
 /// (let ((name expr) ...) <body>...) — parallel bindings.
-[[nodiscard]] Result<Value> eval_let(
+[[nodiscard]] Result<EvalResult> eval_let(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
 
 /// (let* ((name expr) ...) <body>...) — sequential bindings.
-[[nodiscard]] Result<Value> eval_let_star(
+[[nodiscard]] Result<EvalResult> eval_let_star(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
 
 /// (letrec ((name expr) ...) <body>...) — recursive bindings.
-[[nodiscard]] Result<Value> eval_letrec(
+[[nodiscard]] Result<EvalResult> eval_letrec(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
 
 /// (begin <expr> ...) — evaluate sequentially, return last.
-[[nodiscard]] Result<Value> eval_begin(
+[[nodiscard]] Result<EvalResult> eval_begin(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
 
 /// (set! <name> <expr>)
-[[nodiscard]] Result<Value> eval_set(
+[[nodiscard]] Result<EvalResult> eval_set(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
 
 /// (and <expr> ...) — short-circuit, return last truthy or first falsy.
-[[nodiscard]] Result<Value> eval_and(
+[[nodiscard]] Result<EvalResult> eval_and(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
 
 /// (or <expr> ...) — short-circuit, return first truthy.
-[[nodiscard]] Result<Value> eval_or(
+[[nodiscard]] Result<EvalResult> eval_or(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
 
 /// (do ((var init step) ...) (test result...) <body>...)
-[[nodiscard]] Result<Value> eval_do(
+[[nodiscard]] Result<EvalResult> eval_do(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
 
 /// (quasiquote <expr>) — template with unquote interpolation.
-[[nodiscard]] Result<Value> eval_quasiquote(
+[[nodiscard]] Result<EvalResult> eval_quasiquote(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
 
 // ── Module system special forms ────────────────────────────────────────────
 
 /// (provide sym1 sym2 ...) — declare exported symbols from this module.
-[[nodiscard]] Result<Value> eval_provide(
+[[nodiscard]] Result<EvalResult> eval_provide(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
 
 /// (import "path.pml" [as prefix]) — load a module and bind it.
-[[nodiscard]] Result<Value> eval_import(
+[[nodiscard]] Result<EvalResult> eval_import(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
 
 // ── Macro system special forms ─────────────────────────────────────────────
 
 /// (defmacro name (params) <body>...) — define a macro.
-[[nodiscard]] Result<Value> eval_defmacro(
+[[nodiscard]] Result<EvalResult> eval_defmacro(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
 
 /// (macroexpand <form>) — expand macros without evaluating.
-[[nodiscard]] Result<Value> eval_macroexpand(
+[[nodiscard]] Result<EvalResult> eval_macroexpand(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
 
 // ── Utility special forms ──────────────────────────────────────────────────
 
 /// (assert <expr>) — evaluate and error if falsy.
-[[nodiscard]] Result<Value> eval_assert(
+[[nodiscard]] Result<EvalResult> eval_assert(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
 
 /// (gensym) or (gensym "prefix") — generate a unique symbol.
-[[nodiscard]] Result<Value> eval_gensym(
+[[nodiscard]] Result<EvalResult> eval_gensym(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
 
 // ── Special forms dispatch table ───────────────────────────────────────────
@@ -200,17 +227,17 @@ void register_special_form(const std::string& name, const SpecialForm& form);
 
 /// Recursively expand a quasiquote template into a runtime Value.
 /// Handles (unquote x) by evaluating x and (unquote-splicing x) by splicing.
-/// Plain atoms and non-quasiquote lists are converted to Values.
+/// Tracks nesting depth so nested quasiquote forms are preserved correctly.
 [[nodiscard]] Result<Value> expand_quasiquote(
-    const Expr& template_expr, std::shared_ptr<Environment> env);
+    const Expr& template_expr, std::shared_ptr<Environment> env,
+    int depth = 0);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Macro expansion helper (internal)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /// Expand a macro and evaluate the result, with depth tracking.
-/// Throws MacroExpansionDepthError if maximum depth is exceeded.
-[[nodiscard]] Result<Value> expand_macro(
+[[nodiscard]] Result<EvalResult> expand_macro(
     Macro& macro, const std::vector<Expr>& args,
     std::shared_ptr<Environment> env);
 

@@ -43,7 +43,7 @@ PMLException parse_err(const std::string& source) {
     return ast.error();
 }
 
-const std::vector<Expr>& list_elements(const Expr& e) {
+const ArenaExprVector& list_elements(const Expr& e) {
     return std::get<std::shared_ptr<ListExpr>>(e)->elements;
 }
 

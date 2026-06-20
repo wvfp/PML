@@ -33,27 +33,33 @@ Result<Expr> Expander::expand(const Expr& expr, int depth) const {
     }
 
     // 2. Atoms and empty lists pass through unchanged
-    const auto* list = get_list(expr);
-    if (!list || list->empty()) {
+    const auto* list_ptr = std::get_if<std::shared_ptr<ListExpr>>(&expr);
+    if (!list_ptr || !*list_ptr || (*list_ptr)->elements.empty()) {
         return expr;
     }
 
-    const Expr& head = (*list)[0];
+    const auto& list = (*list_ptr)->elements;
+    const SourceLocation list_loc = (*list_ptr)->location;
+    const Expr& head = list[0];
 
     // 3. Check if head is a macro
     if (is_symbol(head)) {
         const auto& sym = std::get<Symbol>(head);
         auto val = env->try_lookup(sym.name);
         if (val.has_value() && is_macro(*val)) {
-            const auto& macro_ptr =
-                *std::get_if<std::shared_ptr<Macro>>(&*val);
+            const auto* macro_box = val->as_macro();
+            if (!macro_box || !*macro_box) {
+                return std::unexpected(
+                    type_error(SourceLocation{}, "expected macro value"));
+            }
+            const auto& macro_ptr = *macro_box;
 
             // Get args: all elements after head (expr[1:])
             std::vector<Expr> args;
-            if (list->size() > 1) {
-                args.reserve(list->size() - 1);
-                for (size_t i = 1; i < list->size(); ++i) {
-                    args.push_back((*list)[i]);
+            if (list.size() > 1) {
+                args.reserve(list.size() - 1);
+                for (size_t i = 1; i < list.size(); ++i) {
+                    args.push_back(list[i]);
                 }
             }
 
@@ -77,34 +83,34 @@ Result<Expr> Expander::expand(const Expr& expr, int depth) const {
         if (sym.name == "lambda" || sym.name == "defmacro") {
             // Expand body (expr[2:]) but not parameter list (expr[1])
             std::vector<Expr> result;
-            result.reserve(list->size());
-            result.push_back((*list)[0]);  // head (lambda/defmacro)
-            result.push_back((*list)[1]);  // parameter list (unexpanded)
-            for (size_t i = 2; i < list->size(); ++i) {
-                auto expanded = expand((*list)[i], depth);
+            result.reserve(list.size());
+            result.push_back(list[0]);  // head (lambda/defmacro)
+            result.push_back(list[1]);  // parameter list (unexpanded)
+            for (size_t i = 2; i < list.size(); ++i) {
+                auto expanded = expand(list[i], depth);
                 if (!expanded) {
                     return std::unexpected(expanded.error());
                 }
                 result.push_back(std::move(*expanded));
             }
-            return make_list(std::move(result));
+            return make_list(std::move(result), list_loc);
         }
 
         if (sym.name == "define") {
             // For (define (name params) body...), expand body only
-            if (list->size() >= 3 && is_list((*list)[1])) {
+            if (list.size() >= 3 && is_list(list[1])) {
                 std::vector<Expr> result;
-                result.reserve(list->size());
-                result.push_back((*list)[0]);  // define
-                result.push_back((*list)[1]);  // function form (unexpanded)
-                for (size_t i = 2; i < list->size(); ++i) {
-                    auto expanded = expand((*list)[i], depth);
+                result.reserve(list.size());
+                result.push_back(list[0]);  // define
+                result.push_back(list[1]);  // function form (unexpanded)
+                for (size_t i = 2; i < list.size(); ++i) {
+                    auto expanded = expand(list[i], depth);
                     if (!expanded) {
                         return std::unexpected(expanded.error());
                     }
                     result.push_back(std::move(*expanded));
                 }
-                return make_list(std::move(result));
+                return make_list(std::move(result), list_loc);
             }
             // Variable form (define name value) falls through to default
         }
@@ -112,15 +118,15 @@ Result<Expr> Expander::expand(const Expr& expr, int depth) const {
 
     // 5. Default: recursively expand all sub-expressions
     std::vector<Expr> result;
-    result.reserve(list->size());
-    for (const auto& elem : *list) {
+    result.reserve(list.size());
+    for (const auto& elem : list) {
         auto expanded = expand(elem, depth);
         if (!expanded) {
             return std::unexpected(expanded.error());
         }
         result.push_back(std::move(*expanded));
     }
-    return make_list(std::move(result));
+    return make_list(std::move(result), list_loc);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

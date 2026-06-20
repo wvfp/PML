@@ -1,5 +1,7 @@
 add_library(pml_graphics
     transform.cpp
+    params.cpp
+    color.cpp
     objects.cpp
     canvas.cpp
     render.cpp
@@ -9,6 +11,7 @@ target_include_directories(pml_graphics PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/../backend   # src/pml/backend/ (registry.h, backend.h)
     ${CMAKE_CURRENT_SOURCE_DIR}/../..        # src/pml/ (for pml/core/error.h via backend.h)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../..     # src/ (for pml/api/context.h style paths)
     ${CMAKE_CURRENT_SOURCE_DIR}/../evaluator # src/pml/evaluator/ (environment.h)
     ${CMAKE_CURRENT_SOURCE_DIR}/../animation # src/pml/animation/ (timeline.h)
 )
@@ -28,9 +31,6 @@ endif()
 # cairo, libpng, …) so the pml_graphics PUBLIC surface stays slim.
 if(TARGET GIF::GIF)
     target_link_libraries(pml_graphics PUBLIC GIF::GIF)
-endif()
-if(TARGET Cairo::Cairo)
-    target_link_libraries(pml_graphics PUBLIC Cairo::Cairo)
 endif()
 if(TARGET PNG::PNG)
     target_link_libraries(pml_graphics PUBLIC PNG::PNG)

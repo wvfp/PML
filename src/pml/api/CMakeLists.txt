@@ -1,6 +1,7 @@
 # PML API — PMLRuntime facade (task 30)
 add_library(pml_api
     api.cpp
+    context.cpp
 )
 
 target_include_directories(pml_api PUBLIC
@@ -16,7 +17,11 @@ target_link_libraries(pml_api PRIVATE
     pml_frontend       # Lexer, Parser, Expander
     pml_evaluator      # evaluate(), Environment, BuiltinProcedure
     pml_graphics       # render, canvas, objects
+    pml_graphics3d     # 3D primitives, camera, transforms
     pml_backend        # BackendRegistry (indirect via graphics)
+    pml_layer          # Layer, Composition, compositor builtins
+    pml_filter         # ImageFilter constructors and builtins
+    pml_asset          # AssetCache for image loading
     pml_sprites        # StyleRegistry, PaletteManager
     pml_animation      # Timeline, easing
     pml_skeleton       # SkeletonTemplate, SkeletonInstance, IK

@@ -27,7 +27,7 @@ TEST(Macros, SimpleMacro) {
         "  (my-when #t 42))",
         env);
     ASSERT_TRUE(r.has_value()) << r.error().message;
-    EXPECT_EQ(std::get<int64_t>(*r), 42);
+    EXPECT_EQ(r->int_val(), 42);
 }
 
 TEST(Macros, SimpleMacroFalseCondition) {
@@ -40,9 +40,9 @@ TEST(Macros, SimpleMacroFalseCondition) {
         env);
     ASSERT_TRUE(r.has_value()) << r.error().message;
     // When condition is false, should return #f (bool false)
-    EXPECT_TRUE(std::holds_alternative<bool>(*r));
-    if (std::holds_alternative<bool>(*r)) {
-        EXPECT_FALSE(std::get<bool>(*r));
+    EXPECT_TRUE(r->is_bool());
+    if (r->is_bool()) {
+        EXPECT_FALSE(r->bool_val());
     }
 }
 
@@ -55,7 +55,7 @@ TEST(Macros, MultiParamMacro) {
         "  (my-and #t #t))",
         env);
     ASSERT_TRUE(r.has_value()) << r.error().message;
-    EXPECT_TRUE(std::get<bool>(*r));
+    EXPECT_TRUE(r->bool_val());
 }
 
 TEST(Macros, MultiParamMacroFalse) {
@@ -66,7 +66,7 @@ TEST(Macros, MultiParamMacroFalse) {
         "  (my-and #t #f))",
         env);
     ASSERT_TRUE(r.has_value()) << r.error().message;
-    EXPECT_FALSE(std::get<bool>(*r));
+    EXPECT_FALSE(r->bool_val());
 }
 
 TEST(Macros, CodeGeneratingMacro) {
@@ -102,12 +102,12 @@ TEST(Macros, RestParams) {
     ASSERT_TRUE(r.has_value()) << r.error().message;
     // Result should be a list (1 2 3)
     EXPECT_TRUE(pml::is_list(*r));
-    auto vl = std::get<std::shared_ptr<pml::ValueList>>(*r);
+    auto vl = *r->as_list();
     ASSERT_NE(vl, nullptr);
     EXPECT_EQ(vl->elements.size(), 3u);
-    EXPECT_EQ(std::get<int64_t>(vl->elements[0]), 1);
-    EXPECT_EQ(std::get<int64_t>(vl->elements[1]), 2);
-    EXPECT_EQ(std::get<int64_t>(vl->elements[2]), 3);
+    EXPECT_EQ(vl->elements[0].int_val(), 1);
+    EXPECT_EQ(vl->elements[1].int_val(), 2);
+    EXPECT_EQ(vl->elements[2].int_val(), 3);
 }
 
 TEST(Macros, NestedMacroUsage) {
@@ -135,12 +135,14 @@ TEST(Macros, MacroUsedInDefine) {
 }
 
 TEST(Macros, MacroWithLetBinding) {
-    // Macro that introduces a local binding
+    // Macro that introduces a local binding used only inside the macro body.
+    // With hygienic expansion the introduced `temp` is renamed so it does not
+    // capture identifiers from the call site.
     auto env = pml::test::make_env();
     auto r = pml::test::eval_int(
         "(begin"
-        "  (defmacro with-temp (val expr) (let ((temp val)) expr))"
-        "  (with-temp 10 (+ temp 5)))",
+        "  (defmacro with-temp (val expr) (let ((temp val)) (+ temp expr)))"
+        "  (with-temp 10 5))",
         env);
     EXPECT_EQ(r, 15);
 }
@@ -163,12 +165,12 @@ TEST(Gensym, TwoCallsReturnDifferentSymbols) {
         env);
     ASSERT_TRUE(r.has_value()) << r.error().message;
     ASSERT_TRUE(pml::is_list(*r));
-    auto vl = std::get<std::shared_ptr<pml::ValueList>>(*r);
+    auto vl = *r->as_list();
     ASSERT_NE(vl, nullptr);
     ASSERT_EQ(vl->elements.size(), 2u);
 
-    auto& sym1 = std::get<pml::Symbol>(vl->elements[0]);
-    auto& sym2 = std::get<pml::Symbol>(vl->elements[1]);
+    auto& sym1 = *vl->elements[0].as_symbol();
+    auto& sym2 = *vl->elements[1].as_symbol();
     EXPECT_NE(sym1, sym2);
 }
 
@@ -177,7 +179,7 @@ TEST(Gensym, CustomPrefix) {
     auto r = pml::test::eval("(gensym \"tmp\")", env);
     ASSERT_TRUE(r.has_value()) << r.error().message;
     ASSERT_TRUE(pml::is_symbol(*r));
-    auto& sym = std::get<pml::Symbol>(*r);
+    auto& sym = *r->as_symbol();
     // Should start with the custom prefix
     EXPECT_EQ(sym.name.substr(0, 3), "tmp");
 }
@@ -191,7 +193,7 @@ TEST(Assert, TrueAssertionSucceeds) {
     auto r = pml::test::eval("(assert #t)", env);
     ASSERT_TRUE(r.has_value()) << r.error().message;
     // assert returns #t on success
-    EXPECT_TRUE(std::get<bool>(*r));
+    EXPECT_TRUE(r->bool_val());
 }
 
 TEST(Assert, FalseAssertionFails) {
@@ -205,7 +207,7 @@ TEST(Assert, AssertionWithExpression) {
     auto env = pml::test::make_env();
     auto r = pml::test::eval("(assert (= 1 1))", env);
     ASSERT_TRUE(r.has_value()) << r.error().message;
-    EXPECT_TRUE(std::get<bool>(*r));
+    EXPECT_TRUE(r->bool_val());
 }
 
 TEST(Assert, FalseAssertionWithExpression) {
@@ -274,7 +276,7 @@ TEST(Module, ModuleClassGetExported) {
     // foo is exported — should succeed
     auto foo_result = mod->get("foo");
     ASSERT_TRUE(foo_result.has_value());
-    EXPECT_EQ(std::get<int64_t>(*foo_result), 100);
+    EXPECT_EQ(foo_result->int_val(), 100);
 
     // bar is not exported — should fail with AccessError
     auto bar_result = mod->get("bar");
@@ -307,7 +309,7 @@ TEST(Letrec, MutualRecursion) {
         "  (even? 4))",
         env);
     ASSERT_TRUE(r.has_value()) << r.error().message;
-    EXPECT_TRUE(std::get<bool>(*r));
+    EXPECT_TRUE(r->bool_val());
 }
 
 TEST(Letrec, MutualRecursionOdd) {
@@ -319,7 +321,7 @@ TEST(Letrec, MutualRecursionOdd) {
         "  (odd? 5))",
         env);
     ASSERT_TRUE(r.has_value()) << r.error().message;
-    EXPECT_TRUE(std::get<bool>(*r));
+    EXPECT_TRUE(r->bool_val());
 }
 
 TEST(Letrec, SelfRecursiveFunction) {

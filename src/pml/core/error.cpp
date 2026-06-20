@@ -30,6 +30,11 @@ auto to_string(ErrorCode code) -> std::string_view {
         case ResourceError:           return "ResourceError";
         case IKNoSolutionError:       return "IKNoSolutionError";
         case PMLAssertionError:       return "PMLAssertionError";
+        case LayerError:              return "LayerError";
+        case CompositionError:        return "CompositionError";
+        case BlendModeNotSupported:   return "BlendModeNotSupported";
+        case FilterError:             return "FilterError";
+        case FilterNotSupported:      return "FilterNotSupported";
         case GeneralError:            return "GeneralError";
     }
     return "UnknownError";
@@ -114,6 +119,36 @@ auto ik_no_solution_error(std::string_view name) -> PMLException {
 auto assertion_error(SourceLocation loc, std::string msg) -> PMLException {
     return PMLException{ErrorCode::PMLAssertionError, std::move(loc),
                         std::move(msg), std::nullopt};
+}
+
+auto layer_error(SourceLocation loc, std::string msg,
+                 std::optional<std::string> hint) -> PMLException {
+    return PMLException{ErrorCode::LayerError, std::move(loc),
+                        std::move(msg), std::move(hint)};
+}
+
+auto composition_error(SourceLocation loc, std::string msg,
+                       std::optional<std::string> hint) -> PMLException {
+    return PMLException{ErrorCode::CompositionError, std::move(loc),
+                        std::move(msg), std::move(hint)};
+}
+
+auto blend_mode_error(SourceLocation loc, std::string msg,
+                      std::optional<std::string> hint) -> PMLException {
+    return PMLException{ErrorCode::BlendModeNotSupported, std::move(loc),
+                        std::move(msg), std::move(hint)};
+}
+
+auto filter_error(SourceLocation loc, std::string msg,
+                  std::optional<std::string> hint) -> PMLException {
+    return PMLException{ErrorCode::FilterError, std::move(loc),
+                        std::move(msg), std::move(hint)};
+}
+
+auto filter_not_supported(SourceLocation loc, std::string msg,
+                          std::optional<std::string> hint) -> PMLException {
+    return PMLException{ErrorCode::FilterNotSupported, std::move(loc),
+                        std::move(msg), std::move(hint)};
 }
 
 auto general_error(std::string msg,

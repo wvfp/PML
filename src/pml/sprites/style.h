@@ -11,6 +11,7 @@
 
 #include "environment.h"
 #include "types.h"
+#include "pml/api/context.h"
 
 #include <memory>
 #include <string>
@@ -41,8 +42,8 @@ struct StyleDescriptor {
 
     /// Return a new StyleDescriptor with fields overridden by the kwargs map.
     /// Only keys present in the map are changed; all others keep their current value.
-    [[nodiscard]] StyleDescriptor merge(
-        const std::unordered_map<std::string, Value>& overrides) const;
+    [[nodiscard]] StyleDescriptor
+    merge(const std::unordered_map<std::string, Value>& overrides) const;
 
     /// Return a new StyleDescriptor with fields overridden by another descriptor.
     /// All non-nil fields in `overrides` replace the corresponding field.
@@ -53,12 +54,18 @@ struct StyleDescriptor {
 // StyleRegistry — Global Named Style Registry (Singleton)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/// Singleton registry of named styles.  Pre-populated with "cel", "pixel",
-/// and "flat".  User-defined styles are added via `define-style` at the
-/// PML level (which calls StyleRegistry::define()).
+/// Registry of named styles.  Pre-populated with "cel", "pixel", and "flat".
+/// User-defined styles are added via `define-style` at the PML level.
+///
+/// The global accessor `instance()` delegates to the current PMLContext so
+/// that style state is scoped per PMLRuntime instance.
 class StyleRegistry {
-public:
-    static StyleRegistry& instance();
+  public:
+    StyleRegistry();
+
+    /// Return the registry attached to the current runtime context,
+    /// lazily creating it if necessary.
+    [[nodiscard]] static StyleRegistry& instance();
 
     /// Define or override a named style.
     void define(const std::string& name, const StyleDescriptor& style);
@@ -69,8 +76,7 @@ public:
     /// Check whether a name is registered.
     bool has(const std::string& name) const;
 
-private:
-    StyleRegistry();  // singleton — private constructor
+  private:
     std::unordered_map<std::string, StyleDescriptor> m_styles;
 };
 
@@ -85,4 +91,4 @@ StyleDescriptor resolve_style(const Value& style_val);
 /// Register `define-style` and `use-style` builtins into the given environment.
 void register_style(std::shared_ptr<Environment> env);
 
-}  // namespace pml
+} // namespace pml

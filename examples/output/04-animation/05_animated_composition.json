@@ -1,0 +1,251 @@
+{
+  "frames": {
+    "05_animated_composition.png 0.aseprite": {
+      "duration": 83,
+      "frame": {
+        "h": 300,
+        "w": 400,
+        "x": 0,
+        "y": 0
+      },
+      "sourceSize": {
+        "h": 300,
+        "w": 400
+      },
+      "spriteSourceSize": {
+        "h": 300,
+        "w": 400,
+        "x": 0,
+        "y": 0
+      }
+    },
+    "05_animated_composition.png 1.aseprite": {
+      "duration": 83,
+      "frame": {
+        "h": 300,
+        "w": 400,
+        "x": 400,
+        "y": 0
+      },
+      "sourceSize": {
+        "h": 300,
+        "w": 400
+      },
+      "spriteSourceSize": {
+        "h": 300,
+        "w": 400,
+        "x": 0,
+        "y": 0
+      }
+    },
+    "05_animated_composition.png 10.aseprite": {
+      "duration": 83,
+      "frame": {
+        "h": 300,
+        "w": 400,
+        "x": 800,
+        "y": 600
+      },
+      "sourceSize": {
+        "h": 300,
+        "w": 400
+      },
+      "spriteSourceSize": {
+        "h": 300,
+        "w": 400,
+        "x": 0,
+        "y": 0
+      }
+    },
+    "05_animated_composition.png 11.aseprite": {
+      "duration": 83,
+      "frame": {
+        "h": 300,
+        "w": 400,
+        "x": 1200,
+        "y": 600
+      },
+      "sourceSize": {
+        "h": 300,
+        "w": 400
+      },
+      "spriteSourceSize": {
+        "h": 300,
+        "w": 400,
+        "x": 0,
+        "y": 0
+      }
+    },
+    "05_animated_composition.png 2.aseprite": {
+      "duration": 83,
+      "frame": {
+        "h": 300,
+        "w": 400,
+        "x": 800,
+        "y": 0
+      },
+      "sourceSize": {
+        "h": 300,
+        "w": 400
+      },
+      "spriteSourceSize": {
+        "h": 300,
+        "w": 400,
+        "x": 0,
+        "y": 0
+      }
+    },
+    "05_animated_composition.png 3.aseprite": {
+      "duration": 83,
+      "frame": {
+        "h": 300,
+        "w": 400,
+        "x": 1200,
+        "y": 0
+      },
+      "sourceSize": {
+        "h": 300,
+        "w": 400
+      },
+      "spriteSourceSize": {
+        "h": 300,
+        "w": 400,
+        "x": 0,
+        "y": 0
+      }
+    },
+    "05_animated_composition.png 4.aseprite": {
+      "duration": 83,
+      "frame": {
+        "h": 300,
+        "w": 400,
+        "x": 0,
+        "y": 300
+      },
+      "sourceSize": {
+        "h": 300,
+        "w": 400
+      },
+      "spriteSourceSize": {
+        "h": 300,
+        "w": 400,
+        "x": 0,
+        "y": 0
+      }
+    },
+    "05_animated_composition.png 5.aseprite": {
+      "duration": 83,
+      "frame": {
+        "h": 300,
+        "w": 400,
+        "x": 400,
+        "y": 300
+      },
+      "sourceSize": {
+        "h": 300,
+        "w": 400
+      },
+      "spriteSourceSize": {
+        "h": 300,
+        "w": 400,
+        "x": 0,
+        "y": 0
+      }
+    },
+    "05_animated_composition.png 6.aseprite": {
+      "duration": 83,
+      "frame": {
+        "h": 300,
+        "w": 400,
+        "x": 800,
+        "y": 300
+      },
+      "sourceSize": {
+        "h": 300,
+        "w": 400
+      },
+      "spriteSourceSize": {
+        "h": 300,
+        "w": 400,
+        "x": 0,
+        "y": 0
+      }
+    },
+    "05_animated_composition.png 7.aseprite": {
+      "duration": 83,
+      "frame": {
+        "h": 300,
+        "w": 400,
+        "x": 1200,
+        "y": 300
+      },
+      "sourceSize": {
+        "h": 300,
+        "w": 400
+      },
+      "spriteSourceSize": {
+        "h": 300,
+        "w": 400,
+        "x": 0,
+        "y": 0
+      }
+    },
+    "05_animated_composition.png 8.aseprite": {
+      "duration": 83,
+      "frame": {
+        "h": 300,
+        "w": 400,
+        "x": 0,
+        "y": 600
+      },
+      "sourceSize": {
+        "h": 300,
+        "w": 400
+      },
+      "spriteSourceSize": {
+        "h": 300,
+        "w": 400,
+        "x": 0,
+        "y": 0
+      }
+    },
+    "05_animated_composition.png 9.aseprite": {
+      "duration": 83,
+      "frame": {
+        "h": 300,
+        "w": 400,
+        "x": 400,
+        "y": 600
+      },
+      "sourceSize": {
+        "h": 300,
+        "w": 400
+      },
+      "spriteSourceSize": {
+        "h": 300,
+        "w": 400,
+        "x": 0,
+        "y": 0
+      }
+    }
+  },
+  "meta": {
+    "app": "pml-cpp",
+    "format": "RGBA8888",
+    "frameTags": [
+      {
+        "direction": "forward",
+        "from": 0,
+        "name": "default",
+        "to": 11
+      }
+    ],
+    "image": "05_animated_composition.png",
+    "scale": "1",
+    "size": {
+      "h": 900,
+      "w": 1600
+    },
+    "version": "1.0"
+  }
+}

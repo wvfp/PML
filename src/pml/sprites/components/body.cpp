@@ -51,18 +51,17 @@ std::shared_ptr<GraphicObject> create_body(
     const std::unordered_map<std::string, Value>& kwargs) {
     auto p = validate_params(body_schema(), kwargs);
 
-    double height = std::get<double>(p["height"]);
-    std::string build = std::get<std::string>(p["build"]);
-    std::string skin = std::get<std::string>(p["skin"]);
-    std::string proportions = std::get<std::string>(p["proportions"]);
+    double height = p["height"].double_val();
+    std::string build = *p["build"].as_string();
+    std::string skin = *p["skin"].as_string();
+    std::string proportions = *p["proportions"].as_string();
 
     double torso_h = height * get_or_default(k_prop_ratios, proportions, 0.40);
     double torso_w = 50.0 * get_or_default(k_build_widths, build, 1.0);
 
     // Torso center at origin
     GraphicObject torso(
-        "rect",
-        {{"x", -torso_w / 2.0}, {"y", 0.0}, {"w", torso_w}, {"h", torso_h}},
+        "rect", Params{{ParamKey::x, -torso_w / 2.0}, {ParamKey::y, 0.0}, {ParamKey::w, torso_w}, {ParamKey::h, torso_h}},
         skin,
         "#1a1a1a",
         2.0,
@@ -76,8 +75,7 @@ std::shared_ptr<GraphicObject> create_body(
     double neck_w = torso_w * 0.35;
     double neck_h = height * 0.06;
     GraphicObject neck(
-        "rect",
-        {{"x", -neck_w / 2.0}, {"y", -neck_h}, {"w", neck_w}, {"h", neck_h}},
+        "rect", Params{{ParamKey::x, -neck_w / 2.0}, {ParamKey::y, -neck_h}, {ParamKey::w, neck_w}, {ParamKey::h, neck_h}},
         skin,
         "#1a1a1a",
         1.5);
@@ -85,27 +83,25 @@ std::shared_ptr<GraphicObject> create_body(
     // Shoulders (ellipses at top of torso)
     double shoulder_r = torso_w * 0.18;
     GraphicObject left_shoulder(
-        "ellipse",
-        {{"cx", -torso_w / 2.0},
-         {"cy", torso_h * 0.08},
-         {"rx", shoulder_r},
-         {"ry", shoulder_r * 0.8}},
+        "ellipse", Params{{ParamKey::cx, -torso_w / 2.0},
+         {ParamKey::cy, torso_h * 0.08},
+         {ParamKey::rx, shoulder_r},
+         {ParamKey::ry, shoulder_r * 0.8}},
         skin,
         "#1a1a1a",
         1.5);
     GraphicObject right_shoulder(
-        "ellipse",
-        {{"cx", torso_w / 2.0},
-         {"cy", torso_h * 0.08},
-         {"rx", shoulder_r},
-         {"ry", shoulder_r * 0.8}},
+        "ellipse", Params{{ParamKey::cx, torso_w / 2.0},
+         {ParamKey::cy, torso_h * 0.08},
+         {ParamKey::rx, shoulder_r},
+         {ParamKey::ry, shoulder_r * 0.8}},
         skin,
         "#1a1a1a",
         1.5);
 
     return std::make_shared<GraphicObject>(
         "group",
-        std::unordered_map<std::string, Value>{},
+        Params{},
         std::nullopt,
         std::nullopt,
         1.0,

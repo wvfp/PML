@@ -24,5 +24,6 @@ target_include_directories(pml_backend_skia PUBLIC
 target_link_libraries(pml_backend_skia PUBLIC
     pml_backend
     pml_graphics
+    pml_asset
     pml::skia_deps
 )

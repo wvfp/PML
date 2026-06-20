@@ -23,16 +23,16 @@ namespace {
 
 [[nodiscard]] std::shared_ptr<GraphicObject> extract_graphic_object(
     const Value& v) {
-    if (const auto* sp = std::get_if<std::shared_ptr<GraphicObject>>(&v)) {
+    if (const auto* sp = v.as_graphic_object()) {
         return *sp;
     }
     return nullptr;
 }
 
 [[nodiscard]] std::string extract_string_value(const Value& v) {
-    if (const auto* s = std::get_if<std::string>(&v)) return *s;
-    if (const auto* sym = std::get_if<Symbol>(&v)) return sym->name;
-    if (const auto* kw = std::get_if<Keyword>(&v)) return kw->name;
+    if (const auto* s = v.as_string()) return *s;
+    if (const auto* sym = v.as_symbol()) return sym->name;
+    if (const auto* kw = v.as_keyword()) return kw->name;
     return "";
 }
 
@@ -107,20 +107,20 @@ std::shared_ptr<GraphicObject> create_character(
     const std::unordered_map<std::string, Value>& kwargs) {
     auto p = validate_params(character_schema(), kwargs);
 
-    std::string expression = std::get<std::string>(p["expression"]);
-    double scale = std::get<double>(p["scale"]);
+    std::string expression = *p["expression"].as_string();
+    double scale = p["scale"].double_val();
 
     // Resolve style
     StyleDescriptor style;
     auto style_it = p.find("style");
-    if (style_it != p.end() && !std::holds_alternative<std::nullptr_t>(style_it->second)) {
+    if (style_it != p.end() && !style_it->second.is_nil()) {
         style = resolve_style(style_it->second);
     }
 
     // Resolve palette
     std::shared_ptr<Palette> palette;
     auto palette_it = p.find("palette");
-    if (palette_it != p.end() && !std::holds_alternative<std::nullptr_t>(palette_it->second)) {
+    if (palette_it != p.end() && !palette_it->second.is_nil()) {
         std::string palette_name = extract_string_value(palette_it->second);
         palette = PaletteManager::instance().get(palette_name);
         PaletteManager::instance().set_active(palette);
@@ -171,14 +171,14 @@ std::shared_ptr<GraphicObject> create_character(
     double head_h = 64.0;
     double body_h = 64.0;
 
-    if (const auto* meta_head_w = std::get_if<double>(&head_obj->metadata.at("head_width"))) {
-        head_w = *meta_head_w;
+    if (head_obj->metadata.at("head_width").is_double()) {
+        head_w = head_obj->metadata.at("head_width").double_val();
     }
-    if (const auto* meta_head_h = std::get_if<double>(&head_obj->metadata.at("head_height"))) {
-        head_h = *meta_head_h;
+    if (head_obj->metadata.at("head_height").is_double()) {
+        head_h = head_obj->metadata.at("head_height").double_val();
     }
-    if (const auto* meta_body_h = std::get_if<double>(&body_obj->metadata.at("torso_height"))) {
-        body_h = *meta_body_h;
+    if (body_obj->metadata.at("torso_height").is_double()) {
+        body_h = body_obj->metadata.at("torso_height").double_val();
     }
 
     double head_cy = -(body_h * 0.3 + head_h * 0.5);
@@ -224,7 +224,7 @@ std::shared_ptr<GraphicObject> create_character(
 
     return std::make_shared<GraphicObject>(
         "group",
-        std::unordered_map<std::string, Value>{},
+        Params{},
         std::nullopt,
         std::nullopt,
         1.0,

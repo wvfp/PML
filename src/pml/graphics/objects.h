@@ -8,14 +8,14 @@
 // animation interpolation.
 // ═══════════════════════════════════════════════════════════════════════════════
 
+#include "params.h"
 #include "transform.h"
-#include "types.h"
+#include "graphics_types.h"
 
 #include <cstdint>
 #include <optional>
 #include <ostream>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace pml {
@@ -34,7 +34,7 @@ struct GraphicObject {
     std::string shape_type;
 
     /// Shape-specific parameters (radius, width/height, text content, etc.).
-    std::unordered_map<std::string, Value> params;
+    Params params;
 
     /// Fill color string (e.g. "#ff0000", "transparent", or nullopt for none).
     std::optional<std::string> fill;
@@ -45,10 +45,8 @@ struct GraphicObject {
     /// Stroke width in pixels.
     double stroke_width{1.0};
 
-    /// Local affine transform applied before rendering.
-    /// Note: defined in global namespace as `struct AffineTransform` via
-    /// `transform.h` — we refer to it with `::` prefix to avoid ambiguity
-    /// with the forward declaration in `types.h`.
+    /// Local affine transform applied before rendering (defined in
+    /// `pml/graphics/transform.h`).
     AffineTransform transform;
 
     /// Child objects (for groups, composite characters, etc.).
@@ -58,13 +56,15 @@ struct GraphicObject {
     std::unordered_map<std::string, Value> metadata;
 
     /// Monotonically increasing unique identifier (auto-generated).
-    uint64_t id;
+    /// Default-constructed objects use id == 0 (reserved, never issued).
+    uint64_t id{};
 
-    // ── Constructor ────────────────────────────────────────────────────
+    // ── Constructors ───────────────────────────────────────────────────
 
+    GraphicObject() = default;
     GraphicObject(
         std::string shape_type_,
-        std::unordered_map<std::string, Value> params_ = {},
+        Params params_ = {},
         std::optional<std::string> fill_ = std::nullopt,
         std::optional<std::string> stroke_ = std::nullopt,
         double stroke_width_ = 1.0,
@@ -86,6 +86,7 @@ struct GraphicObject {
 
     /// Return a copy with one param entry added / updated.
     [[nodiscard]] GraphicObject with_param(const std::string& key, Value value) const;
+    [[nodiscard]] GraphicObject with_param(ParamKey key, Value value) const;
 
     // ── Debugging ─────────────────────────────────────────────────────
 

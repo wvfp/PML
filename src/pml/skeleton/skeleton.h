@@ -18,6 +18,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 #include "environment.h"
+#include "evaluator.h"
 #include "types.h"
 
 #include <cmath>

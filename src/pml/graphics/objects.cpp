@@ -18,7 +18,7 @@ namespace {
 
 GraphicObject::GraphicObject(
     std::string shape_type_,
-    std::unordered_map<std::string, Value> params_,
+    Params params_,
     std::optional<std::string> fill_,
     std::optional<std::string> stroke_,
     double stroke_width_,
@@ -44,6 +44,7 @@ GraphicObject GraphicObject::with_transform(AffineTransform t) const
 {
     GraphicObject result = *this;
     result.transform = t;
+    result.id = this->id;  // preserve id so animations can find the object
     return result;
 }
 
@@ -64,7 +65,14 @@ GraphicObject GraphicObject::with_stroke(std::string color) const
 GraphicObject GraphicObject::with_param(const std::string& key, Value value) const
 {
     GraphicObject result = *this;
-    result.params[key] = std::move(value);
+    result.params.set(key, std::move(value));
+    return result;
+}
+
+GraphicObject GraphicObject::with_param(ParamKey key, Value value) const
+{
+    GraphicObject result = *this;
+    result.params.set(key, std::move(value));
     return result;
 }
 

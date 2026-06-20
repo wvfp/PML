@@ -30,16 +30,16 @@ constexpr double kTwoPi = 2.0 * kPi;
 
 /// Parse a numeric Value (int64_t or double) as double.
 double to_double_safe(const Value& v) {
-    if (const auto* i = std::get_if<int64_t>(&v)) return static_cast<double>(*i);
-    if (const auto* d = std::get_if<double>(&v)) return *d;
+    if (v.is_int()) return static_cast<double>(v.int_val());
+    if (v.is_double()) return v.double_val();
     return 0.0;
 }
 
 /// Parse a Value as a string — accepts Symbol, std::string, or Keyword.
 std::string value_to_name(const Value& v) {
-    if (const auto* sym = std::get_if<Symbol>(&v)) return sym->name;
-    if (const auto* s = std::get_if<std::string>(&v)) return *s;
-    if (const auto* kw = std::get_if<Keyword>(&v)) return kw->name;
+    if (const auto* sym = v.as_symbol()) return sym->name;
+    if (const auto* s = v.as_string()) return *s;
+    if (const auto* kw = v.as_keyword()) return kw->name;
     return value_to_string(v);
 }
 
@@ -155,7 +155,7 @@ void register_ik(std::shared_ptr<Environment> env)
 
             // ── Parse positional arguments ─────────────────────────────
             // args[0] = SkeletonInstance
-            const auto* instance = std::get_if<std::shared_ptr<SkeletonInstance>>(&args[0]);
+            const auto* instance = args[0].as_skeleton_instance();
             if (!instance || !*instance) {
                 return std::unexpected(type_error(
                     "ik-solve: expected SkeletonInstance, got " +
@@ -186,7 +186,7 @@ void register_ik(std::shared_ptr<Environment> env)
             double tolerance = 0.01;
 
             for (size_t i = 4; i + 1 < args.size(); i += 2) {
-                const auto* kw = std::get_if<Keyword>(&args[i]);
+                const auto* kw = args[i].as_keyword();
                 if (!kw) {
                     return std::unexpected(type_error(
                         "ik-solve: expected keyword argument at position " +

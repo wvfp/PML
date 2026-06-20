@@ -10,6 +10,7 @@
 
 #include "pml/core/error.h"
 #include "pml/core/types.h"
+#include "pml/api/context.h"
 
 #include <memory>
 #include <optional>
@@ -27,9 +28,9 @@ namespace pml {
 /// Result of executing PML source code, matching Python's RenderResult dataclass.
 struct RenderResult {
     bool success{false};
-    nlohmann::json value;            ///< Serialized return value (JSON).
-    std::vector<std::string> files;  ///< Output files produced (e.g. rendered images).
-    std::optional<nlohmann::json> error;  ///< Error dict if success is false.
+    nlohmann::json value;                ///< Serialized return value (JSON).
+    std::vector<std::string> files;      ///< Output files produced (e.g. rendered images).
+    std::optional<nlohmann::json> error; ///< Error dict if success is false.
 
     /// Serialise to a JSON object matching Python's RenderResult.to_dict().
     [[nodiscard]] nlohmann::json to_json() const;
@@ -49,7 +50,7 @@ struct RenderResult {
 ///   auto result = rt.execute("(+ 1 2)");
 ///   assert(result.success && result.value == 3);
 class PMLRuntime {
-public:
+  public:
     /// Construct the runtime, creating a global environment and registering
     /// all builtins, graphics, sprites, animation, and skeleton procedures.
     PMLRuntime();
@@ -62,9 +63,8 @@ public:
     /// @param source   PML source code.
     /// @param filename Optional filename for error reporting (default "<stdin>").
     /// @return A RenderResult with the serialised last value (or error).
-    [[nodiscard]] RenderResult execute(
-        const std::string& source,
-        const std::string& filename = "<stdin>");
+    [[nodiscard]] RenderResult execute(const std::string& source,
+                                       const std::string& filename = "<stdin>");
 
     /// Execute a PML file.
     ///
@@ -83,15 +83,27 @@ public:
     /// @param source  PML source code.
     /// @param options Optional map (reserved for future use).
     /// @return JSON object with "success", "value", "files", "error" keys.
-    [[nodiscard]] nlohmann::json execute_pml(
-        const std::string& source,
-        const nlohmann::json& options = nlohmann::json::object());
+    [[nodiscard]] nlohmann::json
+    execute_pml(const std::string& source,
+                const nlohmann::json& options = nlohmann::json::object());
 
     /// Access the underlying global environment (for advanced use/testing).
     [[nodiscard]] std::shared_ptr<Environment> env() const noexcept;
 
-private:
+    /// Access the runtime context (canvas, timeline, styles, palettes, compositions).
+    [[nodiscard]] PMLContext& context() noexcept {
+        return ctx_;
+    }
+
+    /// Read-only access to registered compositions.
+    [[nodiscard]] const std::vector<std::shared_ptr<Composition>>& compositions() const noexcept {
+        return ctx_.registered_compositions();
+    }
+
+  private:
     std::shared_ptr<Environment> m_env;
+    Arena m_arena;   ///< per-runtime arena for short-lived AST/eval temporaries
+    PMLContext ctx_; ///< per-runtime mutable global state (replaces singletons)
 
     /// Create and populate the global environment with all builtins.
     void init_global_env();
@@ -112,4 +124,4 @@ private:
 /// Generate an LLM-friendly repair hint based on error code.
 [[nodiscard]] std::string generate_hint(ErrorCode code);
 
-}  // namespace pml
+} // namespace pml

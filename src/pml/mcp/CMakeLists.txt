@@ -11,6 +11,7 @@ target_link_libraries(pml-mcp PRIVATE
     pml_frontend
     pml_evaluator
     pml_graphics
+    pml_layer
     pml_sprites
     pml_animation
     pml_skeleton

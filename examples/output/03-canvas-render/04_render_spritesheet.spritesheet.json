@@ -1,0 +1,50 @@
+{
+  "file": "04_render_spritesheet.png",
+  "format": "PNG",
+  "total_width": 140,
+  "total_height": 140,
+  "cols": 2,
+  "rows": 2,
+  "cell_width": 64,
+  "cell_height": 64,
+  "padding": 4,
+  "frames": [
+    {
+      "index": 0,
+      "x": 4,
+      "y": 4,
+      "width": 64,
+      "height": 64,
+      "col": 0,
+      "row": 0
+    },
+    {
+      "index": 1,
+      "x": 72,
+      "y": 4,
+      "width": 64,
+      "height": 64,
+      "col": 1,
+      "row": 0
+    },
+    {
+      "index": 2,
+      "x": 4,
+      "y": 72,
+      "width": 64,
+      "height": 64,
+      "col": 0,
+      "row": 1
+    },
+    {
+      "index": 3,
+      "x": 72,
+      "y": 72,
+      "width": 64,
+      "height": 64,
+      "col": 1,
+      "row": 1
+    }
+  ],
+  "pml_version": "0.1.0"
+}

@@ -8,6 +8,7 @@
 #include "repl.h"
 
 #include "pml/core/error.h"
+#include "pml/core/source_manager.h"
 #include "pml/core/types.h"
 #include "pml/evaluator/evaluator.h"
 #include "pml/frontend/expander.h"
@@ -22,6 +23,9 @@
 #include <string>
 
 namespace pml {
+
+// Source cache for REPL error snippets.
+static SourceManager g_repl_source_manager;
 
 // Forward declaration (defined below)
 static std::string format_error(const PMLException& err);
@@ -72,6 +76,9 @@ void LineAccumulator::reset()
 
 bool run_repl_line(const std::string& line, std::shared_ptr<Environment> env)
 {
+    // Cache the source so error formatters can display it.
+    g_repl_source_manager.load_source("<stdin>", line);
+
     // Trim whitespace
     std::string trimmed = line;
     trimmed.erase(0, trimmed.find_first_not_of(" \t\n\r"));
@@ -120,7 +127,7 @@ bool run_repl_line(const std::string& line, std::shared_ptr<Environment> env)
 
         // Evaluate each expression, printing results
         for (const auto& expr : expanded) {
-            auto evalResult = evaluate(expr, env);
+            auto evalResult = eval_to_value(expr, env);
             if (!evalResult.has_value()) {
                 const auto& err = evalResult.error();
                 std::cerr << format_error(err) << std::endl;
@@ -191,32 +198,8 @@ void run_repl(std::shared_ptr<Environment> env)
 
 static std::string format_error(const PMLException& err)
 {
-    // Match Python format: "filename:line:col: Type: message" or "Type: message"
-    std::string result;
-    if (err.location.has_value()) {
-        const auto& loc = *err.location;
-        if (!loc.filename.empty()) {
-            result += loc.filename + ":";
-        }
-        if (loc.line > 0) {
-            result += std::to_string(loc.line) + ":";
-            if (loc.column > 0) {
-                result += std::to_string(loc.column) + ": ";
-            } else {
-                result += " ";
-            }
-        }
-    }
-    result += to_string(err.code);
-    result += ": ";
-    result += err.message;
-
-    if (err.repair_hint.has_value() && !err.repair_hint->empty()) {
-        result += "\n  Hint: ";
-        result += *err.repair_hint;
-    }
-
-    return result;
+    // Include a source snippet when the REPL input is cached.
+    return format_error_with_source(err, g_repl_source_manager);
 }
 
 }  // namespace pml

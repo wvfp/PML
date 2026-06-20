@@ -13,6 +13,7 @@
 
 #include "environment.h"
 #include "types.h"
+#include "pml/api/context.h"
 
 #include <memory>
 #include <string>
@@ -28,7 +29,7 @@ namespace pml {
 /// Ported from Python PML's Palette dataclass.
 /// Lookups that miss fall back to "#808080".
 class Palette {
-public:
+  public:
     std::string name;
     std::unordered_map<std::string, std::string> colors;
 
@@ -42,12 +43,18 @@ public:
 // PaletteManager — global palette registry + active palette
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/// Singleton managing the global palette registry and active palette.
+/// Registry + active palette manager.
 /// Matches Python's _palette_registry dict + _active_palette list.
+/// The global accessor `instance()` delegates to the current PMLContext.
 class PaletteManager {
-public:
-    /// Access the singleton instance.
-    static PaletteManager& instance();
+  public:
+    PaletteManager();
+    PaletteManager(const PaletteManager&) = delete;
+    PaletteManager& operator=(const PaletteManager&) = delete;
+
+    /// Access the registry attached to the current runtime context,
+    /// lazily creating it if necessary.
+    [[nodiscard]] static PaletteManager& instance();
 
     /// Register a palette by name (replaces any existing with the same name).
     void define(const std::string& name, std::shared_ptr<Palette> palette);
@@ -61,11 +68,7 @@ public:
     /// Get the currently active palette (may be nullptr).
     [[nodiscard]] std::shared_ptr<Palette> active() const;
 
-private:
-    PaletteManager();  // singleton — use instance()
-    PaletteManager(const PaletteManager&) = delete;
-    PaletteManager& operator=(const PaletteManager&) = delete;
-
+  private:
     std::unordered_map<std::string, std::shared_ptr<Palette>> m_palettes;
     std::shared_ptr<Palette> m_active;
 };
@@ -80,4 +83,4 @@ private:
 ///   (palette-ref "key") — look up color key in active palette
 void register_palette(std::shared_ptr<Environment> env);
 
-}  // namespace pml
+} // namespace pml

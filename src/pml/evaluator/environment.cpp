@@ -14,19 +14,68 @@ namespace pml {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 Result<Value> Environment::lookup(const std::string& name) const noexcept {
-    auto it = bindings.find(name);
-    if (it != bindings.end()) {
-        return it->second;
+    // Fast path: use a previously resolved lexical address.
+    auto cache_it = varref_cache_.find(name);
+    if (cache_it != varref_cache_.end()) {
+        return lookup(cache_it->second);
     }
-    if (parent) {
-        return parent->lookup(name);
+
+    // Resolve and cache the lexical address for subsequent lookups.
+    VarRef ref;
+    if (auto err = resolve_varref(name, ref)) {
+        return std::unexpected(*err);
     }
-    return std::unexpected(PMLException{
+    varref_cache_[name] = ref;
+    return lookup(ref);
+}
+
+Result<Value> Environment::lookup(VarRef ref) const noexcept {
+    const Environment* env = this;
+    for (size_t i = 0; i < ref.depth; ++i) {
+        if (!env->parent) {
+            return std::unexpected(PMLException{
+                ErrorCode::UnboundVariableError,
+                std::nullopt,
+                "lookup: lexical address out of range",
+                std::nullopt
+            });
+        }
+        env = env->parent.get();
+    }
+    if (ref.index >= env->indexed_values_.size()) {
+        return std::unexpected(PMLException{
+            ErrorCode::UnboundVariableError,
+            std::nullopt,
+            "lookup: lexical index out of range",
+            std::nullopt
+        });
+    }
+    return env->indexed_values_[ref.index];
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// resolve_varref — walk parent scopes and compute (depth, index)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+std::optional<PMLException> Environment::resolve_varref(
+    const std::string& name, VarRef& out) const noexcept {
+    const Environment* env = this;
+    size_t depth = 0;
+    while (env) {
+        auto it = env->name_to_index_.find(name);
+        if (it != env->name_to_index_.end()) {
+            out = VarRef{depth, it->second};
+            return std::nullopt;
+        }
+        env = env->parent.get();
+        ++depth;
+    }
+    return PMLException{
         ErrorCode::UnboundVariableError,
         std::nullopt,
         std::format("unbound variable: {}", name),
         std::nullopt
-    });
+    };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -34,7 +83,20 @@ Result<Value> Environment::lookup(const std::string& name) const noexcept {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 void Environment::define(const std::string& name, const Value& value) {
-    bindings[name] = value;
+    auto it = name_to_index_.find(name);
+    if (it != name_to_index_.end()) {
+        // Shadowing / redefining in the same scope: update value, keep index.
+        bindings[name] = value;
+        indexed_values_[it->second] = value;
+    } else {
+        // New binding: append to indexed storage.
+        size_t idx = indexed_values_.size();
+        indexed_values_.push_back(value);
+        name_to_index_[name] = idx;
+        bindings[name] = value;
+    }
+    // A previous cache entry from an outer scope is now shadowed.
+    varref_cache_.erase(name);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -42,9 +104,10 @@ void Environment::define(const std::string& name, const Value& value) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 Result<void> Environment::set(const std::string& name, const Value& value) {
-    auto it = bindings.find(name);
-    if (it != bindings.end()) {
-        it->second = value;
+    auto it = name_to_index_.find(name);
+    if (it != name_to_index_.end()) {
+        bindings[name] = value;
+        indexed_values_[it->second] = value;
         return {};
     }
     if (parent) {
@@ -68,7 +131,7 @@ std::shared_ptr<Environment> Environment::extend(
     auto child = std::make_shared<Environment>(shared_from_this());
     const size_t count = std::min(names.size(), values.size());
     for (size_t i = 0; i < count; ++i) {
-        child->bindings[names[i]] = values[i];
+        child->define(names[i], values[i]);
     }
     return child;
 }
@@ -78,14 +141,14 @@ std::shared_ptr<Environment> Environment::extend(
 // ═══════════════════════════════════════════════════════════════════════════════
 
 std::optional<Value> Environment::try_lookup(const std::string& name) const noexcept {
-    auto it = bindings.find(name);
-    if (it != bindings.end()) {
-        return it->second;
+    VarRef ref;
+    if (auto err = resolve_varref(name, ref)) {
+        (void)err;
+        return std::nullopt;
     }
-    if (parent) {
-        return parent->try_lookup(name);
-    }
-    return std::nullopt;
+    auto result = lookup(ref);
+    if (!result) return std::nullopt;
+    return *result;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -93,7 +156,7 @@ std::optional<Value> Environment::try_lookup(const std::string& name) const noex
 // ═══════════════════════════════════════════════════════════════════════════════
 
 bool Environment::has(const std::string& name) const noexcept {
-    return bindings.find(name) != bindings.end();
+    return name_to_index_.find(name) != name_to_index_.end();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -102,6 +165,21 @@ bool Environment::has(const std::string& name) const noexcept {
 
 const std::unordered_map<std::string, Value>& Environment::current_bindings() const noexcept {
     return bindings;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// rebuild_index — sync dense storage with the bindings map
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void Environment::rebuild_index() {
+    indexed_values_.clear();
+    name_to_index_.clear();
+    indexed_values_.reserve(bindings.size());
+    for (const auto& [name, value] : bindings) {
+        size_t idx = indexed_values_.size();
+        indexed_values_.push_back(value);
+        name_to_index_[name] = idx;
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

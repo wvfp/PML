@@ -1,5 +1,7 @@
 add_library(pml_core
+    call_stack.cpp
     error.cpp
+    source_manager.cpp
     types.cpp
 )
 

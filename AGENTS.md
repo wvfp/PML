@@ -22,6 +22,7 @@ pml-cpp/                                   # C++23 rewrite (this directory)
 │   ├── frontend/    # Lexer, Parser, Expander
 │   ├── evaluator/   # 20 special forms, BuiltinProcedure, Environment
 │   ├── graphics/    # GraphicObject, Canvas, AffineTransform, render dispatch
+│   ├── graphics3d/  # Vec3, Mat4, Transform3D, Camera3D, Mesh3D, 3D primitives
 │   ├── backend/     # RenderBackend ABC + registry; cairo/, gif/, skia/ backends
 │   ├── sprites/     # Style, Palette (no components/ yet — see §5)
 │   ├── animation/   # Easing + Timeline + Animation
@@ -30,7 +31,7 @@ pml-cpp/                                   # C++23 rewrite (this directory)
 │   ├── api/         # PMLRuntime facade (execute / execute_file / render_sprite)
 │   ├── cli/         # main.cpp + repl.cpp (file / REPL / --json / --watch / -o)
 │   └── mcp/         # pml-mcp JSON-RPC server
-├── tests/           # builtins_smoke.cpp (118 cases) + GTest stub
+├── tests/           # builtins_smoke.cpp (134 cases) + GTest stub
 └── build/{debug,release}/                 # Out-of-source build dirs
 ```
 
@@ -50,8 +51,8 @@ cmake --preset debug
 # Build
 cmake --build --preset debug
 
-# Run smoke tests (118 / 118 pass)
-.\build\debug\bin\Debug\pml-builtins-smoke.exe
+# Run smoke tests (134 / 134 pass)
+.\build\debug\tests\Debug\pml-builtins-smoke.exe
 
 # CLI
 .\build\debug\bin\Debug\pml.exe            # REPL
@@ -124,6 +125,10 @@ port-time deltas are listed below — add new ones as they appear.
 - Canvas / shape builtins — `canvas`, `sprite-canvas`, `add`, `circle`, `rect`, `ellipse`, `line`, `polygon`, `path`, `text`, `image`, `group`
 - Sprite components — `character`, `body`, `eyes`, `hair`, `head`, `mouth`, `outfit`, `weapon`, `potion`, `chest`, `generic-item`, `button`, `panel`, `health-bar`, `icon`, `tile`, `decoration`, `background`
 - Higher-order list functions — `map`, `filter`, `reduce`
+- Hash tables — `make-hash`, `hash-ref`, `hash-set!`, `hash-delete!`, `hash-keys`, `hash-values`, `hash?`
+- Vectors — `make-vector`, `vector-ref`, `vector-set!`, `vector-length`, `vector->list`, `list->vector`, `vector?`
+- Hygienic macros — `defmacro` with automatic variable renaming to avoid capture
+- Module introspection — `module-available?`, `module-list`, `module-exports`
 - Skin binding — `bind-skin` with skeleton-driven transform merge into animation frames
 
 ### Implemented differently (intentional ports)
@@ -138,17 +143,24 @@ port-time deltas are listed below — add new ones as they appear.
   `accepts_kwargs=true` is dispatched as positional-then-keyword pairs. The
   same helper (`parse_kwargs` / `kw_string` / `kw_int`) lives in
   `src/pml/graphics/render.cpp` — **re-use it from new files**.
-- **Transform namespace**: `AffineTransform` lives in the **global namespace**
-  (defined in `src/pml/graphics/transform.h`), but `types.h` forward-declares
-  `pml::AffineTransform`. Use `::AffineTransform` in any struct member that
-  is also declared in `pml::`. See `src/pml/graphics/objects.h` for the
-  precedent.
+- **Transform namespace**: `AffineTransform` lives in `namespace pml` (defined
+  in `src/pml/graphics/transform.h`), matching the forward declaration in
+  `types.h`. Prefer plain `AffineTransform` inside `namespace pml`; use
+  `pml::AffineTransform` only at namespace scope.
+- **3D graphics**: C++ port adds native 3D primitives (`cube3d`, `cuboid3d`,
+  `rounded-cuboid3d`, `cone3d`, `plane3d`, `sphere3d`), per-face PML 2D material
+  mapping, 3D transforms (`rotate-x`/`y`/`z`, `translate3d`, `scale3d`), and a
+  perspective/orthographic camera (`camera`). Python reference has no 3D support.
 
 ### NOT yet ported — known gaps
 - Windows watch mode — CLI `--watch` now uses `FindFirstChangeNotification` on
   Windows, but does not yet handle recursive directory watching or file renames.
-- Module system surface — `import` / `provide` work via special forms, but
-  `module-available?` / `module-list` style introspection is not exposed.
+- **CJK text rendering** — Skia backend `draw_text` uses `drawSimpleText` with a
+  single resolved typeface (system default → Arial → Microsoft YaHei). It does
+  **not** perform font fallback, so CJK characters (Chinese, Japanese, Korean)
+  render as blank or tofu. Fixing this requires per-character font fallback via
+  `SkTextBlobBuilder` or `SkShaper`. The `text` builtin only reliably renders
+  ASCII / Latin characters.
 
 ---
 
@@ -248,7 +260,7 @@ cmake --build --preset debug --target pml-builtins-smoke
 cmake --build --preset debug --target rebuild_cache
 
 # Run smoke tests
-.\build\debug\bin\Debug\pml-builtins-smoke.exe
+.\build\debug\tests\Debug\pml-builtins-smoke.exe
 
 # Render test (needs PML_BUILD_RENDERING=ON and giflib)
 .\build\debug\bin\Debug\pml.exe ..\examples\hello.pml -o .\out
@@ -263,7 +275,8 @@ cmake --build --preset debug --target rebuild_cache
 | Add a special form                      | `src/pml/evaluator/evaluator.cpp` (function-local `SPECIAL_FORMS` map) |
 | Add a primitive (`circle`, `rect`, …)   | `src/pml/graphics/builtins_graphics.cpp` (create); add `register_graphics(env)` to PMLRuntime |
 | Add a transform builtin                 | `src/pml/graphics/transform_builtins.cpp` (create); expose `register_transform_builtins` |
-| Add a canvas / sprite-canvas builtin    | `src/pml/graphics/canvas_builtins.cpp` (create); expose `register_canvas_builtins` |
+| Add a canvas / sprite-canvas builtin    | `src/pml/evaluator/canvas_builtins.cpp` (create); expose `register_canvas_builtins` |
+| Add a 3D primitive / transform / camera | `src/pml/graphics3d/builtins_3d.cpp` + `primitive_factory.cpp`; expose `register_3d_builtins` |
 | Add an animation builtin                | `src/pml/animation/timeline.cpp` (`register_timeline_builtins` already declared) |
 | Add a new sprite component              | `src/pml/sprites/components/<name>.cpp/h` (port from `../pml/sprites/components/<name>.py`) |
 | Add a render backend                    | New subdir under `src/pml/backend/`; subclass `RenderBackend`; self-register with `BackendRegistry` |
@@ -302,6 +315,7 @@ register_backend_builtins(m_env);     // list-backends, set-backend!, backend-ca
 register_shader_builtins(m_env);      // shader, apply-shader! (SkSL via SkRuntimeEffect) ✓
 register_transform_builtins(m_env);   // translate, rotate, scale, shear, compose, matrix-inverse, matrix-apply, matrix? ✓
 register_canvas_builtins(m_env);      // canvas, sprite-canvas, add, circle, rect, ..., group, color builtins ✓
+register_3d_builtins(m_env);          // cube3d, cuboid3d, rounded-cuboid3d, cone3d, plane3d, sphere3d, rotate-x/y/z, translate3d, scale3d, camera ✓
 // (module loading via special forms; no register_module_builtins)
 ```
 

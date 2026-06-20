@@ -236,7 +236,7 @@ Result<Value> eval_defskeleton(
 
     // 2. Parse root parameter names
     const Expr& root_params_expr = expr[2];
-    const std::vector<Expr>* root_list = get_list(root_params_expr);
+    const ArenaExprVector* root_list = get_list(root_params_expr);
     if (!root_list || root_list->size() != 2) {
         return std::unexpected(type_error(
             SourceLocation{}, "defskeleton: root params must be (param-x param-y)"));
@@ -255,7 +255,7 @@ Result<Value> eval_defskeleton(
     // 3. Parse joint clauses
     std::vector<Joint> joints;
     for (size_t i = 3; i < expr.size(); ++i) {
-        const std::vector<Expr>* joint_expr = get_list(expr[i]);
+        const ArenaExprVector* joint_expr = get_list(expr[i]);
         if (!joint_expr || joint_expr->size() < 2) {
             return std::unexpected(type_error(
                 SourceLocation{}, "defskeleton: each joint must be (joint name :key val ...)"));
@@ -295,7 +295,7 @@ Result<Value> eval_defskeleton(
             const Expr& val = (*joint_expr)[kw_idx + 1];
 
             if (kw->name == "pos") {
-                const std::vector<Expr>* pos_list = get_list(val);
+                const ArenaExprVector* pos_list = get_list(val);
                 if (!pos_list || pos_list->size() != 2) {
                     return std::unexpected(type_error(
                         SourceLocation{}, "defskeleton: :pos must be (dx dy)"));
@@ -363,7 +363,7 @@ static Result<Value> builtin_instantiate_skeleton(
     }
 
     // First arg: template
-    const auto* tmpl = std::get_if<std::shared_ptr<SkeletonTemplate>>(&args[0]);
+    const auto* tmpl = args[0].as_skeleton_template();
     if (!tmpl || !*tmpl) {
         return std::unexpected(type_error(
             SourceLocation{}, "instantiate-skeleton: expected SkeletonTemplate, got " +
@@ -372,18 +372,18 @@ static Result<Value> builtin_instantiate_skeleton(
 
     // Second and third args: root x, y
     double rx = 0.0, ry = 0.0;
-    if (const auto* x = std::get_if<int64_t>(&args[1])) {
-        rx = static_cast<double>(*x);
-    } else if (const auto* x = std::get_if<double>(&args[1])) {
-        rx = *x;
+    if (args[1].is_int()) {
+        rx = static_cast<double>(args[1].int_val());
+    } else if (args[1].is_double()) {
+        rx = args[1].double_val();
     } else {
         return std::unexpected(type_error(
             SourceLocation{}, "instantiate-skeleton: x must be a number"));
     }
-    if (const auto* y = std::get_if<int64_t>(&args[2])) {
-        ry = static_cast<double>(*y);
-    } else if (const auto* y = std::get_if<double>(&args[2])) {
-        ry = *y;
+    if (args[2].is_int()) {
+        ry = static_cast<double>(args[2].int_val());
+    } else if (args[2].is_double()) {
+        ry = args[2].double_val();
     } else {
         return std::unexpected(type_error(
             SourceLocation{}, "instantiate-skeleton: y must be a number"));
@@ -408,7 +408,7 @@ static Result<Value> builtin_joint_position(
     }
 
     // First arg: SkeletonInstance
-    const auto* instance = std::get_if<std::shared_ptr<SkeletonInstance>>(&args[0]);
+    const auto* instance = args[0].as_skeleton_instance();
     if (!instance || !*instance) {
         return std::unexpected(type_error(
             SourceLocation{}, "joint-position: expected SkeletonInstance, got " +
@@ -417,11 +417,11 @@ static Result<Value> builtin_joint_position(
 
     // Second arg: joint name
     std::string joint_name;
-    if (const auto* sym = std::get_if<Symbol>(&args[1])) {
+    if (const auto* sym = args[1].as_symbol()) {
         joint_name = sym->name;
-    } else if (const auto* s = std::get_if<std::string>(&args[1])) {
+    } else if (const auto* s = args[1].as_string()) {
         joint_name = *s;
-    } else if (const auto* kw = std::get_if<Keyword>(&args[1])) {
+    } else if (const auto* kw = args[1].as_keyword()) {
         joint_name = kw->name;
     } else {
         return std::unexpected(type_error(

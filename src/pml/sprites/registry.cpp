@@ -117,9 +117,9 @@ namespace {
     const std::vector<Value>& args) {
     std::unordered_map<std::string, Value> result;
     for (size_t i = 0; i + 1 < args.size(); i += 2) {
-        if (const auto* kw = std::get_if<Keyword>(&args[i])) {
+        if (const auto* kw = args[i].as_keyword()) {
             result[kw->name] = args[i + 1];
-        } else if (const auto* sym = std::get_if<Symbol>(&args[i])) {
+        } else if (const auto* sym = args[i].as_symbol()) {
             result[sym->name] = args[i + 1];
         } else {
             break;

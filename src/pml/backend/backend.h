@@ -13,6 +13,7 @@
 
 #include "capabilities.h"
 #include "pml/core/error.h"
+#include "pml/filter/filter_backend.h"
 
 #include <cstdint>
 #include <memory>
@@ -26,6 +27,7 @@ namespace pml {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class GraphicObject;  ///< Defined in pml/graphics/graphic_object.h (Task 10)
+enum class BlendMode : uint8_t; ///< Defined in pml/layer/blend_mode.h
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Surface — abstract render target
@@ -57,9 +59,9 @@ struct Surface {
 /// Methods use `Result<T>` (std::expected) for error reporting. A method
 /// returning `Result<void>` succeeds with an empty expected or fails with
 /// a PMLException describing what went wrong.
-class RenderBackend {
+class RenderBackend : public FilterBackend {
 public:
-    virtual ~RenderBackend() = default;
+    ~RenderBackend() override = default;
 
     // ── Metadata ────────────────────────────────────────────────────
 
@@ -94,6 +96,11 @@ public:
         const std::string& format,
         int fps) -> Result<void> = 0;
 
+    /// Load an image file into a backend-specific Surface.
+    /// The caller owns the returned surface.
+    [[nodiscard]] virtual auto load_image(
+        const std::string& path) -> Result<std::unique_ptr<Surface>> = 0;
+
     // ── Compositing ────────────────────────────────────────────────────
 
     /// Composite a source surface onto a destination surface at (x, y).
@@ -101,6 +108,28 @@ public:
     /// compositing.  Used by spritesheet rendering.
     virtual auto composite(
         Surface& dst, Surface& src, int x, int y) -> Result<void> = 0;
+
+    /// Composite with a specific blend mode and global opacity.
+    virtual auto composite_with_blend(
+        Surface& dst, Surface& src, int x, int y,
+        BlendMode blend, float opacity) -> Result<void> = 0;
+
+    /// Use the alpha channel of `mask` to modulate the alpha of `dst`.
+    /// dst pixel alpha becomes dst_alpha * (mask_alpha / 255).
+    virtual auto apply_mask(Surface& dst, Surface& mask) -> Result<void> = 0;
+
+    /// Draw a GraphicObject into a fresh surface of the requested size.
+    /// Used by the compositor to capture a layer as a raster image.
+    [[nodiscard]] virtual auto draw_to_new_surface(
+        const GraphicObject& obj,
+        int width, int height,
+        uint32_t bg_color) -> Result<std::unique_ptr<Surface>> = 0;
+
+    /// True if this backend supports non-Normal blend modes.
+    [[nodiscard]] virtual auto supports_blend_mode() const noexcept -> bool = 0;
+
+    /// True if this backend can render layers to off-screen surfaces.
+    [[nodiscard]] virtual auto supports_layer_compositing() const noexcept -> bool = 0;
 
     // ── Shaders ─────────────────────────────────────────────────────
 

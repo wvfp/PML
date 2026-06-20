@@ -23,15 +23,4 @@ SkMatrix AffineTransform::to_skmatrix() const
 }
 #endif
 
-// ── Cairo integration ──────────────────────────────────────────────────────
-
-#ifdef PML_USE_CAIRO
-cairo_matrix_t AffineTransform::to_cairo_matrix() const
-{
-    cairo_matrix_t m;
-    cairo_matrix_init(&m, a, b, c, d, e, f);
-    return m;
-}
-#endif
-
 }  // namespace pml

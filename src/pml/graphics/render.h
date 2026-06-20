@@ -7,7 +7,7 @@
 
 #include "objects.h"
 #include "canvas.h"
-#include "types.h"
+#include "graphics_types.h"
 #include "error.h"
 
 #include <cstdint>
@@ -76,12 +76,15 @@ struct PathCommand {
 /// @param fps       Frames per second for animation output. If > 0, an
 ///                  animated image (e.g. GIF) is produced using the global
 ///                  timeline. Defaults to 0 (static image).
+/// @param duration_override  If > 0, overrides the timeline's total duration.
+///                           Useful for every-frame scenes with no animations.
 /// @return The output filename on success, or an error.
 [[nodiscard]] auto render(
     const std::string& filename,
     const std::string& fmt = "",
     std::shared_ptr<Canvas> canvas = nullptr,
-    int fps = 0)
+    int fps = 0,
+    double duration_override = 0.0)
     -> Result<std::string>;
 
 /// Render a GraphicObject at multiple scales.

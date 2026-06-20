@@ -79,7 +79,7 @@ const std::unordered_map<std::string, double> k_size_scale = {
     if (it == k_element_colors.end()) return {};
     return {GraphicObject(
         "ellipse",
-        std::unordered_map<std::string, Value>{{"cx", cx}, {"cy", cy}, {"rx", r}, {"ry", r}},
+        Params{{ParamKey::cx, cx}, {ParamKey::cy, cy}, {ParamKey::rx, r}, {ParamKey::ry, r}},
         it->second + "40",
         it->second,
         1.0)};
@@ -91,7 +91,7 @@ const std::unordered_map<std::string, double> k_size_scale = {
     if (ornament == "gem") {
         return {GraphicObject(
             "ellipse",
-            std::unordered_map<std::string, Value>{{"cx", x}, {"cy", y}, {"rx", 4.0}, {"ry", 4.0}},
+            Params{{ParamKey::cx, x}, {ParamKey::cy, y}, {ParamKey::rx, 4.0}, {ParamKey::ry, 4.0}},
             "#e74c3c",
             "#1a1a1a",
             1.0)};
@@ -99,7 +99,7 @@ const std::unordered_map<std::string, double> k_size_scale = {
     if (ornament == "rune") {
         return {GraphicObject(
             "line",
-            std::unordered_map<std::string, Value>{{"x1", x - 3.0}, {"y1", y - 3.0}, {"x2", x + 3.0}, {"y2", y + 3.0}},
+            Params{{ParamKey::x1, x - 3.0}, {ParamKey::y1, y - 3.0}, {ParamKey::x2, x + 3.0}, {ParamKey::y2, y + 3.0}},
             std::nullopt,
             "#85c1e9",
             1.5)};
@@ -107,7 +107,7 @@ const std::unordered_map<std::string, double> k_size_scale = {
     if (ornament == "engraved") {
         return {GraphicObject(
             "line",
-            std::unordered_map<std::string, Value>{{"x1", x - 4.0}, {"y1", y}, {"x2", x + 4.0}, {"y2", y}},
+            Params{{ParamKey::x1, x - 4.0}, {ParamKey::y1, y}, {ParamKey::x2, x + 4.0}, {ParamKey::y2, y}},
             std::nullopt,
             "#1a1a1a",
             0.8)};
@@ -162,11 +162,11 @@ std::shared_ptr<GraphicObject> create_weapon(
     const std::unordered_map<std::string, Value>& kwargs) {
     auto p = validate_params(weapon_schema(), kwargs);
 
-    std::string wtype = std::get<std::string>(p["type"]);
-    double s = get_size_scale(std::get<std::string>(p["size"]));
-    std::string mat_color = get_material_color(std::get<std::string>(p["material"]));
-    std::string element = std::get<std::string>(p["element"]);
-    std::string ornament = std::get<std::string>(p["ornament"]);
+    std::string wtype = *p["type"].as_string();
+    double s = get_size_scale(*p["size"].as_string());
+    std::string mat_color = get_material_color(*p["material"].as_string());
+    std::string element = *p["element"].as_string();
+    std::string ornament = *p["ornament"].as_string();
 
     std::vector<GraphicObject> children;
 
@@ -174,19 +174,19 @@ std::shared_ptr<GraphicObject> create_weapon(
         double blade_h = 60.0 * s;
         children.emplace_back(
             "polygon",
-            std::unordered_map<std::string, Value>{{"points", make_points({0.0, 0.0, -5.0 * s, -blade_h, 5.0 * s, -blade_h})}},
+            Params{{ParamKey::points, make_points({0.0, 0.0, -5.0 * s, -blade_h, 5.0 * s, -blade_h})}},
             mat_color,
             "#1a1a1a",
             1.5);
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -12.0 * s}, {"y", 0.0}, {"w", 24.0 * s}, {"h", 4.0 * s}},
+            Params{{ParamKey::x, -12.0 * s}, {ParamKey::y, 0.0}, {ParamKey::w, 24.0 * s}, {ParamKey::h, 4.0 * s}},
             "#8B4513",
             "#1a1a1a",
             1.0);
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -3.0 * s}, {"y", 4.0 * s}, {"w", 6.0 * s}, {"h", 16.0 * s}},
+            Params{{ParamKey::x, -3.0 * s}, {ParamKey::y, 4.0 * s}, {ParamKey::w, 6.0 * s}, {ParamKey::h, 16.0 * s}},
             "#5D4037",
             "#1a1a1a",
             1.0);
@@ -196,13 +196,13 @@ std::shared_ptr<GraphicObject> create_weapon(
         double handle_h = 50.0 * s;
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -2.0 * s}, {"y", 0.0}, {"w", 4.0 * s}, {"h", handle_h}},
+            Params{{ParamKey::x, -2.0 * s}, {ParamKey::y, 0.0}, {ParamKey::w, 4.0 * s}, {ParamKey::h, handle_h}},
             "#8B4513",
             "#1a1a1a",
             1.0);
         children.emplace_back(
             "polygon",
-            std::unordered_map<std::string, Value>{{"points", make_points({
+            Params{{ParamKey::points, make_points({
                 2.0 * s, 4.0 * s,
                 20.0 * s, -8.0 * s,
                 20.0 * s, 12.0 * s})}},
@@ -213,34 +213,34 @@ std::shared_ptr<GraphicObject> create_weapon(
         double bow_h = 50.0 * s;
         children.emplace_back(
             "line",
-            std::unordered_map<std::string, Value>{{"x1", 0.0}, {"y1", -bow_h / 2.0}, {"x2", 8.0 * s}, {"y2", 0.0}},
+            Params{{ParamKey::x1, 0.0}, {ParamKey::y1, -bow_h / 2.0}, {ParamKey::x2, 8.0 * s}, {ParamKey::y2, 0.0}},
             std::nullopt,
             mat_color,
             3.0 * s);
         children.emplace_back(
             "line",
-            std::unordered_map<std::string, Value>{{"x1", 8.0 * s}, {"y1", 0.0}, {"x2", 0.0}, {"y2", bow_h / 2.0}},
+            Params{{ParamKey::x1, 8.0 * s}, {ParamKey::y1, 0.0}, {ParamKey::x2, 0.0}, {ParamKey::y2, bow_h / 2.0}},
             std::nullopt,
             mat_color,
             3.0 * s);
         children.emplace_back(
             "line",
-            std::unordered_map<std::string, Value>{{"x1", 0.0}, {"y1", -bow_h / 2.0}, {"x2", 0.0}, {"y2", bow_h / 2.0}},
+            Params{{ParamKey::x1, 0.0}, {ParamKey::y1, -bow_h / 2.0}, {ParamKey::x2, 0.0}, {ParamKey::y2, bow_h / 2.0}},
             std::nullopt,
             "#f5f5dc",
             1.0);
     } else if (wtype == "staff") {
         double staff_h = 80.0 * s;
-        std::string material = std::get<std::string>(p["material"]);
+        std::string material = *p["material"].as_string();
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -2.0 * s}, {"y", -staff_h}, {"w", 4.0 * s}, {"h", staff_h}},
+            Params{{ParamKey::x, -2.0 * s}, {ParamKey::y, -staff_h}, {ParamKey::w, 4.0 * s}, {ParamKey::h, staff_h}},
             material == "wood" ? mat_color : "#5D4037",
             "#1a1a1a",
             1.5);
         children.emplace_back(
             "ellipse",
-            std::unordered_map<std::string, Value>{{"cx", 0.0}, {"cy", -staff_h - 8.0 * s}, {"rx", 8.0 * s}, {"ry", 8.0 * s}},
+            Params{{ParamKey::cx, 0.0}, {ParamKey::cy, -staff_h - 8.0 * s}, {ParamKey::rx, 8.0 * s}, {ParamKey::ry, 8.0 * s}},
             get_element_color(element),
             "#1a1a1a",
             1.5);
@@ -250,19 +250,19 @@ std::shared_ptr<GraphicObject> create_weapon(
         double blade_h = 30.0 * s;
         children.emplace_back(
             "polygon",
-            std::unordered_map<std::string, Value>{{"points", make_points({0.0, 0.0, -4.0 * s, -blade_h, 4.0 * s, -blade_h})}},
+            Params{{ParamKey::points, make_points({0.0, 0.0, -4.0 * s, -blade_h, 4.0 * s, -blade_h})}},
             mat_color,
             "#1a1a1a",
             1.5);
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -8.0 * s}, {"y", 0.0}, {"w", 16.0 * s}, {"h", 3.0 * s}},
+            Params{{ParamKey::x, -8.0 * s}, {ParamKey::y, 0.0}, {ParamKey::w, 16.0 * s}, {ParamKey::h, 3.0 * s}},
             "#8B4513",
             "#1a1a1a",
             1.0);
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -2.0 * s}, {"y", 3.0 * s}, {"w", 4.0 * s}, {"h", 10.0 * s}},
+            Params{{ParamKey::x, -2.0 * s}, {ParamKey::y, 3.0 * s}, {ParamKey::w, 4.0 * s}, {ParamKey::h, 10.0 * s}},
             "#5D4037",
             "#1a1a1a",
             1.0);
@@ -270,13 +270,13 @@ std::shared_ptr<GraphicObject> create_weapon(
         double shaft_h = 80.0 * s;
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -2.0 * s}, {"y", -shaft_h}, {"w", 4.0 * s}, {"h", shaft_h}},
+            Params{{ParamKey::x, -2.0 * s}, {ParamKey::y, -shaft_h}, {ParamKey::w, 4.0 * s}, {ParamKey::h, shaft_h}},
             "#8B4513",
             "#1a1a1a",
             1.0);
         children.emplace_back(
             "polygon",
-            std::unordered_map<std::string, Value>{{"points", make_points({
+            Params{{ParamKey::points, make_points({
                 0.0, -shaft_h - 16.0 * s,
                 -5.0 * s, -shaft_h,
                 5.0 * s, -shaft_h})}},
@@ -286,13 +286,13 @@ std::shared_ptr<GraphicObject> create_weapon(
     } else if (wtype == "gun") {
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", 0.0}, {"y", -4.0 * s}, {"w", 30.0 * s}, {"h", 8.0 * s}},
+            Params{{ParamKey::x, 0.0}, {ParamKey::y, -4.0 * s}, {ParamKey::w, 30.0 * s}, {ParamKey::h, 8.0 * s}},
             mat_color,
             "#1a1a1a",
             1.5);
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", 2.0 * s}, {"y", 4.0 * s}, {"w", 8.0 * s}, {"h", 16.0 * s}},
+            Params{{ParamKey::x, 2.0 * s}, {ParamKey::y, 4.0 * s}, {ParamKey::w, 8.0 * s}, {ParamKey::h, 16.0 * s}},
             "#5D4037",
             "#1a1a1a",
             1.0);
@@ -303,13 +303,13 @@ std::shared_ptr<GraphicObject> create_weapon(
 
     return std::make_shared<GraphicObject>(
         "group",
-        std::unordered_map<std::string, Value>{},
+        Params{},
         std::nullopt,
         std::nullopt,
         1.0,
         AffineTransform::identity(),
         std::move(children),
-        std::unordered_map<std::string, Value>{{"component", std::string("weapon")}, {"type", wtype}, {"size", std::get<std::string>(p["size"])}});
+        std::unordered_map<std::string, Value>{{"component", std::string("weapon")}, {"type", wtype}, {"size", *p["size"].as_string()}});
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -320,12 +320,12 @@ std::shared_ptr<GraphicObject> create_potion(
     const std::unordered_map<std::string, Value>& kwargs) {
     auto p = validate_params(potion_schema(), kwargs);
 
-    std::string type = std::get<std::string>(p["type"]);
-    std::string container = std::get<std::string>(p["container"]);
-    double s = get_size_scale(std::get<std::string>(p["size"]));
+    std::string type = *p["type"].as_string();
+    std::string container = *p["container"].as_string();
+    double s = get_size_scale(*p["size"].as_string());
     std::string liquid_color = get_potion_color(type);
     if (type != "health" && type != "mana" && type != "buff" && type != "poison" && type != "bomb") {
-        liquid_color = std::get<std::string>(p["color"]);
+        liquid_color = *p["color"].as_string();
     }
 
     std::vector<GraphicObject> children;
@@ -333,76 +333,76 @@ std::shared_ptr<GraphicObject> create_potion(
     if (container == "bottle") {
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -10.0 * s}, {"y", -20.0 * s}, {"w", 20.0 * s}, {"h", 24.0 * s}},
+            Params{{ParamKey::x, -10.0 * s}, {ParamKey::y, -20.0 * s}, {ParamKey::w, 20.0 * s}, {ParamKey::h, 24.0 * s}},
             "#d5e8f0",
             "#1a1a1a",
             1.5);
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -8.0 * s}, {"y", -14.0 * s}, {"w", 16.0 * s}, {"h", 16.0 * s}},
+            Params{{ParamKey::x, -8.0 * s}, {ParamKey::y, -14.0 * s}, {ParamKey::w, 16.0 * s}, {ParamKey::h, 16.0 * s}},
             liquid_color,
             std::nullopt,
             0.0);
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -4.0 * s}, {"y", -28.0 * s}, {"w", 8.0 * s}, {"h", 10.0 * s}},
+            Params{{ParamKey::x, -4.0 * s}, {ParamKey::y, -28.0 * s}, {ParamKey::w, 8.0 * s}, {ParamKey::h, 10.0 * s}},
             "#d5e8f0",
             "#1a1a1a",
             1.0);
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -5.0 * s}, {"y", -32.0 * s}, {"w", 10.0 * s}, {"h", 5.0 * s}},
+            Params{{ParamKey::x, -5.0 * s}, {ParamKey::y, -32.0 * s}, {ParamKey::w, 10.0 * s}, {ParamKey::h, 5.0 * s}},
             "#8B4513",
             "#1a1a1a",
             1.0);
     } else if (container == "flask") {
         children.emplace_back(
             "ellipse",
-            std::unordered_map<std::string, Value>{{"cx", 0.0}, {"cy", -8.0 * s}, {"rx", 14.0 * s}, {"ry", 14.0 * s}},
+            Params{{ParamKey::cx, 0.0}, {ParamKey::cy, -8.0 * s}, {ParamKey::rx, 14.0 * s}, {ParamKey::ry, 14.0 * s}},
             "#d5e8f0",
             "#1a1a1a",
             1.5);
         children.emplace_back(
             "ellipse",
-            std::unordered_map<std::string, Value>{{"cx", 0.0}, {"cy", -6.0 * s}, {"rx", 11.0 * s}, {"ry", 10.0 * s}},
+            Params{{ParamKey::cx, 0.0}, {ParamKey::cy, -6.0 * s}, {ParamKey::rx, 11.0 * s}, {ParamKey::ry, 10.0 * s}},
             liquid_color,
             std::nullopt,
             0.0);
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -3.0 * s}, {"y", -26.0 * s}, {"w", 6.0 * s}, {"h", 10.0 * s}},
+            Params{{ParamKey::x, -3.0 * s}, {ParamKey::y, -26.0 * s}, {ParamKey::w, 6.0 * s}, {ParamKey::h, 10.0 * s}},
             "#d5e8f0",
             "#1a1a1a",
             1.0);
     } else if (container == "vial") {
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -6.0 * s}, {"y", -24.0 * s}, {"w", 12.0 * s}, {"h", 28.0 * s}},
+            Params{{ParamKey::x, -6.0 * s}, {ParamKey::y, -24.0 * s}, {ParamKey::w, 12.0 * s}, {ParamKey::h, 28.0 * s}},
             "#d5e8f0",
             "#1a1a1a",
             1.5);
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -4.0 * s}, {"y", -16.0 * s}, {"w", 8.0 * s}, {"h", 18.0 * s}},
+            Params{{ParamKey::x, -4.0 * s}, {ParamKey::y, -16.0 * s}, {ParamKey::w, 8.0 * s}, {ParamKey::h, 18.0 * s}},
             liquid_color,
             std::nullopt,
             0.0);
     } else {  // jar
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -12.0 * s}, {"y", -18.0 * s}, {"w", 24.0 * s}, {"h", 22.0 * s}},
+            Params{{ParamKey::x, -12.0 * s}, {ParamKey::y, -18.0 * s}, {ParamKey::w, 24.0 * s}, {ParamKey::h, 22.0 * s}},
             "#d5e8f0",
             "#1a1a1a",
             1.5);
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -10.0 * s}, {"y", -14.0 * s}, {"w", 20.0 * s}, {"h", 16.0 * s}},
+            Params{{ParamKey::x, -10.0 * s}, {ParamKey::y, -14.0 * s}, {ParamKey::w, 20.0 * s}, {ParamKey::h, 16.0 * s}},
             liquid_color,
             std::nullopt,
             0.0);
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -14.0 * s}, {"y", -22.0 * s}, {"w", 28.0 * s}, {"h", 5.0 * s}},
+            Params{{ParamKey::x, -14.0 * s}, {ParamKey::y, -22.0 * s}, {ParamKey::w, 28.0 * s}, {ParamKey::h, 5.0 * s}},
             "#7f8c8d",
             "#1a1a1a",
             1.0);
@@ -410,7 +410,7 @@ std::shared_ptr<GraphicObject> create_potion(
 
     return std::make_shared<GraphicObject>(
         "group",
-        std::unordered_map<std::string, Value>{},
+        Params{},
         std::nullopt,
         std::nullopt,
         1.0,
@@ -427,9 +427,9 @@ std::shared_ptr<GraphicObject> create_chest(
     const std::unordered_map<std::string, Value>& kwargs) {
     auto p = validate_params(chest_schema(), kwargs);
 
-    std::string type = std::get<std::string>(p["type"]);
-    std::string state = std::get<std::string>(p["state"]);
-    double s = get_size_scale(std::get<std::string>(p["size"]));
+    std::string type = *p["type"].as_string();
+    std::string state = *p["state"].as_string();
+    double s = get_size_scale(*p["size"].as_string());
 
     std::string main_c = "#8B4513";
     std::string dark_c = "#5D4037";
@@ -444,7 +444,7 @@ std::shared_ptr<GraphicObject> create_chest(
 
     children.emplace_back(
         "rect",
-        std::unordered_map<std::string, Value>{{"x", -w / 2.0}, {"y", -h / 2.0}, {"w", w}, {"h", h}},
+        Params{{ParamKey::x, -w / 2.0}, {ParamKey::y, -h / 2.0}, {ParamKey::w, w}, {ParamKey::h, h}},
         main_c,
         "#1a1a1a",
         2.0);
@@ -452,27 +452,27 @@ std::shared_ptr<GraphicObject> create_chest(
     if (state == "open") {
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -w / 2.0}, {"y", -h / 2.0 - h * 0.5}, {"w", w}, {"h", h * 0.4}},
+            Params{{ParamKey::x, -w / 2.0}, {ParamKey::y, -h / 2.0 - h * 0.5}, {ParamKey::w, w}, {ParamKey::h, h * 0.4}},
             dark_c,
             "#1a1a1a",
             1.5);
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -w / 2.0 + 4.0}, {"y", -h / 2.0 + 2.0}, {"w", w - 8.0}, {"h", h * 0.4}},
+            Params{{ParamKey::x, -w / 2.0 + 4.0}, {ParamKey::y, -h / 2.0 + 2.0}, {ParamKey::w, w - 8.0}, {ParamKey::h, h * 0.4}},
             "#f9e79f",
             std::nullopt,
             0.0);
     } else {
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -w / 2.0}, {"y", -h / 2.0 - h * 0.3}, {"w", w}, {"h", h * 0.35}},
+            Params{{ParamKey::x, -w / 2.0}, {ParamKey::y, -h / 2.0 - h * 0.3}, {ParamKey::w, w}, {ParamKey::h, h * 0.35}},
             dark_c,
             "#1a1a1a",
             1.5);
         if (state == "locked") {
             children.emplace_back(
                 "ellipse",
-                std::unordered_map<std::string, Value>{{"cx", 0.0}, {"cy", -h * 0.15}, {"rx", 4.0 * s}, {"ry", 4.0 * s}},
+                Params{{ParamKey::cx, 0.0}, {ParamKey::cy, -h * 0.15}, {ParamKey::rx, 4.0 * s}, {ParamKey::ry, 4.0 * s}},
                 "#f1c40f",
                 "#1a1a1a",
                 1.0);
@@ -481,14 +481,14 @@ std::shared_ptr<GraphicObject> create_chest(
 
     children.emplace_back(
         "line",
-        std::unordered_map<std::string, Value>{{"x1", -w / 2.0}, {"y1", 0.0}, {"x2", w / 2.0}, {"y2", 0.0}},
+        Params{{ParamKey::x1, -w / 2.0}, {ParamKey::y1, 0.0}, {ParamKey::x2, w / 2.0}, {ParamKey::y2, 0.0}},
         std::nullopt,
         "#1a1a1a",
         1.5);
 
     return std::make_shared<GraphicObject>(
         "group",
-        std::unordered_map<std::string, Value>{},
+        Params{},
         std::nullopt,
         std::nullopt,
         1.0,
@@ -505,52 +505,52 @@ std::shared_ptr<GraphicObject> create_generic_item(
     const std::unordered_map<std::string, Value>& kwargs) {
     auto p = validate_params(generic_item_schema(), kwargs);
 
-    std::string color = std::get<std::string>(p["color"]);
-    bool outline = std::get<bool>(p["outline"]);
+    std::string color = *p["color"].as_string();
+    bool outline = p["outline"].bool_val();
     std::string outline_color = outline ? "#1a1a1a" : "";
     double ow = outline ? 2.0 : 0.0;
-    std::string shape = std::get<std::string>(p["base-shape"]);
+    std::string shape = *p["base-shape"].as_string();
 
     std::vector<GraphicObject> children;
 
     if (shape == "circle") {
         children.emplace_back(
             "ellipse",
-            std::unordered_map<std::string, Value>{{"cx", 0.0}, {"cy", 0.0}, {"rx", 16.0}, {"ry", 16.0}},
+            Params{{ParamKey::cx, 0.0}, {ParamKey::cy, 0.0}, {ParamKey::rx, 16.0}, {ParamKey::ry, 16.0}},
             color,
             outline ? std::optional<std::string>(outline_color) : std::nullopt,
             ow);
     } else if (shape == "rect") {
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -16.0}, {"y", -16.0}, {"w", 32.0}, {"h", 32.0}},
+            Params{{ParamKey::x, -16.0}, {ParamKey::y, -16.0}, {ParamKey::w, 32.0}, {ParamKey::h, 32.0}},
             color,
             outline ? std::optional<std::string>(outline_color) : std::nullopt,
             ow);
     } else if (shape == "diamond") {
         children.emplace_back(
             "polygon",
-            std::unordered_map<std::string, Value>{{"points", make_points({0.0, -18.0, 18.0, 0.0, 0.0, 18.0, -18.0, 0.0})}},
+            Params{{ParamKey::points, make_points({0.0, -18.0, 18.0, 0.0, 0.0, 18.0, -18.0, 0.0})}},
             color,
             outline ? std::optional<std::string>(outline_color) : std::nullopt,
             ow);
     }
 
     const Value& detail = p["detail"];
-    if (const auto* go = std::get_if<std::shared_ptr<GraphicObject>>(&detail)) {
+    if (const auto* go = detail.as_graphic_object()) {
         if (*go) {
             children.push_back(**go);
         }
     }
 
     std::string name = "item";
-    if (const auto* s = std::get_if<std::string>(&p["name"])) {
+    if (const auto* s = p["name"].as_string()) {
         name = *s;
     }
 
     return std::make_shared<GraphicObject>(
         "group",
-        std::unordered_map<std::string, Value>{},
+        Params{},
         std::nullopt,
         std::nullopt,
         1.0,

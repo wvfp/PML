@@ -31,7 +31,7 @@ HairParts bangs(const std::string& color) {
     double bh = 14.0;
     parts.emplace_back(
         "rect",
-        std::unordered_map<std::string, Value>{{"x", -bw / 2.0}, {"y", -k_head_w / 2.0 - 4.0}, {"w", bw}, {"h", bh}},
+        Params{{ParamKey::x, -bw / 2.0}, {ParamKey::y, -k_head_w / 2.0 - 4.0}, {ParamKey::w, bw}, {ParamKey::h, bh}},
         color,
         "#1a1a1a",
         1.5);
@@ -40,7 +40,7 @@ HairParts bangs(const std::string& color) {
         double sx = -bw / 2.0 + strand_spacing * (i + 1);
         parts.emplace_back(
             "line",
-            std::unordered_map<std::string, Value>{{"x1", sx}, {"y1", -k_head_w / 2.0 - 4.0}, {"x2", sx + 3.0}, {"y2", -k_head_w / 2.0 - 4.0 + bh}},
+            Params{{ParamKey::x1, sx}, {ParamKey::y1, -k_head_w / 2.0 - 4.0}, {ParamKey::x2, sx + 3.0}, {ParamKey::y2, -k_head_w / 2.0 - 4.0 + bh}},
             std::nullopt,
             "#1a1a1a",
             0.8);
@@ -53,14 +53,14 @@ HairParts create_short(const std::string& color, double /*length*/, bool with_ba
     double cap_h = 16.0;
     parts.emplace_back(
         "ellipse",
-        std::unordered_map<std::string, Value>{{"cx", 0.0}, {"cy", -k_head_w / 2.0 + 4.0}, {"rx", k_head_w / 2.0 + 4.0}, {"ry", cap_h}},
+        Params{{ParamKey::cx, 0.0}, {ParamKey::cy, -k_head_w / 2.0 + 4.0}, {ParamKey::rx, k_head_w / 2.0 + 4.0}, {ParamKey::ry, cap_h}},
         color,
         "#1a1a1a",
         1.5);
     for (double dx : {-k_head_w / 2.0 - 2.0, k_head_w / 2.0 + 2.0}) {
         parts.emplace_back(
             "ellipse",
-            std::unordered_map<std::string, Value>{{"cx", dx}, {"cy", -k_head_w / 4.0}, {"rx", 6.0}, {"ry", 12.0}},
+            Params{{ParamKey::cx, dx}, {ParamKey::cy, -k_head_w / 4.0}, {ParamKey::rx, 6.0}, {ParamKey::ry, 12.0}},
             color,
             "#1a1a1a",
             1.0);
@@ -76,7 +76,7 @@ HairParts create_medium(const std::string& color, double length, bool with_bangs
     HairParts parts;
     parts.emplace_back(
         "ellipse",
-        std::unordered_map<std::string, Value>{{"cx", 0.0}, {"cy", -k_head_w / 2.0 + 4.0}, {"rx", k_head_w / 2.0 + 5.0}, {"ry", 18.0}},
+        Params{{ParamKey::cx, 0.0}, {ParamKey::cy, -k_head_w / 2.0 + 4.0}, {ParamKey::rx, k_head_w / 2.0 + 5.0}, {ParamKey::ry, 18.0}},
         color,
         "#1a1a1a",
         1.5);
@@ -84,7 +84,7 @@ HairParts create_medium(const std::string& color, double length, bool with_bangs
     for (double dx : {-k_head_w / 2.0 - 4.0, k_head_w / 2.0 + 4.0}) {
         parts.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", dx - 8.0}, {"y", -k_head_w / 4.0}, {"w", 16.0}, {"h", side_h}},
+            Params{{ParamKey::x, dx - 8.0}, {ParamKey::y, -k_head_w / 4.0}, {ParamKey::w, 16.0}, {ParamKey::h, side_h}},
             color,
             "#1a1a1a",
             1.0);
@@ -100,7 +100,7 @@ HairParts create_long(const std::string& color, double length, bool with_bangs, 
     HairParts parts;
     parts.emplace_back(
         "ellipse",
-        std::unordered_map<std::string, Value>{{"cx", 0.0}, {"cy", -k_head_w / 2.0 + 4.0}, {"rx", k_head_w / 2.0 + 6.0}, {"ry", 20.0}},
+        Params{{ParamKey::cx, 0.0}, {ParamKey::cy, -k_head_w / 2.0 + 4.0}, {ParamKey::rx, k_head_w / 2.0 + 6.0}, {ParamKey::ry, 20.0}},
         color,
         "#1a1a1a",
         1.5);
@@ -108,14 +108,14 @@ HairParts create_long(const std::string& color, double length, bool with_bangs, 
     for (double dx : {-k_head_w / 2.0 - 5.0, k_head_w / 2.0 + 5.0}) {
         parts.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", dx - 10.0}, {"y", -k_head_w / 4.0}, {"w", 20.0}, {"h", side_h}},
+            Params{{ParamKey::x, dx - 10.0}, {ParamKey::y, -k_head_w / 4.0}, {ParamKey::w, 20.0}, {ParamKey::h, side_h}},
             color,
             "#1a1a1a",
             1.0);
     }
     parts.emplace_back(
         "rect",
-        std::unordered_map<std::string, Value>{{"x", -k_head_w / 2.0 - 4.0}, {"y", -k_head_w / 2.0 + 10.0}, {"w", k_head_w + 8.0}, {"h", length * 0.7}},
+        Params{{ParamKey::x, -k_head_w / 2.0 - 4.0}, {ParamKey::y, -k_head_w / 2.0 + 10.0}, {ParamKey::w, k_head_w + 8.0}, {ParamKey::h, length * 0.7}},
         color,
         "#1a1a1a",
         1.0);
@@ -132,13 +132,13 @@ HairParts create_ponytail(const std::string& color, double length, bool with_ban
     double tail_h = std::min(length * 0.7, 60.0);
     parts.emplace_back(
         "rect",
-        std::unordered_map<std::string, Value>{{"x", -tail_w / 2.0}, {"y", -k_head_w / 2.0 - 8.0}, {"w", tail_w}, {"h", tail_h}},
+        Params{{ParamKey::x, -tail_w / 2.0}, {ParamKey::y, -k_head_w / 2.0 - 8.0}, {ParamKey::w, tail_w}, {ParamKey::h, tail_h}},
         color,
         "#1a1a1a",
         1.5);
     parts.emplace_back(
         "ellipse",
-        std::unordered_map<std::string, Value>{{"cx", 0.0}, {"cy", -k_head_w / 2.0 - 8.0}, {"rx", tail_w / 2.0 + 2.0}, {"ry", 4.0}},
+        Params{{ParamKey::cx, 0.0}, {ParamKey::cy, -k_head_w / 2.0 - 8.0}, {ParamKey::rx, tail_w / 2.0 + 2.0}, {ParamKey::ry, 4.0}},
         "#c0392b",
         "#1a1a1a",
         1.0);
@@ -151,13 +151,13 @@ HairParts create_twintails(const std::string& color, double length, bool with_ba
     for (double dx : {-k_head_w / 2.0 - 8.0, k_head_w / 2.0 + 8.0}) {
         parts.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", dx - 7.0}, {"y", -k_head_w / 4.0}, {"w", 14.0}, {"h", tail_h}},
+            Params{{ParamKey::x, dx - 7.0}, {ParamKey::y, -k_head_w / 4.0}, {ParamKey::w, 14.0}, {ParamKey::h, tail_h}},
             color,
             "#1a1a1a",
             1.5);
         parts.emplace_back(
             "ellipse",
-            std::unordered_map<std::string, Value>{{"cx", dx}, {"cy", -k_head_w / 4.0}, {"rx", 9.0}, {"ry", 4.0}},
+            Params{{ParamKey::cx, dx}, {ParamKey::cy, -k_head_w / 4.0}, {ParamKey::rx, 9.0}, {ParamKey::ry, 4.0}},
             "#e74c3c",
             "#1a1a1a",
             1.0);
@@ -179,8 +179,8 @@ HairParts create_spiky(const std::string& color, double /*length*/, bool with_ba
         double perp_y = std::cos(angle) * 6.0;
         parts.emplace_back(
             "polygon",
-            std::unordered_map<std::string, Value>{
-                {"points",
+            Params{
+                {ParamKey::points,
                  poly({bx + perp_x, by + perp_y,
                        tx, ty,
                        bx - perp_x, by - perp_y})}},
@@ -200,7 +200,7 @@ HairParts create_bob(const std::string& color, double length, bool with_bangs, b
     double cap_h = 20.0;
     parts.emplace_back(
         "ellipse",
-        std::unordered_map<std::string, Value>{{"cx", 0.0}, {"cy", -k_head_w / 2.0 + 4.0}, {"rx", k_head_w / 2.0 + 6.0}, {"ry", cap_h}},
+        Params{{ParamKey::cx, 0.0}, {ParamKey::cy, -k_head_w / 2.0 + 4.0}, {ParamKey::rx, k_head_w / 2.0 + 6.0}, {ParamKey::ry, cap_h}},
         color,
         "#1a1a1a",
         1.5);
@@ -208,7 +208,7 @@ HairParts create_bob(const std::string& color, double length, bool with_bangs, b
     for (double dx : {-k_head_w / 2.0 - 6.0, k_head_w / 2.0 + 6.0}) {
         parts.emplace_back(
             "ellipse",
-            std::unordered_map<std::string, Value>{{"cx", dx}, {"cy", 0.0}, {"rx", 10.0}, {"ry", bob_h}},
+            Params{{ParamKey::cx, dx}, {ParamKey::cy, 0.0}, {ParamKey::rx, 10.0}, {ParamKey::ry, bob_h}},
             color,
             "#1a1a1a",
             1.0);
@@ -224,7 +224,7 @@ HairParts create_bald(const std::string& /*color*/, double /*length*/, bool /*ba
     HairParts parts;
     parts.emplace_back(
         "ellipse",
-        std::unordered_map<std::string, Value>{{"cx", -6.0}, {"cy", -k_head_w / 2.0 + 8.0}, {"rx", 8.0}, {"ry", 5.0}},
+        Params{{ParamKey::cx, -6.0}, {ParamKey::cy, -k_head_w / 2.0 + 8.0}, {ParamKey::rx, 8.0}, {ParamKey::ry, 5.0}},
         "#FFFFFF");
     return parts;
 }
@@ -271,11 +271,11 @@ std::shared_ptr<GraphicObject> create_hair(
     const std::unordered_map<std::string, Value>& kwargs) {
     auto p = validate_params(hair_schema(), kwargs);
 
-    std::string style = std::get<std::string>(p["style"]);
-    std::string color = std::get<std::string>(p["color"]);
-    double length = std::get<double>(p["length"]);
-    bool bangs_flag = std::get<bool>(p["bangs"]);
-    bool highlights = std::get<bool>(p["highlights"]);
+    std::string style = *p["style"].as_string();
+    std::string color = *p["color"].as_string();
+    double length = p["length"].double_val();
+    bool bangs_flag = p["bangs"].bool_val();
+    bool highlights = p["highlights"].bool_val();
 
     HairMaker maker = create_medium;
     auto it = k_hair_makers.find(style);
@@ -287,7 +287,7 @@ std::shared_ptr<GraphicObject> create_hair(
 
     return std::make_shared<GraphicObject>(
         "group",
-        std::unordered_map<std::string, Value>{},
+        Params{},
         std::nullopt,
         std::nullopt,
         1.0,

@@ -33,8 +33,8 @@ Palette::Palette(std::string n, std::unordered_map<std::string, std::string> c)
 std::string Palette::get(const std::string& key) const {
     auto it = colors.find(key);
     if (it == colors.end()) {
-        std::cerr << "Warning: palette '" << name << "' has no color '"
-                  << key << "', using #808080" << std::endl;
+        std::cerr << "Warning: palette '" << name << "' has no color '" << key << "', using #808080"
+                  << std::endl;
         return "#808080";
     }
     return it->second;
@@ -49,41 +49,40 @@ namespace {
 std::unordered_map<std::string, std::shared_ptr<Palette>> make_predefined_palettes() {
     std::unordered_map<std::string, std::shared_ptr<Palette>> palettes;
 
-    palettes["dark-hero"] = std::make_shared<Palette>(
-        "dark-hero",
-        std::unordered_map<std::string, std::string>{
-            {"hair",             "#2c2c2c"},
-            {"skin",             "#fce4c8"},
-            {"skin-shadow",      "#d4a574"},
-            {"eyes",             "#4a90d9"},
-            {"outfit-primary",   "#1a1a2e"},
-            {"outfit-secondary", "#16213e"},
-            {"outline",          "#0a0a0a"},
-            {"highlight",        "#ffffff"},
-        }
-    );
+    palettes["dark-hero"] = std::make_shared<Palette>("dark-hero",
+                                                      std::unordered_map<std::string, std::string>{
+                                                          {"hair", "#2c2c2c"},
+                                                          {"skin", "#fce4c8"},
+                                                          {"skin-shadow", "#d4a574"},
+                                                          {"eyes", "#4a90d9"},
+                                                          {"outfit-primary", "#1a1a2e"},
+                                                          {"outfit-secondary", "#16213e"},
+                                                          {"outline", "#0a0a0a"},
+                                                          {"highlight", "#ffffff"},
+                                                      });
 
-    palettes["warm-skin"] = std::make_shared<Palette>(
-        "warm-skin",
-        std::unordered_map<std::string, std::string>{
-            {"skin",           "#f5d0a9"},
-            {"skin-shadow",    "#d4a574"},
-            {"skin-highlight", "#ffe8cc"},
-        }
-    );
+    palettes["warm-skin"] = std::make_shared<Palette>("warm-skin",
+                                                      std::unordered_map<std::string, std::string>{
+                                                          {"skin", "#f5d0a9"},
+                                                          {"skin-shadow", "#d4a574"},
+                                                          {"skin-highlight", "#ffe8cc"},
+                                                      });
 
     return palettes;
 }
 
-}  // anonymous namespace
+} // anonymous namespace
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PaletteManager — global singleton
 // ═══════════════════════════════════════════════════════════════════════════════
 
 PaletteManager& PaletteManager::instance() {
-    static PaletteManager mgr;
-    return mgr;
+    auto& ctx = PMLContext::current();
+    if (!ctx.palettes) {
+        ctx.palettes = std::make_unique<PaletteManager>();
+    }
+    return *ctx.palettes;
 }
 
 PaletteManager::PaletteManager()
@@ -97,8 +96,7 @@ void PaletteManager::define(const std::string& name, std::shared_ptr<Palette> pa
 std::shared_ptr<Palette> PaletteManager::get(const std::string& name) const {
     auto it = m_palettes.find(name);
     if (it == m_palettes.end()) {
-        std::cerr << "Warning: unknown palette '" << name
-                  << "', returning nullptr" << std::endl;
+        std::cerr << "Warning: unknown palette '" << name << "', returning nullptr" << std::endl;
         return nullptr;
     }
     return it->second;
@@ -121,45 +119,39 @@ std::shared_ptr<Palette> PaletteManager::active() const {
 /// Registers a new palette in the global registry.
 /// The first argument is the palette name (string).
 /// The second argument is a list of [key, color] pairs.
-static Result<Value> builtin_define_palette(
-    const std::vector<Value>& args, Environment&) {
+static Result<Value> builtin_define_palette(const std::vector<Value>& args, Environment&) {
 
     if (args.size() != 2) {
-        return std::unexpected(
-            arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
+        return std::unexpected(arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
     }
 
     // Extract palette name
-    const auto* name_str = std::get_if<std::string>(&args[0]);
+    const auto* name_str = args[0].as_string();
     if (!name_str) {
-        return std::unexpected(
-            type_error("define-palette: first argument must be a string"));
+        return std::unexpected(type_error("define-palette: first argument must be a string"));
     }
     std::string palette_name = *name_str;
 
     // Extract color list
-    const auto* color_list = std::get_if<std::shared_ptr<ValueList>>(&args[1]);
+    const auto* color_list = args[1].as_list();
     if (!color_list || !*color_list) {
-        return std::unexpected(
-            type_error("define-palette: second argument must be a list"));
+        return std::unexpected(type_error("define-palette: second argument must be a list"));
     }
 
     std::unordered_map<std::string, std::string> colors;
     for (const auto& pair_val : (*color_list)->elements) {
-        const auto* pair_list = std::get_if<std::shared_ptr<ValueList>>(&pair_val);
+        const auto* pair_list = pair_val.as_list();
         if (!pair_list || !*pair_list || (*pair_list)->elements.size() < 2) {
-            return std::unexpected(
-                type_error("define-palette: each entry must be a list of "
-                           "(key color)"));
+            return std::unexpected(type_error("define-palette: each entry must be a list of "
+                                              "(key color)"));
         }
         const auto& elements = (*pair_list)->elements;
 
-        const auto* key = std::get_if<std::string>(&elements[0]);
-        const auto* color = std::get_if<std::string>(&elements[1]);
+        const auto* key = elements[0].as_string();
+        const auto* color = elements[1].as_string();
         if (!key || !color) {
-            return std::unexpected(
-                type_error("define-palette: each entry must be a list of "
-                           "(string string)"));
+            return std::unexpected(type_error("define-palette: each entry must be a list of "
+                                              "(string string)"));
         }
         colors[*key] = *color;
     }
@@ -178,24 +170,21 @@ static Result<Value> builtin_define_palette(
 ///
 /// Returns the color string from the active palette, or "#808080" if
 /// no active palette is set or the key is not found.
-static Result<Value> builtin_palette_ref(
-    const std::vector<Value>& args, Environment&) {
+static Result<Value> builtin_palette_ref(const std::vector<Value>& args, Environment&) {
 
     if (args.size() != 1) {
-        return std::unexpected(
-            arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+        return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
     }
 
-    const auto* key = std::get_if<std::string>(&args[0]);
+    const auto* key = args[0].as_string();
     if (!key) {
-        return std::unexpected(
-            type_error("palette-ref: argument must be a string"));
+        return std::unexpected(type_error("palette-ref: argument must be a string"));
     }
 
     auto active = PaletteManager::instance().active();
     if (!active) {
-        std::cerr << "Warning: no active palette, returning #808080 for '"
-                  << *key << "'" << std::endl;
+        std::cerr << "Warning: no active palette, returning #808080 for '" << *key << "'"
+                  << std::endl;
         return Value(std::string("#808080"));
     }
 
@@ -207,13 +196,11 @@ static Result<Value> builtin_palette_ref(
 // ═══════════════════════════════════════════════════════════════════════════════
 
 void register_palette(std::shared_ptr<Environment> env) {
-    auto define_proc = std::make_shared<BuiltinProcedure>(
-        "define-palette", builtin_define_palette);
-    auto ref_proc = std::make_shared<BuiltinProcedure>(
-        "palette-ref", builtin_palette_ref);
+    auto define_proc = std::make_shared<BuiltinProcedure>("define-palette", builtin_define_palette);
+    auto ref_proc = std::make_shared<BuiltinProcedure>("palette-ref", builtin_palette_ref);
 
     env->define("define-palette", Value(define_proc));
     env->define("palette-ref", Value(ref_proc));
 }
 
-}  // namespace pml
+} // namespace pml

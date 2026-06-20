@@ -161,14 +161,14 @@ Result<Value> Procedure::call(
     }
 
     auto call_env = closure_env->extend(params, args);
-    return evaluate(body, call_env);
+    return eval_to_value(body, call_env);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Macro expansion with depth tracking
 // ═══════════════════════════════════════════════════════════════════════════════
 
-Result<Value> expand_macro(
+Result<EvalResult> expand_macro(
     Macro& macro, const std::vector<Expr>& args,
     std::shared_ptr<Environment> env) {
 
@@ -182,11 +182,14 @@ Result<Value> expand_macro(
     // Expand the macro (substitute args into body)
     Expr expanded = macro.expand(args);
 
-    // Evaluate the expanded expression
-    auto result = evaluate(expanded, std::move(env));
+    // Evaluate the expanded expression to a final value.
+    auto result = eval_to_value(expanded, std::move(env));
 
     g_macro_depth -= 1;
-    return result;
+    if (!result) {
+        return std::unexpected(result.error());
+    }
+    return *result;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -194,26 +197,30 @@ Result<Value> expand_macro(
 // ═══════════════════════════════════════════════════════════════════════════════
 
 bool is_truthy(const Value& value) noexcept {
-    return std::visit(
-        [](const auto& arg) -> bool {
-            using T = std::decay_t<decltype(arg)>;
+    if (value.is_nil()) return false;
+    if (value.is_bool()) return value.bool_val();
+    if (value.is_int()) return value.int_val() != 0;
+    if (value.is_double()) return value.double_val() != 0.0;
+    if (value.is_list()) {
+        const auto* lst = value.as_list();
+        return lst && *lst && !(*lst)->elements.empty();
+    }
+    return true;  // everything else is truthy
+}
 
-            if constexpr (std::is_same_v<T, std::nullptr_t>) {
-                return false;  // nil is falsy
-            } else if constexpr (std::is_same_v<T, bool>) {
-                return arg;  // #t = truthy, #f = falsy
-            } else if constexpr (std::is_same_v<T, int64_t>) {
-                return arg != 0;  // 0 is falsy
-            } else if constexpr (std::is_same_v<T, double>) {
-                return arg != 0.0;  // 0.0 is falsy
-            } else if constexpr (std::is_same_v<T,
-                                      std::shared_ptr<ValueList>>) {
-                return !arg->elements.empty();  // empty list is falsy
-            } else {
-                return true;  // everything else is truthy
-            }
-        },
-        value);
+// ═══════════════════════════════════════════════════════════════════════════════
+// trampoline
+// ═══════════════════════════════════════════════════════════════════════════════
+
+Result<Value> trampoline(Result<EvalResult> result) {
+    while (result.has_value() && std::holds_alternative<TailCall>(*result)) {
+        const auto& tc = std::get<TailCall>(*result);
+        result = evaluate(tc.expr, tc.env);
+    }
+    if (!result) {
+        return std::unexpected(result.error());
+    }
+    return std::get<Value>(*result);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -235,7 +242,7 @@ Result<EvaluatedArguments> evaluate_arguments(
                 return std::unexpected(type_error(
                     std::format("Keyword :{} has no following value", kw->name)));
             }
-            auto val = evaluate(exprs[i + 1], env);
+            auto val = eval_to_value(exprs[i + 1], env);
             if (!val) {
                 return std::unexpected(val.error());
             }
@@ -243,7 +250,7 @@ Result<EvaluatedArguments> evaluate_arguments(
             i += 2;
         } else {
             // Positional argument — evaluate normally
-            auto val = evaluate(current, env);
+            auto val = eval_to_value(current, env);
             if (!val) {
                 return std::unexpected(val.error());
             }
@@ -259,129 +266,133 @@ Result<EvaluatedArguments> evaluate_arguments(
 // apply_function
 // ═══════════════════════════════════════════════════════════════════════════════
 
-Result<Value> apply_function(
+Result<EvalResult> apply_function(
     const Value& func,
     const std::vector<Value>& args,
     const std::unordered_map<std::string, Value>& kwargs,
     std::shared_ptr<Environment> env) {
 
-    return std::visit(
-        [&func, &args, &kwargs, &env](const auto& arg) -> Result<Value> {
-            using T = std::decay_t<decltype(arg)>;
-
-            // ── User-defined Procedure ─────────────────────────────────
-            if constexpr (std::is_same_v<T, std::shared_ptr<Procedure>>) {
-                if (!arg) {
-                    return std::unexpected(
-                        type_error("Cannot apply null procedure"));
-                }
-
-                const auto& params = arg->params;
-                size_t expected = params.size();
-                size_t got = args.size();
-
-                // Handle rest parameter via "." convention
-                // (lambda (x . rest) body) → params = [x, ".", "rest"]
-                bool has_rest = false;
-                size_t fixed_count = expected;
-
-                auto dot_it = std::find(params.begin(), params.end(), ".");
-                if (dot_it != params.end()) {
-                    has_rest = true;
-                    fixed_count = std::distance(params.begin(), dot_it);
-                    // fixed_count is the number of params before the "."
-                    // The param after "." is the rest param name
-                }
-
-                if (has_rest) {
-                    // Need at least `fixed_count` args
-                    if (got < fixed_count) {
-                        return std::unexpected(arity_error(
-                            SourceLocation{},
-                            static_cast<int>(fixed_count),
-                            static_cast<int>(got)));
-                    }
-
-                    // Bind fixed params
-                    std::vector<std::string> fixed_params;
-                    std::vector<Value> fixed_args;
-                    fixed_params.reserve(fixed_count);
-                    fixed_args.reserve(fixed_count);
-                    for (size_t j = 0; j < fixed_count; ++j) {
-                        fixed_params.push_back(params[j]);
-                        fixed_args.push_back(args[j]);
-                    }
-
-                    auto call_env =
-                        arg->closure_env->extend(fixed_params, fixed_args);
-
-                    // Rest param name
-                    std::string rest_name = *(dot_it + 1);
-
-                    // Create rest list from remaining args
-                    std::vector<Value> rest_values;
-                    rest_values.reserve(got - fixed_count);
-                    for (size_t j = fixed_count; j < got; ++j) {
-                        rest_values.push_back(args[j]);
-                    }
-                    call_env->define(rest_name,
-                                     make_list_value(std::move(rest_values)));
-
-                    return evaluate(arg->body, call_env);
-
-                } else {
-                    // Simple parameter matching
-                    if (expected != got) {
-                        return std::unexpected(arity_error(
-                            SourceLocation{},
-                            static_cast<int>(expected),
-                            static_cast<int>(got)));
-                    }
-
-                    auto call_env = arg->closure_env->extend(params, args);
-                    return evaluate(arg->body, call_env);
-                }
-            }
-
-            // ── BuiltinProcedure ──────────────────────────────────────
-            if constexpr (std::is_same_v<T, std::shared_ptr<BuiltinProcedure>>) {
-                if (!arg) {
-                    return std::unexpected(
-                        type_error("Cannot apply null builtin procedure"));
-                }
-                // Forward kwargs merged into args vector for builtins that
-                // accept keyword arguments (accepts_kwargs=true).
-                // The flat-list pattern (:key val :key2 val2) is used so
-                // builtins can call parse_kwargs(args, pos) to extract them.
-                if (arg->accepts_kwargs && !kwargs.empty()) {
-                    std::vector<Value> merged = args;
-                    merged.reserve(args.size() + kwargs.size() * 2);
-                    for (const auto& [key, val] : kwargs) {
-                        merged.push_back(Value(Keyword(key)));
-                        merged.push_back(val);
-                    }
-                    return arg->fn(merged, *env);
-                }
-                return arg->fn(args, *env);
-            }
-
-            // ── Anything else is not callable ─────────────────────────
+    // ── User-defined Procedure ─────────────────────────────────
+    if (const auto* proc_ptr = func.as_procedure()) {
+        const auto& arg = *proc_ptr;
+        if (!arg) {
             return std::unexpected(
-                type_error(std::format("Not a procedure: {}",
-                                       value_to_string(func))));
-        },
-        func);
+                type_error("Cannot apply null procedure"));
+        }
+
+        const auto& params = arg->params;
+        size_t expected = params.size();
+        size_t got = args.size();
+
+        // Handle rest parameter via "." convention
+        // (lambda (x . rest) body) → params = [x, ".", "rest"]
+        bool has_rest = false;
+        size_t fixed_count = expected;
+
+        auto dot_it = std::find(params.begin(), params.end(), ".");
+        if (dot_it != params.end()) {
+            has_rest = true;
+            fixed_count = std::distance(params.begin(), dot_it);
+            // fixed_count is the number of params before the "."
+            // The param after "." is the rest param name
+        }
+
+        if (has_rest) {
+            // Need at least `fixed_count` args
+            if (got < fixed_count) {
+                return std::unexpected(arity_error(
+                    SourceLocation{},
+                    static_cast<int>(fixed_count),
+                    static_cast<int>(got)));
+            }
+
+            // Bind fixed params
+            std::vector<std::string> fixed_params;
+            std::vector<Value> fixed_args;
+            fixed_params.reserve(fixed_count);
+            fixed_args.reserve(fixed_count);
+            for (size_t j = 0; j < fixed_count; ++j) {
+                fixed_params.push_back(params[j]);
+                fixed_args.push_back(args[j]);
+            }
+
+            auto call_env =
+                arg->closure_env->extend(fixed_params, fixed_args);
+
+            // Rest param name
+            std::string rest_name = *(dot_it + 1);
+
+            // Create rest list from remaining args
+            std::vector<Value> rest_values;
+            rest_values.reserve(got - fixed_count);
+            for (size_t j = fixed_count; j < got; ++j) {
+                rest_values.push_back(args[j]);
+            }
+            call_env->define(rest_name,
+                             make_list_value(std::move(rest_values)));
+
+            // Return a tail call so the trampoline can evaluate the body
+            // without growing the C++ stack.
+            return TailCall{arg->body, call_env};
+
+        } else {
+            // Simple parameter matching
+            if (expected != got) {
+                return std::unexpected(arity_error(
+                    SourceLocation{},
+                    static_cast<int>(expected),
+                    static_cast<int>(got)));
+            }
+
+            auto call_env = arg->closure_env->extend(params, args);
+            // Return a tail call so the trampoline can evaluate the body
+            // without growing the C++ stack.
+            return TailCall{arg->body, call_env};
+        }
+    }
+
+    // ── BuiltinProcedure ──────────────────────────────────────
+    if (const auto* builtin_ptr = func.as_builtin()) {
+        const auto& arg = *builtin_ptr;
+        if (!arg) {
+            return std::unexpected(
+                type_error("Cannot apply null builtin procedure"));
+        }
+        // Forward kwargs merged into args vector for builtins that
+        // accept keyword arguments (accepts_kwargs=true).
+        // The flat-list pattern (:key val :key2 val2) is used so
+        // builtins can call parse_kwargs(args, pos) to extract them.
+        if (arg->accepts_kwargs && !kwargs.empty()) {
+            std::vector<Value> merged = args;
+            merged.reserve(args.size() + kwargs.size() * 2);
+            for (const auto& [key, val] : kwargs) {
+                merged.push_back(Value(Keyword(key)));
+                merged.push_back(val);
+            }
+            auto result = arg->call(merged, *env);
+            if (!result) return std::unexpected(result.error());
+            return *result;
+        }
+        auto result = arg->call(args, *env);
+        if (!result) return std::unexpected(result.error());
+        return *result;
+    }
+
+    // ── Anything else is not callable ─────────────────────────
+    return std::unexpected(
+        type_error(std::format("Not a procedure: {}",
+                               value_to_string(func))));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // evaluate — main dispatch
 // ═══════════════════════════════════════════════════════════════════════════════
 
-Result<Value> evaluate(
+Result<EvalResult> evaluate(
     const Expr& expr, std::shared_ptr<Environment> env) {
 
     return std::visit(
-        [&](const auto& arg) -> Result<Value> {
+        [&](const auto& arg) -> Result<EvalResult> {
             using T = std::decay_t<decltype(arg)>;
 
             // ── Self-evaluating atoms ──────────────────────────────────
@@ -407,13 +418,13 @@ Result<Value> evaluate(
                     auto prefix_val = env->try_lookup(prefix);
                     if (prefix_val.has_value()) {
                         // Check if prefix_val is a Module
-                        // Module is forward-declared — check via type
-                        if (const auto* mod =
-                                std::get_if<std::shared_ptr<Module>>(
-                                    &*prefix_val)) {
+                        if (const auto* mod = prefix_val->as_module()) {
                             if (*mod) {
-                                // Module::get is not yet defined
-                                // Fall through to normal lookup for now
+                                auto member_result = (*mod)->get(member);
+                                if (!member_result) {
+                                    return std::unexpected(member_result.error());
+                                }
+                                return *member_result;
                             }
                         }
                     }
@@ -442,15 +453,15 @@ Result<Value> evaluate(
                     const auto& forms = get_special_forms();
                     auto it = forms.find(head_sym->name);
                     if (it != forms.end()) {
-                        return it->second(elements, env);
+                        std::vector<Expr> expr_elements(elements.begin(),
+                                                        elements.end());
+                        return it->second(expr_elements, env);
                     }
 
                     // ── Macro expansion (by name) ──────────────────────
                     auto macro_val = env->try_lookup(head_sym->name);
                     if (macro_val.has_value()) {
-                        if (const auto* mac =
-                                std::get_if<std::shared_ptr<Macro>>(
-                                    &*macro_val)) {
+                        if (const auto* mac = macro_val->as_macro()) {
                             if (*mac) {
                                 // Collect args (rest of list)
                                 std::vector<Expr> macro_args;
@@ -465,15 +476,14 @@ Result<Value> evaluate(
                 }
 
                 // ── Regular function call ──────────────────────────────
-                auto func_val = evaluate(head, env);
+                auto func_val = eval_to_value(head, env);
                 if (!func_val) {
                     return std::unexpected(func_val.error());
                 }
 
                 // Check if the evaluated function is a Macro
                 // (for higher-order macro use / immediate macro values)
-                if (const auto* mac =
-                        std::get_if<std::shared_ptr<Macro>>(&*func_val)) {
+                if (const auto* mac = func_val->as_macro()) {
                     if (*mac) {
                         std::vector<Expr> macro_args;
                         macro_args.reserve(elements.size() - 1);
@@ -496,6 +506,9 @@ Result<Value> evaluate(
                     return std::unexpected(eval_args.error());
                 }
 
+                // apply_function returns an EvalResult (either a final value
+                // or a TailCall).  Because this is the final action of the
+                // function-call evaluation, we return it directly.
                 return apply_function(
                     *func_val,
                     eval_args->positional,
@@ -515,7 +528,7 @@ Result<Value> evaluate(
 // ═══════════════════════════════════════════════════════════════════════════════
 
 Result<Value> expand_quasiquote(
-    const Expr& tmpl, std::shared_ptr<Environment> env) {
+    const Expr& tmpl, std::shared_ptr<Environment> env, int depth) {
 
     const auto* list_ptr = std::get_if<std::shared_ptr<ListExpr>>(&tmpl);
     if (!list_ptr || !*list_ptr) {
@@ -525,17 +538,35 @@ Result<Value> expand_quasiquote(
 
     const auto& elements = (*list_ptr)->elements;
 
-    // Check for (unquote x) at top level
+    // Check for (unquote x), (unquote-splicing x), or (quasiquote x) at top level
     if (elements.size() == 2) {
         if (const auto* head_sym = std::get_if<Symbol>(&elements[0])) {
             if (head_sym->name == "unquote") {
-                auto val = evaluate(elements[1], env);
-                if (!val) return std::unexpected(val.error());
-                return *val;
+                if (depth == 0) {
+                    auto val = eval_to_value(elements[1], env);
+                    if (!val) return std::unexpected(val.error());
+                    return *val;
+                }
+                // Escape one level: preserve (unquote <expanded>).
+                auto expanded = expand_quasiquote(elements[1], env, depth - 1);
+                if (!expanded) return std::unexpected(expanded.error());
+                return make_list_value({Value(Symbol("unquote")), std::move(*expanded)});
             }
             if (head_sym->name == "unquote-splicing") {
-                return std::unexpected(
-                    type_error("unquote-splicing used outside of list context"));
+                if (depth == 0) {
+                    return std::unexpected(
+                        type_error("unquote-splicing used outside of list context"));
+                }
+                // Escape one level: preserve (unquote-splicing <expanded>).
+                auto expanded = expand_quasiquote(elements[1], env, depth - 1);
+                if (!expanded) return std::unexpected(expanded.error());
+                return make_list_value({Value(Symbol("unquote-splicing")), std::move(*expanded)});
+            }
+            if (head_sym->name == "quasiquote") {
+                // Increase depth and preserve (quasiquote <expanded>).
+                auto expanded = expand_quasiquote(elements[1], env, depth + 1);
+                if (!expanded) return std::unexpected(expanded.error());
+                return make_list_value({Value(Symbol("quasiquote")), std::move(*expanded)});
             }
         }
     }
@@ -551,24 +582,39 @@ Result<Value> expand_quasiquote(
             if (sub.size() == 2) {
                 if (const auto* sub_sym = std::get_if<Symbol>(&sub[0])) {
                     if (sub_sym->name == "unquote-splicing") {
-                        auto val = evaluate(sub[1], env);
-                        if (!val) return std::unexpected(val.error());
-                        const auto* vl = std::get_if<std::shared_ptr<ValueList>>(&*val);
-                        if (!vl || !*vl) {
-                            return std::unexpected(
-                                type_error("unquote-splicing: value must be a list"));
+                        if (depth == 0) {
+                            auto val = eval_to_value(sub[1], env);
+                            if (!val) return std::unexpected(val.error());
+                            const auto* vl = val->as_list();
+                            if (!vl || !*vl) {
+                                return std::unexpected(
+                                    type_error("unquote-splicing: value must be a list"));
+                            }
+                            for (const auto& v : (*vl)->elements) {
+                                new_elements.push_back(v);
+                            }
+                            continue;
                         }
-                        for (const auto& v : (*vl)->elements) {
-                            new_elements.push_back(v);
-                        }
+                        // Escape one level: preserve (unquote-splicing <expanded>).
+                        auto expanded = expand_quasiquote(sub[1], env, depth - 1);
+                        if (!expanded) return std::unexpected(expanded.error());
+                        new_elements.push_back(make_list_value(
+                            {Value(Symbol("unquote-splicing")), std::move(*expanded)}));
+                        continue;
+                    }
+                    if (sub_sym->name == "quasiquote") {
+                        // Increase depth and preserve nested quasiquote.
+                        auto expanded = expand_quasiquote(item, env, depth + 1);
+                        if (!expanded) return std::unexpected(expanded.error());
+                        new_elements.push_back(std::move(*expanded));
                         continue;
                     }
                 }
             }
         }
 
-        // Regular element — recursively quasiquote
-        auto expanded = expand_quasiquote(item, env);
+        // Regular element — recursively quasiquote at the same depth
+        auto expanded = expand_quasiquote(item, env, depth);
         if (!expanded) return std::unexpected(expanded.error());
         new_elements.push_back(std::move(*expanded));
     }
@@ -582,7 +628,7 @@ Result<Value> expand_quasiquote(
 
 // ── quote: (quote <expr>) → return expr unevaluated ─────────────────────────
 
-Result<Value> eval_quote(
+Result<EvalResult> eval_quote(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> /*env*/) {
     if (expr.size() != 2) {
         return std::unexpected(
@@ -595,14 +641,14 @@ Result<Value> eval_quote(
 
 // ── if: (if <cond> <then> [<else>]) ─────────────────────────────────────────
 
-Result<Value> eval_if(
+Result<EvalResult> eval_if(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
     if (expr.size() < 3 || expr.size() > 4) {
         return std::unexpected(general_error(
             "if expects 2 or 3 arguments"));
     }
 
-    auto cond = evaluate(expr[1], env);
+    auto cond = eval_to_value(expr[1], env);
     if (!cond) {
         return std::unexpected(cond.error());
     }
@@ -618,7 +664,7 @@ Result<Value> eval_if(
 
 // ── cond: (cond (<test> <expr>...) ... (else <default>...)) ─────────────────
 
-Result<Value> eval_cond(
+Result<EvalResult> eval_cond(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
 
     // Iterate over clauses (expr[1:] in Python, but here expr IS the full list
@@ -646,28 +692,30 @@ Result<Value> eval_cond(
 
         if (is_else) {
             // Evaluate all expressions in the else clause, return last
-            Value result(nullptr);
             for (size_t j = 1; j < clause_list->size(); ++j) {
-                auto val = evaluate((*clause_list)[j], env);
+                if (j + 1 == clause_list->size()) {
+                    return evaluate((*clause_list)[j], env);
+                }
+                auto val = eval_to_value((*clause_list)[j], env);
                 if (!val) return std::unexpected(val.error());
-                result = std::move(*val);
             }
-            return result;
+            return Value(nullptr);
         }
 
         // Evaluate test
-        auto test_val = evaluate(test, env);
+        auto test_val = eval_to_value(test, env);
         if (!test_val) return std::unexpected(test_val.error());
 
         if (is_truthy(*test_val)) {
             // Evaluate all expressions in this clause, return last
-            Value result(nullptr);
             for (size_t j = 1; j < clause_list->size(); ++j) {
-                auto val = evaluate((*clause_list)[j], env);
+                if (j + 1 == clause_list->size()) {
+                    return evaluate((*clause_list)[j], env);
+                }
+                auto val = eval_to_value((*clause_list)[j], env);
                 if (!val) return std::unexpected(val.error());
-                result = std::move(*val);
             }
-            return result;
+            return Value(nullptr);
         }
     }
 
@@ -676,7 +724,7 @@ Result<Value> eval_cond(
 
 // ── define: (define <name> <expr>) or (define (<name> <params>) <body>...) ──
 
-Result<Value> eval_define(
+Result<EvalResult> eval_define(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
     if (expr.size() < 3) {
         return std::unexpected(
@@ -757,7 +805,7 @@ Result<Value> eval_define(
     }
     }
 
-    auto value = evaluate(expr[2], env);
+    auto value = eval_to_value(expr[2], env);
     if (!value) {
         return std::unexpected(value.error());
     }
@@ -768,7 +816,7 @@ Result<Value> eval_define(
 
 // ── lambda: (lambda (<params>) <body>...) ───────────────────────────────────
 
-Result<Value> eval_lambda(
+Result<EvalResult> eval_lambda(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
     if (expr.size() < 3) {
         return std::unexpected(
@@ -831,7 +879,7 @@ Result<Value> eval_lambda(
 
 // ── let: (let ((name expr) ...) <body>...) — parallel bindings ─────────────
 
-Result<Value> eval_let(
+Result<EvalResult> eval_let(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
     if (expr.size() < 3) {
         return std::unexpected(
@@ -867,7 +915,7 @@ Result<Value> eval_let(
         names.push_back(std::move(*name_opt));
 
         // All values are evaluated in the OUTER environment (parallel)
-        auto val = evaluate((*binding_list)[1], env);
+        auto val = eval_to_value((*binding_list)[1], env);
         if (!val) return std::unexpected(val.error());
         values.push_back(std::move(*val));
     }
@@ -875,18 +923,19 @@ Result<Value> eval_let(
     // Create child environment and evaluate body
     auto child_env = env->extend(names, values);
 
-    Value result(nullptr);
     for (size_t i = 2; i < expr.size(); ++i) {
-        auto val = evaluate(expr[i], child_env);
+        if (i + 1 == expr.size()) {
+            return evaluate(expr[i], child_env);
+        }
+        auto val = eval_to_value(expr[i], child_env);
         if (!val) return std::unexpected(val.error());
-        result = std::move(*val);
     }
-    return result;
+    return Value(nullptr);
 }
 
 // ── let*: (let* ((name expr) ...) <body>...) — sequential bindings ─────────
 
-Result<Value> eval_let_star(
+Result<EvalResult> eval_let_star(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
     if (expr.size() < 3) {
         return std::unexpected(
@@ -918,24 +967,25 @@ Result<Value> eval_let_star(
         }
 
         // Each value is evaluated in the growing child environment
-        auto val = evaluate((*binding_list)[1], child_env);
+        auto val = eval_to_value((*binding_list)[1], child_env);
         if (!val) return std::unexpected(val.error());
 
         child_env->define(*name_opt, *val);
     }
 
-    Value result(nullptr);
     for (size_t i = 2; i < expr.size(); ++i) {
-        auto val = evaluate(expr[i], child_env);
+        if (i + 1 == expr.size()) {
+            return evaluate(expr[i], child_env);
+        }
+        auto val = eval_to_value(expr[i], child_env);
         if (!val) return std::unexpected(val.error());
-        result = std::move(*val);
     }
-    return result;
+    return Value(nullptr);
 }
 
 // ── letrec: (letrec ((name expr) ...) <body>...) — recursive bindings ──────
 
-Result<Value> eval_letrec(
+Result<EvalResult> eval_letrec(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
     if (expr.size() < 3) {
         return std::unexpected(
@@ -976,38 +1026,40 @@ Result<Value> eval_letrec(
     for (size_t bi = 0; bi < names.size(); ++bi) {
         const auto& binding = (*bindings_list)[bi];
         const auto* binding_list = get_list(binding);
-        auto val = evaluate((*binding_list)[1], child_env);
+        auto val = eval_to_value((*binding_list)[1], child_env);
         if (!val) return std::unexpected(val.error());
         auto set_r = child_env->set(names[bi], *val);
         if (!set_r) return std::unexpected(set_r.error());
     }
 
     // Evaluate body
-    Value result(nullptr);
     for (size_t i = 2; i < expr.size(); ++i) {
-        auto val = evaluate(expr[i], child_env);
+        if (i + 1 == expr.size()) {
+            return evaluate(expr[i], child_env);
+        }
+        auto val = eval_to_value(expr[i], child_env);
         if (!val) return std::unexpected(val.error());
-        result = std::move(*val);
     }
-    return result;
+    return Value(nullptr);
 }
 
 // ── begin: (begin <expr> ...) — evaluate sequentially, return last ─────────
 
-Result<Value> eval_begin(
+Result<EvalResult> eval_begin(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
-    Value result(nullptr);
     for (size_t i = 1; i < expr.size(); ++i) {
-        auto val = evaluate(expr[i], env);
+        if (i + 1 == expr.size()) {
+            return evaluate(expr[i], env);
+        }
+        auto val = eval_to_value(expr[i], env);
         if (!val) return std::unexpected(val.error());
-        result = std::move(*val);
     }
-    return result;
+    return Value(nullptr);
 }
 
 // ── set!: (set! <name> <expr>) ──────────────────────────────────────────────
 
-Result<Value> eval_set(
+Result<EvalResult> eval_set(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
     if (expr.size() != 3) {
         return std::unexpected(
@@ -1021,7 +1073,7 @@ Result<Value> eval_set(
             type_error("set!: expected symbol"));
     }
 
-    auto value = evaluate(expr[2], env);
+    auto value = eval_to_value(expr[2], env);
     if (!value) {
         return std::unexpected(value.error());
     }
@@ -1036,12 +1088,12 @@ Result<Value> eval_set(
 
 // ── and: (and <expr> ...) — short-circuit, return last truthy or first falsy ─
 
-Result<Value> eval_and(
+Result<EvalResult> eval_and(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
     Value result(true);  // Start with true (identity for and)
 
     for (size_t i = 1; i < expr.size(); ++i) {
-        auto val = evaluate(expr[i], env);
+        auto val = eval_to_value(expr[i], env);
         if (!val) return std::unexpected(val.error());
 
         if (!is_truthy(*val)) {
@@ -1055,10 +1107,10 @@ Result<Value> eval_and(
 
 // ── or: (or <expr> ...) — short-circuit, return first truthy ────────────────
 
-Result<Value> eval_or(
+Result<EvalResult> eval_or(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
     for (size_t i = 1; i < expr.size(); ++i) {
-        auto val = evaluate(expr[i], env);
+        auto val = eval_to_value(expr[i], env);
         if (!val) return std::unexpected(val.error());
 
         if (is_truthy(*val)) {
@@ -1071,7 +1123,7 @@ Result<Value> eval_or(
 
 // ── do: (do ((var init step) ...) (test result...) <body>...) ──────────────
 
-Result<Value> eval_do(
+Result<EvalResult> eval_do(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
     if (expr.size() < 3) {
         return std::unexpected(
@@ -1132,7 +1184,7 @@ Result<Value> eval_do(
 
     // Initialize variables (evaluate inits in the outer environment)
     for (size_t i = 0; i < names.size(); ++i) {
-        auto init_val = evaluate(inits[i], env);
+        auto init_val = eval_to_value(inits[i], env);
         if (!init_val) return std::unexpected(init_val.error());
         loop_env->define(names[i], *init_val);
     }
@@ -1140,7 +1192,7 @@ Result<Value> eval_do(
     // Loop
     while (true) {
         // Evaluate test
-        auto test_val = evaluate((*test_clause)[0], loop_env);
+        auto test_val = eval_to_value((*test_clause)[0], loop_env);
         if (!test_val) return std::unexpected(test_val.error());
 
         if (is_truthy(*test_val)) {
@@ -1153,7 +1205,7 @@ Result<Value> eval_do(
 
         // Execute body
         for (size_t i = 3; i < expr.size(); ++i) {
-            auto body_val = evaluate(expr[i], loop_env);
+            auto body_val = eval_to_value(expr[i], loop_env);
             if (!body_val) return std::unexpected(body_val.error());
         }
 
@@ -1161,7 +1213,7 @@ Result<Value> eval_do(
         std::vector<Value> new_values;
         new_values.reserve(steps.size());
         for (const auto& step : steps) {
-            auto step_val = evaluate(step, loop_env);
+            auto step_val = eval_to_value(step, loop_env);
             if (!step_val) return std::unexpected(step_val.error());
             new_values.push_back(std::move(*step_val));
         }
@@ -1175,7 +1227,7 @@ Result<Value> eval_do(
 
 // ── quasiquote: (quasiquote <expr>) — template with unquote interpolation ─
 
-Result<Value> eval_quasiquote(
+Result<EvalResult> eval_quasiquote(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
     if (expr.size() != 2) {
         return std::unexpected(
@@ -1184,12 +1236,14 @@ Result<Value> eval_quasiquote(
     }
 
     // Expand quasiquote directly into a runtime value.
-    return expand_quasiquote(expr[1], env);
+    auto result = expand_quasiquote(expr[1], env);
+    if (!result) return std::unexpected(result.error());
+    return *result;
 }
 
 // ── provide: (provide sym1 sym2 ...) — declare module exports ──────────────
 
-Result<Value> eval_provide(
+Result<EvalResult> eval_provide(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
     for (size_t i = 1; i < expr.size(); ++i) {
         auto name_opt = extract_symbol_name(expr[i]);
@@ -1204,7 +1258,7 @@ Result<Value> eval_provide(
 
 // ── import: (import "path.pml" [as prefix]) — load a module ────────────────
 
-Result<Value> eval_import(
+Result<EvalResult> eval_import(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
     if (expr.size() < 2) {
         return std::unexpected(
@@ -1261,8 +1315,8 @@ Result<Value> eval_import(
     // Determine the importing file's path for relative resolution
     std::string from_file;
     auto src_file = env->try_lookup("__source_file__");
-    if (src_file && std::holds_alternative<std::string>(*src_file)) {
-        from_file = std::get<std::string>(*src_file);
+    if (src_file && src_file->is_string()) {
+        from_file = *src_file->as_string();
     }
 
     // Get or create the global ModuleLoader
@@ -1282,7 +1336,7 @@ Result<Value> eval_import(
 
 // ── defmacro: (defmacro name (params) <body>...) ────────────────────────────
 
-Result<Value> eval_defmacro(
+Result<EvalResult> eval_defmacro(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
     if (expr.size() < 4) {
         return std::unexpected(
@@ -1329,15 +1383,16 @@ Result<Value> eval_defmacro(
         }
     }
 
-    // Body starts at index 3
+    // Body starts at index 3.  Clone to the global heap so the macro
+    // survives resets of the per-evaluation arena.
     std::vector<Expr> body_exprs;
     body_exprs.reserve(expr.size() - 3);
     for (size_t i = 3; i < expr.size(); ++i) {
-        body_exprs.push_back(expr[i]);
+        body_exprs.push_back(clone_expr_to_heap(expr[i]));
     }
 
     auto macro = std::make_shared<Macro>(
-        *name_opt, params, body_exprs, env, rest_param);
+        *name_opt, params, std::move(body_exprs), env, rest_param);
 
     env->define(*name_opt, Value(std::move(macro)));
     return Value(nullptr);
@@ -1345,7 +1400,7 @@ Result<Value> eval_defmacro(
 
 // ── macroexpand: (macroexpand <form>) — expand macros without evaluating ────
 
-Result<Value> eval_macroexpand(
+Result<EvalResult> eval_macroexpand(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
     if (expr.size() != 2) {
         return std::unexpected(
@@ -1363,7 +1418,7 @@ Result<Value> eval_macroexpand(
 
 // ── assert: (assert <expr>) — evaluate and error if falsy ──────────────────
 
-Result<Value> eval_assert(
+Result<EvalResult> eval_assert(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
     if (expr.size() != 2) {
         return std::unexpected(
@@ -1371,7 +1426,7 @@ Result<Value> eval_assert(
                         static_cast<int>(expr.size()) - 1));
     }
 
-    auto val = evaluate(expr[1], env);
+    auto val = eval_to_value(expr[1], env);
     if (!val) {
         return std::unexpected(val.error());
     }
@@ -1389,7 +1444,7 @@ Result<Value> eval_assert(
 
 // ── gensym: (gensym) or (gensym "prefix") — generate a unique symbol ───────
 
-Result<Value> eval_gensym(
+Result<EvalResult> eval_gensym(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> /*env*/) {
     static std::atomic<uint64_t> s_counter{0};
 

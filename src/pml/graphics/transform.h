@@ -9,9 +9,6 @@
 #ifdef PML_USE_SKIA
 class SkMatrix;
 #endif
-#ifdef PML_USE_CAIRO
-#include <cairo.h>
-#endif
 
 namespace pml {
 
@@ -141,10 +138,6 @@ struct AffineTransform {
     [[nodiscard]] SkMatrix to_skmatrix() const;
 #endif
 
-#ifdef PML_USE_CAIRO
-    /// Convert to Cairo matrix for use with cairo_transform().
-    [[nodiscard]] cairo_matrix_t to_cairo_matrix() const;
-#endif
 };
 
 // ── Operator overloads ───────────────────────────────────────────

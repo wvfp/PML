@@ -11,7 +11,10 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 #include "pml/api/api.h"
+#include "pml/api/context.h"
 #include "pml/core/error.h"
+#include "pml/core/source_manager.h"
+#include "pml/layer/layer_builtins.h"
 #include "pml/module/embedded_stdlib.h"
 #include "repl.h"
 
@@ -27,6 +30,9 @@
 #include <vector>
 
 namespace fs = std::filesystem;
+
+// Global source cache for file-mode error snippets.
+static pml::SourceManager g_source_manager;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Forward declarations (defined below)
@@ -133,27 +139,87 @@ static void setup_output_dir(const std::string& dir)
 
 static void print_error(const pml::PMLException& err)
 {
-    // Format: ["filename:line:col: "] "ErrorType: message"
-    std::cerr << "Error: ";
-    if (err.location.has_value()) {
-        const auto& loc = *err.location;
-        if (!loc.filename.empty()) {
-            std::cerr << loc.filename << ":";
-        }
-        if (loc.line > 0) {
-            std::cerr << loc.line << ":";
-            if (loc.column > 0) {
-                std::cerr << loc.column << ": ";
-            } else {
-                std::cerr << " ";
+    // Format with source snippet, line number and caret when available.
+    std::cerr << pml::format_error_with_source(err, g_source_manager);
+}
+
+/// Convert a structured RenderResult error JSON back to a printable message.
+/// Loads the source file into `g_source_manager` so snippets can be shown.
+static void print_render_error(const nlohmann::json& err)
+{
+    pml::PMLException exc;
+    exc.code = pml::ErrorCode::GeneralError;
+    exc.message = err.value("message", "Unknown error");
+
+    if (err.contains("type")) {
+        const std::string type = err.value("type", "GeneralError");
+        if (type == "PMLSyntaxError")    exc.code = pml::ErrorCode::PMLSyntaxError;
+        else if (type == "PMLTypeError") exc.code = pml::ErrorCode::PMLTypeError;
+        else if (type == "UnboundVariableError")
+            exc.code = pml::ErrorCode::UnboundVariableError;
+        else if (type == "ArityError")   exc.code = pml::ErrorCode::ArityError;
+        else if (type == "ImportError")  exc.code = pml::ErrorCode::ImportError;
+        else if (type == "CircularImportError")
+            exc.code = pml::ErrorCode::CircularImportError;
+        else if (type == "MacroExpansionDepthError")
+            exc.code = pml::ErrorCode::MacroExpansionDepthError;
+        else if (type == "AccessError")  exc.code = pml::ErrorCode::AccessError;
+        else if (type == "ResourceError") exc.code = pml::ErrorCode::ResourceError;
+        else if (type == "IKNoSolutionError")
+            exc.code = pml::ErrorCode::IKNoSolutionError;
+        else if (type == "PMLAssertionError")
+            exc.code = pml::ErrorCode::PMLAssertionError;
+    }
+
+    if (err.contains("line")) {
+        pml::SourceLocation loc;
+        loc.line = err.value("line", 0);
+        loc.column = err.value("column", 0);
+        loc.filename = err.value("filename", "");
+        exc.location = std::move(loc);
+    }
+if (err.contains("hint") && !err["hint"].is_null()) {
+        exc.repair_hint = err.value("hint", "");
+    }
+
+    if (err.contains("call_stack") && err["call_stack"].is_array()) {
+        for (const auto& frame : err["call_stack"]) {
+            pml::CallFrame f;
+            f.function_name = frame.value("function", "");
+            // Parse location string "filename:line:col" or "line line:col"
+            std::string loc_str = frame.value("location", "");
+            if (!loc_str.empty()) {
+                auto last_colon = loc_str.find_last_of(':');
+                if (last_colon != std::string::npos) {
+                    auto prev_colon = loc_str.find_last_of(':', last_colon - 1);
+                    try {
+                        if (prev_colon != std::string::npos) {
+                            f.call_site.filename = loc_str.substr(0, prev_colon);
+                            f.call_site.line = std::stoi(loc_str.substr(prev_colon + 1, last_colon - prev_colon - 1));
+                            f.call_site.column = std::stoi(loc_str.substr(last_colon + 1));
+                        } else {
+                            f.call_site.line = std::stoi(loc_str.substr(0, last_colon));
+                            f.call_site.column = std::stoi(loc_str.substr(last_colon + 1));
+                        }
+                    } catch (...) {
+                        // Ignore parse errors; leave location empty.
+                    }
+                }
             }
+            exc.call_stack.push_back(std::move(f));
         }
     }
-    std::cerr << pml::to_string(err.code) << ": " << err.message;
-    if (err.repair_hint.has_value() && !err.repair_hint->empty()) {
-        std::cerr << "\n  Hint: " << *err.repair_hint;
+
+    if (err.contains("details") && err["details"].is_array()) {
+        std::cerr << pml::format_error_with_source(exc, g_source_manager);
+        int index = 1;
+        for (const auto& detail : err["details"]) {
+            std::cerr << "\n  --- Error " << index++ << " ---\n";
+            print_render_error(detail);
+        }
+    } else {
+        std::cerr << pml::format_error_with_source(exc, g_source_manager);
     }
-    std::cerr << std::endl;
 }
 
 static nlohmann::json error_to_json(const pml::PMLException& e)
@@ -196,6 +262,9 @@ static void print_json_error(const pml::PMLException& err)
 
 static int run_file_mode(const CLIOptions& opts, pml::PMLRuntime& runtime)
 {
+    // Pre-load source so error messages can show source snippets.
+    g_source_manager.load_file(opts.file);
+
     auto result = runtime.execute_file(opts.file);
 
     if (!result.success) {
@@ -209,18 +278,24 @@ static int run_file_mode(const CLIOptions& opts, pml::PMLRuntime& runtime)
                 msg.find("Cannot open file") != std::string::npos) {
                 std::cerr << "Error: file not found: " << opts.file << std::endl;
             } else {
-                std::cerr << "Error: " << type << ": " << msg << std::endl;
-                if (err.contains("hint") && !err["hint"].is_null()) {
-                    std::string hint = err["hint"];
-                    if (!hint.empty()) {
-                        std::cerr << "  Hint: " << hint << std::endl;
-                    }
-                }
+                print_render_error(err);
             }
         } else {
             std::cerr << "Error: execution failed" << std::endl;
         }
         return 1;
+    }
+
+    // Auto-render any registered compositions when an output directory is set.
+    if (!opts.output_dir.empty()) {
+        for (const auto& comp : runtime.compositions()) {
+            if (!comp) continue;
+            auto render_result = pml::render_composition_to_disk(*comp, opts.output_dir);
+            if (!render_result) {
+                print_render_error(pml::error_to_dict(render_result.error()));
+                return 1;
+            }
+        }
     }
 
     return 0;
@@ -291,11 +366,11 @@ static int run_watch_mode(const CLIOptions& opts, pml::PMLRuntime& runtime)
     // Initial run
     std::cout << "Watching " << opts.file << " for changes... (Ctrl-C to stop)"
               << std::endl;
+    g_source_manager.load_file(opts.file);
     auto result = runtime.execute_file(opts.file);
     if (!result.success) {
         if (result.error.has_value()) {
-            std::string msg = (*result.error).value("message", "Execution failed");
-            std::cerr << "Error: " << msg << std::endl;
+            print_render_error(*result.error);
         }
     }
 
@@ -347,12 +422,11 @@ static int run_watch_mode(const CLIOptions& opts, pml::PMLRuntime& runtime)
                               std::localtime(&now));
                 std::cout << "\n--- " << time_str << " ---" << std::endl;
 
+                g_source_manager.load_file(opts.file);
                 auto new_result = runtime.execute_file(opts.file);
                 if (!new_result.success) {
                     if (new_result.error.has_value()) {
-                        std::string msg = (*new_result.error).value("message",
-                                                                  "Execution failed");
-                        std::cerr << "Error: " << msg << std::endl;
+                        print_render_error(*new_result.error);
                     }
                 }
             }
@@ -384,7 +458,11 @@ static int run_watch_mode(const CLIOptions& opts, pml::PMLRuntime& runtime)
     // Initial run
     std::cout << "Watching " << opts.file << " for changes... (Ctrl-C to stop)"
               << std::endl;
-    runtime.execute_file(opts.file);
+    g_source_manager.load_file(opts.file);
+    auto init_result = runtime.execute_file(opts.file);
+    if (!init_result.success && init_result.error.has_value()) {
+        print_render_error(*init_result.error);
+    }
 
     auto last_mtime = fs::last_write_time(abs_path);
 
@@ -414,11 +492,10 @@ static int run_watch_mode(const CLIOptions& opts, pml::PMLRuntime& runtime)
                                   std::localtime(&now));
                     std::cout << "\n--- " << time_str << " ---" << std::endl;
 
+                    g_source_manager.load_file(opts.file);
                     auto result = runtime.execute_file(opts.file);
                     if (!result.success && result.error.has_value()) {
-                        std::string msg = (*result.error).value("message",
-                                                              "Execution failed");
-                        std::cerr << "Error: " << msg << std::endl;
+                        print_render_error(*result.error);
                     }
                 }
             } catch (const fs::filesystem_error&) {
@@ -454,7 +531,11 @@ static int run_watch_mode(const CLIOptions& opts, pml::PMLRuntime& runtime)
     // Initial run
     std::cout << "Watching " << opts.file << " for changes... (Ctrl-C to stop)"
               << std::endl;
-    runtime.execute_file(opts.file);
+    g_source_manager.load_file(opts.file);
+    auto init_result = runtime.execute_file(opts.file);
+    if (!init_result.success && init_result.error.has_value()) {
+        print_render_error(*init_result.error);
+    }
 
     auto last_mtime = fs::last_write_time(opts.file);
 
@@ -471,11 +552,10 @@ static int run_watch_mode(const CLIOptions& opts, pml::PMLRuntime& runtime)
                               std::localtime(&now));
                 std::cout << "\n--- " << time_str << " ---" << std::endl;
 
+                g_source_manager.load_file(opts.file);
                 auto result = runtime.execute_file(opts.file);
                 if (!result.success && result.error.has_value()) {
-                    std::string msg = (*result.error).value("message",
-                                                          "Execution failed");
-                    std::cerr << "Error: " << msg << std::endl;
+                    print_render_error(*result.error);
                 }
             }
         } catch (const fs::filesystem_error&) {
@@ -543,6 +623,15 @@ int main(int argc, char* argv[])
     if (opts.help) {
         print_help(argv[0]);
         return 0;
+    }
+
+    // Resolve paths before we change the working directory for the output
+    // directory. This allows relative input/output paths to work together.
+    if (!opts.file.empty()) {
+        opts.file = fs::absolute(opts.file).string();
+    }
+    if (!opts.output_dir.empty()) {
+        opts.output_dir = fs::absolute(opts.output_dir).string();
     }
 
     // Setup output directory

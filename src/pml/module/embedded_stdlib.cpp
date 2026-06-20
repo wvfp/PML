@@ -76,7 +76,7 @@ void load_embedded_stdlib(std::shared_ptr<Environment> global_env) {
         // ── 4. Evaluate into the global environment ─────────────────────
         bool module_failed = false;
         for (const auto& expr : *expanded) {
-            auto result = evaluate(expr, global_env);
+            auto result = eval_to_value(expr, global_env);
             if (!result) {
                 std::cerr << "Warning: stdlib module '" << module_name
                           << "' (" << entry.path << ") failed to load [eval]: "

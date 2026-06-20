@@ -26,8 +26,8 @@ std::shared_ptr<GraphicObject> create_mouth(
     const std::unordered_map<std::string, Value>& kwargs) {
     auto p = validate_params(mouth_schema(), kwargs);
 
-    std::string style = std::get<std::string>(p["style"]);
-    double s = std::get<double>(p["size"]);
+    std::string style = *p["style"].as_string();
+    double s = p["size"].double_val();
     double w = 12.0 * s;
 
     std::vector<GraphicObject> children;
@@ -35,53 +35,53 @@ std::shared_ptr<GraphicObject> create_mouth(
     if (style == "neutral") {
         children.emplace_back(
             "line",
-            std::unordered_map<std::string, Value>{{"x1", -w / 2.0}, {"y1", 0.0}, {"x2", w / 2.0}, {"y2", 0.0}},
+            Params{{ParamKey::x1, -w / 2.0}, {ParamKey::y1, 0.0}, {ParamKey::x2, w / 2.0}, {ParamKey::y2, 0.0}},
             std::nullopt,
             "#c0392b",
             2.0 * s);
     } else if (style == "smile") {
         children.emplace_back(
             "line",
-            std::unordered_map<std::string, Value>{{"x1", -w / 2.0}, {"y1", -2.0 * s}, {"x2", 0.0}, {"y2", 4.0 * s}},
+            Params{{ParamKey::x1, -w / 2.0}, {ParamKey::y1, -2.0 * s}, {ParamKey::x2, 0.0}, {ParamKey::y2, 4.0 * s}},
             std::nullopt,
             "#c0392b",
             2.0 * s);
         children.emplace_back(
             "line",
-            std::unordered_map<std::string, Value>{{"x1", 0.0}, {"y1", 4.0 * s}, {"x2", w / 2.0}, {"y2", -2.0 * s}},
+            Params{{ParamKey::x1, 0.0}, {ParamKey::y1, 4.0 * s}, {ParamKey::x2, w / 2.0}, {ParamKey::y2, -2.0 * s}},
             std::nullopt,
             "#c0392b",
             2.0 * s);
     } else if (style == "frown") {
         children.emplace_back(
             "line",
-            std::unordered_map<std::string, Value>{{"x1", -w / 2.0}, {"y1", 4.0 * s}, {"x2", 0.0}, {"y2", -2.0 * s}},
+            Params{{ParamKey::x1, -w / 2.0}, {ParamKey::y1, 4.0 * s}, {ParamKey::x2, 0.0}, {ParamKey::y2, -2.0 * s}},
             std::nullopt,
             "#c0392b",
             2.0 * s);
         children.emplace_back(
             "line",
-            std::unordered_map<std::string, Value>{{"x1", 0.0}, {"y1", -2.0 * s}, {"x2", w / 2.0}, {"y2", 4.0 * s}},
+            Params{{ParamKey::x1, 0.0}, {ParamKey::y1, -2.0 * s}, {ParamKey::x2, w / 2.0}, {ParamKey::y2, 4.0 * s}},
             std::nullopt,
             "#c0392b",
             2.0 * s);
     } else if (style == "open") {
         children.emplace_back(
             "ellipse",
-            std::unordered_map<std::string, Value>{{"cx", 0.0}, {"cy", 2.0 * s}, {"rx", w / 2.0}, {"ry", 6.0 * s}},
+            Params{{ParamKey::cx, 0.0}, {ParamKey::cy, 2.0 * s}, {ParamKey::rx, w / 2.0}, {ParamKey::ry, 6.0 * s}},
             "#3d1010",
             "#c0392b",
             1.5);
         children.emplace_back(
             "rect",
-            std::unordered_map<std::string, Value>{{"x", -w / 3.0}, {"y", -1.0 * s}, {"w", w * 2.0 / 3.0}, {"h", 3.0 * s}},
+            Params{{ParamKey::x, -w / 3.0}, {ParamKey::y, -1.0 * s}, {ParamKey::w, w * 2.0 / 3.0}, {ParamKey::h, 3.0 * s}},
             "#FFFFFF");
     } else if (style == "cat") {
         double cat_w = 8.0 * s;
         for (double dx : {-cat_w, 0.0, cat_w}) {
             children.emplace_back(
                 "ellipse",
-                std::unordered_map<std::string, Value>{{"cx", dx}, {"cy", 2.0 * s}, {"rx", 4.0 * s}, {"ry", 3.0 * s}},
+                Params{{ParamKey::cx, dx}, {ParamKey::cy, 2.0 * s}, {ParamKey::rx, 4.0 * s}, {ParamKey::ry, 3.0 * s}},
                 std::nullopt,
                 "#c0392b",
                 1.5);
@@ -89,15 +89,15 @@ std::shared_ptr<GraphicObject> create_mouth(
     } else if (style == "fang") {
         children.emplace_back(
             "line",
-            std::unordered_map<std::string, Value>{{"x1", -w / 2.0}, {"y1", -2.0 * s}, {"x2", w / 2.0}, {"y2", -2.0 * s}},
+            Params{{ParamKey::x1, -w / 2.0}, {ParamKey::y1, -2.0 * s}, {ParamKey::x2, w / 2.0}, {ParamKey::y2, -2.0 * s}},
             std::nullopt,
             "#c0392b",
             2.0 * s);
         double fang_x = w / 3.0;
         children.emplace_back(
             "polygon",
-            std::unordered_map<std::string, Value>{
-                {"points",
+            Params{
+                {ParamKey::points,
                  make_list_value(std::vector<Value>{
                      fang_x - 3.0 * s, -2.0 * s,
                      fang_x + 3.0 * s, -2.0 * s,
@@ -109,7 +109,7 @@ std::shared_ptr<GraphicObject> create_mouth(
 
     return std::make_shared<GraphicObject>(
         "group",
-        std::unordered_map<std::string, Value>{},
+        Params{},
         std::nullopt,
         std::nullopt,
         1.0,

@@ -34,13 +34,13 @@ Result<Value> builtin_bind_skin(const std::vector<Value>& args, Environment&) {
         return std::unexpected(arity_error(SourceLocation{}, 3, static_cast<int>(args.size())));
     }
 
-    const auto* graphic_ptr = std::get_if<std::shared_ptr<GraphicObject>>(&args[0]);
+    const auto* graphic_ptr = args[0].as_graphic_object();
     if (!graphic_ptr || !*graphic_ptr) {
         return std::unexpected(type_error(
             "bind-skin: first argument must be a GraphicObject"));
     }
 
-    const auto* instance_ptr = std::get_if<std::shared_ptr<SkeletonInstance>>(&args[1]);
+    const auto* instance_ptr = args[1].as_skeleton_instance();
     if (!instance_ptr || !*instance_ptr) {
         return std::unexpected(type_error(
             "bind-skin: second argument must be a SkeletonInstance"));
@@ -48,9 +48,9 @@ Result<Value> builtin_bind_skin(const std::vector<Value>& args, Environment&) {
 
     std::vector<std::string> joint_names;
     for (size_t i = 2; i < args.size(); ++i) {
-        if (const auto* sym = std::get_if<Symbol>(&args[i])) {
+        if (const auto* sym = args[i].as_symbol()) {
             joint_names.push_back(sym->name);
-        } else if (const auto* s = std::get_if<std::string>(&args[i])) {
+        } else if (const auto* s = args[i].as_string()) {
             joint_names.push_back(*s);
         } else {
             return std::unexpected(type_error(

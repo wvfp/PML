@@ -79,6 +79,21 @@ std::shared_ptr<Module> ModuleLoader::get_cached(
     return nullptr;
 }
 
+bool ModuleLoader::is_available(
+    const std::string& path, const std::string& from_file) const {
+    auto resolved = resolve_path(path, from_file);
+    return resolved.has_value();
+}
+
+std::vector<std::shared_ptr<Module>> ModuleLoader::loaded_modules() const {
+    std::vector<std::shared_ptr<Module>> result;
+    result.reserve(m_cache.size());
+    for (const auto& [_, mod] : m_cache) {
+        result.push_back(mod);
+    }
+    return result;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // resolve_path — search order:
 //   1. path as-is (absolute or relative to cwd)
@@ -240,7 +255,7 @@ Result<std::shared_ptr<Module>> ModuleLoader::do_load(
 
     // 7. Evaluate all expressions in module environment
     for (const auto& expr : *expanded_result) {
-        auto eval_result = evaluate(expr, module_env);
+        auto eval_result = eval_to_value(expr, module_env);
         if (!eval_result) {
             return std::unexpected(eval_result.error());
         }

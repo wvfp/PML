@@ -1,0 +1,64 @@
+// ═══════════════════════════════════════════════════════════════════════════════
+// PML Runtime Context — Implementation
+// ═══════════════════════════════════════════════════════════════════════════════
+
+#include "pml/api/context.h"
+
+#include "pml/asset/asset_cache.h"
+#include "pml/graphics/canvas.h"
+#include "pml/animation/timeline.h"
+#include "pml/sprites/style.h"
+#include "pml/sprites/palette.h"
+
+namespace pml {
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Thread-local current context
+// ═══════════════════════════════════════════════════════════════════════════════
+
+thread_local PMLContext* PMLContext::s_current = nullptr;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Construction / destruction
+// ═══════════════════════════════════════════════════════════════════════════════
+
+PMLContext::PMLContext()
+    : assets(std::make_unique<AssetCache>()) {}
+
+PMLContext::~PMLContext() = default;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Lifecycle
+// ═══════════════════════════════════════════════════════════════════════════════
+
+void PMLContext::reset() {
+    current_canvas.reset();
+    timeline.reset();
+    styles = std::make_unique<StyleRegistry>();
+    palettes = std::make_unique<PaletteManager>();
+    assets = std::make_unique<AssetCache>();
+    compositions.clear();
+    output_files.clear();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Current-context access
+// ═══════════════════════════════════════════════════════════════════════════════
+
+PMLContext& PMLContext::current() {
+    if (s_current) {
+        return *s_current;
+    }
+    static PMLContext default_context;
+    return default_context;
+}
+
+PMLContext* PMLContext::current_ptr() noexcept {
+    return s_current;
+}
+
+void PMLContext::set_current(PMLContext* ctx) noexcept {
+    s_current = ctx;
+}
+
+} // namespace pml

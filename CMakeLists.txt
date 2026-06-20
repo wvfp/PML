@@ -19,7 +19,6 @@ endif()
 option(PML_BUILD_TESTS     "Build unit tests"            ON)
 option(PML_BUILD_CLI       "Build pml CLI"               ON)
 option(PML_BUILD_MCP       "Build pml-mcp JSON-RPC server" ON)
-option(PML_BUILD_CAIRO     "Build cairo render backend"  OFF)
 option(PML_BUILD_GIF       "Build gif export backend"    ON)
 option(PML_BUILD_SKIA      "Build skia render backend"   ON)
 option(PML_BUILD_FREETYPE  "Vendor freetype (unused for now)" OFF)
@@ -40,8 +39,7 @@ function(pml_third_party NAME)
     cmake_parse_arguments(PML_TP "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
     if(PML_TP_URL)
         # Tarball download — used for libraries whose canonical git host is
-        # slow (e.g. gitlab.freedesktop.org for cairo/pixman); cairographics.org
-        # hosts a CDN-cached release tarball instead.
+        # slow; the release tarball is hosted on a CDN-cached mirror instead.
         set(_local "${CMAKE_SOURCE_DIR}/third_party/${NAME}")
         message(STATUS "pml: download ${PML_TP_URL} into third_party/${NAME}")
         if(PML_TP_HASH)
@@ -76,91 +74,6 @@ function(pml_third_party NAME)
     else()
         message(FATAL_ERROR "pml_third_party(${NAME}): need either URL or REPO+TAG")
     endif()
-endfunction()
-
-# Helper: build a meson-only project (cairo, pixman, etc.) and import the
-# resulting static library as a CMake target.
-#
-# Args:
-#   NAME         — internal target name (used for the build subdir and custom
-#                  command name)
-#   SOURCE       — path to the meson source tree (must contain meson.build)
-#   OPTIONS      — list of meson options (e.g. -Dglib=disabled)
-#   TARGET_NAME  — CMake target name to create (will be STATIC IMPORTED)
-#   STATIC_LIB   — filename of the resulting static lib (e.g. libcairo.a)
-function(pml_meson_build NAME)
-    set(options)
-    set(oneValueArgs SOURCE TARGET_NAME STATIC_LIB)
-    set(multiValueArgs OPTIONS EXTRA_ENV)
-    cmake_parse_arguments(PML_MB "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
-
-    if(NOT PML_MB_SOURCE OR NOT PML_MB_TARGET_NAME OR NOT PML_MB_STATIC_LIB)
-        message(FATAL_ERROR
-            "pml_meson_build(${NAME}): SOURCE, TARGET_NAME, STATIC_LIB are required")
-    endif()
-    if(NOT MESON_EXECUTABLE)
-        find_program(MESON_EXECUTABLE meson REQUIRED)
-    endif()
-    if(NOT NINJA_EXECUTABLE)
-        find_program(NINJA_EXECUTABLE ninja REQUIRED)
-    endif()
-
-    set(_build_dir "${CMAKE_BINARY_DIR}/_third_party/${NAME}/build")
-    set(_lib_path  "${_build_dir}/${PML_MB_STATIC_LIB}")
-    set(_pdb_path  "${_build_dir}/${PML_MB_TARGET_NAME}.pdb")
-
-    # Force meson to use the SAME compiler that CMake picked (e.g. Clang 20 on
-    # Windows), so the resulting .a/.lib is ABI-compatible with the rest of
-    # pml-cpp. Without this meson falls back to whatever `cc` it finds first
-    # (often MinGW gcc on Windows) and we get linker errors at the end.
-    #
-    # Compiler paths frequently contain spaces (e.g. "C:\Program Files\LLVM\bin\
-    # clang.exe") which Meson doesn't accept reliably in CC=/CXX= env vars on
-    # Windows, so we write a tiny .bat wrapper to a stable path inside the
-    # build dir and point meson at that.
-    set(_cc_wrapper  "${CMAKE_BINARY_DIR}/_third_party/${NAME}/cc_wrapper.bat")
-    set(_cxx_wrapper "${CMAKE_BINARY_DIR}/_third_party/${NAME}/cxx_wrapper.bat")
-    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/_third_party/${NAME}")
-    file(WRITE "${_cc_wrapper}"  "@echo off\r\n\"${CMAKE_C_COMPILER}\" %*\r\n")
-    file(WRITE "${_cxx_wrapper}" "@echo off\r\n\"${CMAKE_CXX_COMPILER}\" %*\r\n")
-    set(_meson_env
-        CC=${_cc_wrapper}
-        CXX=${_cxx_wrapper}
-    )
-    # Append any caller-supplied env vars (e.g. PKG_CONFIG_PATH) so meson
-    # can find system dependencies our cmake target already built.
-    if(PML_MB_EXTRA_ENV)
-        list(APPEND _meson_env ${PML_MB_EXTRA_ENV})
-    endif()
-
-    # Build the static lib via meson+ninja. We capture meson output to a log
-    # so it doesn't drown the configure output.
-    add_custom_command(
-        OUTPUT  "${_lib_path}"
-        COMMAND ${CMAKE_COMMAND} -E env ${_meson_env}
-                ${CMAKE_COMMAND} -E make_directory "${_build_dir}"
-        # Delete stale build dir to avoid meson complaining about a re-setup
-        COMMAND ${CMAKE_COMMAND} -E rm -rf "${_build_dir}"
-        COMMAND ${CMAKE_COMMAND} -E env ${_meson_env}
-                ${MESON_EXECUTABLE} setup "${_build_dir}" "${PML_MB_SOURCE}"
-                --buildtype=release
-                --default-library=static
-                ${PML_MB_OPTIONS}
-        COMMAND ${NINJA_EXECUTABLE} -C "${_build_dir}"
-        COMMAND ${CMAKE_COMMAND} -E echo "pml: built ${PML_MB_STATIC_LIB} (${PML_MB_SOURCE})"
-        DEPENDS "${PML_MB_SOURCE}/meson.build"
-                "${_cc_wrapper}" "${_cxx_wrapper}"
-        COMMENT "pml: meson+ninja build of ${PML_MB_TARGET_NAME}"
-        VERBATIM
-    )
-    add_custom_target(${NAME} DEPENDS "${_lib_path}")
-
-    add_library(${PML_MB_TARGET_NAME} STATIC IMPORTED GLOBAL)
-    add_dependencies(${PML_MB_TARGET_NAME} ${NAME})
-    set_target_properties(${PML_MB_TARGET_NAME} PROPERTIES
-        IMPORTED_LOCATION             "${_lib_path}"
-        INTERFACE_INCLUDE_DIRECTORIES "${PML_MB_SOURCE}/src"
-    )
 endfunction()
 
 # nlohmann_json (header-only, in third_party/json/)
@@ -276,104 +189,6 @@ if(PML_BUILD_GIF)
     endif()
 endif()
 
-# cairo + pixman — both switched to meson upstream, so we don't try to
-# add_subdirectory them. Instead we build via `meson setup` + `ninja` and
-# import the resulting static libraries as CMake targets.
-#
-# We build pixman (no tests/gtk) and cairo (no glib/fontconfig/freetype/xlib/xcb
-# /quartz/dwrite — only image + PNG + toy-text surface, which is what
-# pml's CairoBackend uses).
-if(PML_BUILD_CAIRO)
-    find_program(MESON_EXECUTABLE meson REQUIRED)
-    find_program(NINJA_EXECUTABLE ninja REQUIRED)
-
-    pml_third_party(pixman
-        URL https://cairographics.org/releases/pixman-0.46.4.tar.xz
-    )
-    pml_meson_build(pixman_build
-        SOURCE  "${CMAKE_SOURCE_DIR}/third_party/pixman"
-        OPTIONS
-            -Dtests=disabled
-            -Ddemos=disabled
-            -Dgtk=disabled
-            -Dlibpng=disabled
-        TARGET_NAME pixman
-        STATIC_LIB libpixman-1${CMAKE_STATIC_LIBRARY_SUFFIX}
-    )
-    add_library(pixman::pixman ALIAS pixman)
-
-    # Generate a pkg-config file for our built pixman so cairo's meson can
-    # find it via `dependency('pixman-1')` instead of falling back to the
-    # bundled (and Clang-broken) pixman-0.43.4 subproject.
-    set(_pixman_pc_dir  "${CMAKE_BINARY_DIR}/_third_party/pixman_pc")
-    file(MAKE_DIRECTORY "${_pixman_pc_dir}")
-    set(_pixman_lib_path "${CMAKE_BINARY_DIR}/_third_party/pixman_build/build/libpixman-1${CMAKE_STATIC_LIBRARY_SUFFIX}")
-    set(_pixman_inc_path "${CMAKE_SOURCE_DIR}/third_party/pixman/pixman")
-    file(WRITE "${_pixman_pc_dir}/pixman.pc"
-        [=[
-prefix=__PREFIX__
-exec_prefix=__PREFIX__
-libdir=__LIBDIR__
-includedir=__INCDIR__
-
-Name: pixman-1
-Description: pixman library (pml vendored build)
-Version: 0.46.4
-Libs: -L__LIBDIR__ -lpixman-1
-Cflags: -I__INCDIR__
-]=]
-    )
-    # CMake's configure_file()-style substitution is unavailable in file(WRITE),
-    # so we use string(REPLACE) to expand our sentinels in place.
-    file(READ   "${_pixman_pc_dir}/pixman.pc"   _pc_body)
-    string(REPLACE "__PREFIX__" "${_pixman_pc_dir}" _pc_body "${_pc_body}")
-    string(REPLACE "__LIBDIR__" "${CMAKE_BINARY_DIR}/_third_party/pixman_build/build" _pc_body "${_pc_body}")
-    string(REPLACE "__INCDIR__" "${_pixman_inc_path}" _pc_body "${_pc_body}")
-    file(WRITE  "${_pixman_pc_dir}/pixman.pc"   "${_pc_body}")
-    message(STATUS "pml: generated ${_pixman_pc_dir}/pixman.pc")
-    set(PML_PIXMAN_PC_PATH "${_pixman_pc_dir}" CACHE INTERNAL "pkgconfig dir with our pixman.pc" FORCE)
-
-    pml_third_party(cairo
-        URL https://cairographics.org/releases/cairo-1.18.4.tar.xz
-    )
-    # cairo's meson exposes the static lib as `libcairo.a`. We disable every
-    # optional back-end: pml's CairoBackend only uses image surface, PNG I/O,
-    # and the toy-text API (which is built-in and needs no fontconfig/freetype).
-    pml_meson_build(cairo_build
-        SOURCE  "${CMAKE_SOURCE_DIR}/third_party/cairo"
-        OPTIONS
-            -Dglib=disabled
-            -Dfreetype=disabled
-            -Dfontconfig=disabled
-            # Cairo's PNG support needs a meson-found libpng, which we can't
-            # satisfy from CMake-built libpng without pkg-config plumbing.
-            # pml's CairoBackend does not need cairo's PNG I/O — the image
-            # surface pixels are written to PNG by pml's own libpng pipeline.
-            -Dpng=disabled
-            -Dzlib=disabled
-            -Dlzo=disabled
-            -Dxlib=disabled
-            -Dxcb=disabled
-            -Dxlib-xcb=disabled
-            -Dquartz=disabled
-            -Ddwrite=disabled
-            -Dtee=disabled
-            -Dsymbol-lookup=disabled
-            -Dtests=disabled
-            -Dspectre=disabled
-            # Don't download any subproject (e.g. broken pixman-0.43.4 wrap);
-            # we provide our own pre-built pixman-0.46.4 via PKG_CONFIG_PATH.
-            --wrap-mode=nodownload
-        TARGET_NAME cairo
-        STATIC_LIB libcairo${CMAKE_STATIC_LIBRARY_SUFFIX}
-        # Point meson at the pixman.pc we generated above so cairo picks
-        # up our pre-built libpixman-1 instead of its bundled wrap.
-        EXTRA_ENV
-            PKG_CONFIG_PATH=${_pixman_pc_dir}
-    )
-    add_library(Cairo::Cairo ALIAS cairo)
-endif()
-
 # freetype — vendored on demand
 if(PML_BUILD_FREETYPE)
     pml_third_party(freetype
@@ -441,17 +256,15 @@ if(PML_BUILD_SKIA)
     set(PML_USE_SKIA 1)
 endif()
 
-if(PML_BUILD_CAIRO)
-    add_compile_definitions(PML_USE_CAIRO=1)
-    set(PML_USE_CAIRO 1)
-endif()
-
 # ═══ Subdirectories (bottom-up dependency order) ══════════════════════════
 add_subdirectory(src/pml/core)
 add_subdirectory(src/pml/frontend)
-add_subdirectory(src/pml/backend)        # also pulls in cairo/gif via add_subdirectory
+add_subdirectory(src/pml/backend)        # also pulls in gif via add_subdirectory
+add_subdirectory(src/pml/filter)
 add_subdirectory(src/pml/evaluator)
 add_subdirectory(src/pml/graphics)
+add_subdirectory(src/pml/graphics3d)
+add_subdirectory(src/pml/layer)
 if(PML_BUILD_SKIA)
     add_subdirectory(src/pml/backend/skia)
 endif()
@@ -459,6 +272,7 @@ add_subdirectory(src/pml/sprites)
 add_subdirectory(src/pml/animation)
 add_subdirectory(src/pml/skeleton)
 add_subdirectory(src/pml/module)
+add_subdirectory(src/pml/asset)
 add_subdirectory(src/pml/api)
 if(PML_BUILD_CLI)
     add_subdirectory(src/pml/cli)

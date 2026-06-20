@@ -41,9 +41,9 @@ std::shared_ptr<GraphicObject> create_head(
     const std::unordered_map<std::string, Value>& kwargs) {
     auto p = validate_params(head_schema(), kwargs);
 
-    std::string shape = std::get<std::string>(p["shape"]);
-    std::string skin = std::get<std::string>(p["skin"]);
-    std::string ears = std::get<std::string>(p["ears"]);
+    std::string shape = *p["shape"].as_string();
+    std::string skin = *p["skin"].as_string();
+    std::string ears = *p["ears"].as_string();
 
     constexpr double head_w = 56.0;
     constexpr double head_h = 64.0;
@@ -52,25 +52,22 @@ std::shared_ptr<GraphicObject> create_head(
 
     if (shape == "oval" || shape == "heart") {
         head = GraphicObject(
-            "ellipse",
-            {{"cx", 0.0}, {"cy", 0.0}, {"rx", head_w / 2.0}, {"ry", head_h / 2.0}},
+            "ellipse", Params{{ParamKey::cx, 0.0}, {ParamKey::cy, 0.0}, {ParamKey::rx, head_w / 2.0}, {ParamKey::ry, head_h / 2.0}},
             skin,
             "#1a1a1a",
             2.0);
     } else if (shape == "round") {
         head = GraphicObject(
-            "ellipse",
-            {{"cx", 0.0}, {"cy", 0.0}, {"rx", head_w / 2.0}, {"ry", head_w / 2.0}},
+            "ellipse", Params{{ParamKey::cx, 0.0}, {ParamKey::cy, 0.0}, {ParamKey::rx, head_w / 2.0}, {ParamKey::ry, head_w / 2.0}},
             skin,
             "#1a1a1a",
             2.0);
     } else {  // square, angular, fallback
         head = GraphicObject(
-            "rect",
-            {{"x", -head_w / 2.0},
-             {"y", -head_h / 2.0},
-             {"w", head_w},
-             {"h", head_h}},
+            "rect", Params{{ParamKey::x, -head_w / 2.0},
+             {ParamKey::y, -head_h / 2.0},
+             {ParamKey::w, head_w},
+             {ParamKey::h, head_h}},
             skin,
             "#1a1a1a",
             2.0);
@@ -84,8 +81,8 @@ std::shared_ptr<GraphicObject> create_head(
         for (double dx : {-head_w / 2.0 - ear_r, head_w / 2.0 + ear_r}) {
             children.emplace_back(
                 "ellipse",
-                std::unordered_map<std::string, Value>{
-                    {"cx", dx}, {"cy", -4.0}, {"rx", ear_r}, {"ry", ear_r * 1.2}},
+                Params{
+                    {ParamKey::cx, dx}, {ParamKey::cy, -4.0}, {ParamKey::rx, ear_r}, {ParamKey::ry, ear_r * 1.2}},
                 skin,
                 "#1a1a1a",
                 1.5);
@@ -96,8 +93,8 @@ std::shared_ptr<GraphicObject> create_head(
                  {head_w / 2.0 + 2.0, 1.0}}) {
             children.emplace_back(
                 "polygon",
-                std::unordered_map<std::string, Value>{
-                    {"points",
+                Params{
+                    {ParamKey::points,
                      make_polygon_points({dx, -4.0,
                                           dx + 8.0 * flip, -30.0,
                                           dx + 3.0 * flip, -2.0})}},
@@ -111,8 +108,8 @@ std::shared_ptr<GraphicObject> create_head(
                  {head_w / 2.0 - 4.0, 1.0}}) {
             children.emplace_back(
                 "polygon",
-                std::unordered_map<std::string, Value>{
-                    {"points",
+                Params{
+                    {ParamKey::points,
                      make_polygon_points({dx - 6.0 * flip, -head_h / 2.0 + 4.0,
                                           dx + 4.0 * flip, -head_h / 2.0 - 18.0,
                                           dx + 12.0 * flip, -head_h / 2.0 + 6.0})}},
@@ -125,7 +122,7 @@ std::shared_ptr<GraphicObject> create_head(
 
     return std::make_shared<GraphicObject>(
         "group",
-        std::unordered_map<std::string, Value>{},
+        Params{},
         std::nullopt,
         std::nullopt,
         1.0,

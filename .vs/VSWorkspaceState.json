@@ -1,0 +1,13 @@
+{
+  "OutputFoldersPerTargetSystem": {
+    "Local Machine": [
+      "build\\debug",
+      "build\\release"
+    ]
+  },
+  "ExpandedNodes": [
+    ""
+  ],
+  "SelectedNode": "\\G:\\Project\\PML\\pml-cpp\\CMakeLists.txt\\pml_animation.lib (src\\pml\\animation\\pml_animation.lib)",
+  "PreviewInSolutionExplorer": false
+}

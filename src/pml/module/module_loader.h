@@ -64,6 +64,14 @@ public:
     [[nodiscard]] std::shared_ptr<Module> get_cached(
         const std::string& path) const;
 
+    /// Check if a module path can be resolved to an existing file without
+    /// actually loading it.
+    [[nodiscard]] bool is_available(
+        const std::string& path, const std::string& from_file = "") const;
+
+    /// Return all currently loaded modules.
+    [[nodiscard]] std::vector<std::shared_ptr<Module>> loaded_modules() const;
+
 private:
     std::shared_ptr<Environment> m_global_env;
     std::unordered_map<std::string, std::shared_ptr<Module>> m_cache;

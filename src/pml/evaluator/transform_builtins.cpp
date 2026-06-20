@@ -24,8 +24,8 @@ namespace {
 
 /// Convert a Value to double. Assumes is_number(v) is true.
 [[nodiscard]] double to_double(const Value& v) {
-    if (const auto* i = std::get_if<int64_t>(&v)) return static_cast<double>(*i);
-    if (const auto* d = std::get_if<double>(&v)) return *d;
+    if (v.is_int()) return static_cast<double>(v.int_val());
+    if (v.is_double()) return v.double_val();
     return 0.0;  // unreachable
 }
 
@@ -190,12 +190,12 @@ static Result<Value> builtin_compose(
     auto r = expect_arity(2, args, "compose");
     if (!r) return std::unexpected(r.error());
 
-    const auto* t1 = std::get_if<std::shared_ptr<AffineTransform>>(&args[0]);
+    const auto* t1 = args[0].as_transform();
     if (!t1 || !*t1) {
         return std::unexpected(type_error(
             "compose: first argument must be an AffineTransform"));
     }
-    const auto* t2 = std::get_if<std::shared_ptr<AffineTransform>>(&args[1]);
+    const auto* t2 = args[1].as_transform();
     if (!t2 || !*t2) {
         return std::unexpected(type_error(
             "compose: second argument must be an AffineTransform"));
@@ -215,7 +215,7 @@ static Result<Value> builtin_matrix_inverse(
     auto r = expect_arity(1, args, "matrix-inverse");
     if (!r) return std::unexpected(r.error());
 
-    const auto* t = std::get_if<std::shared_ptr<AffineTransform>>(&args[0]);
+    const auto* t = args[0].as_transform();
     if (!t || !*t) {
         return std::unexpected(type_error(
             "matrix-inverse: argument must be an AffineTransform"));
@@ -239,7 +239,7 @@ static Result<Value> builtin_matrix_apply(
     auto r = expect_arity(3, args, "matrix-apply");
     if (!r) return std::unexpected(r.error());
 
-    const auto* t = std::get_if<std::shared_ptr<AffineTransform>>(&args[0]);
+    const auto* t = args[0].as_transform();
     if (!t || !*t) {
         return std::unexpected(type_error(
             "matrix-apply: first argument must be an AffineTransform"));
@@ -263,7 +263,7 @@ static Result<Value> builtin_matrix_p(
 {
     auto r = expect_arity(1, args, "matrix?");
     if (!r) return std::unexpected(r.error());
-    return Value(std::holds_alternative<std::shared_ptr<AffineTransform>>(args[0]));
+    return Value(args[0].is_transform());
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

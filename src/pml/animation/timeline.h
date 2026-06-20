@@ -12,6 +12,7 @@
 #include "objects.h"
 #include "canvas.h"
 #include "environment.h"
+#include "pml/api/context.h"
 
 #include <cstdint>
 #include <functional>
@@ -32,25 +33,23 @@ namespace pml {
 /// @p duration seconds using an easing function.
 /// Supports numeric properties and color strings (hex RGB/RGBA).
 struct Animation {
-    uint64_t target_id;           ///< GraphicObject::id to animate.
-    std::string property_name;    ///< Property key ("x", "y", "r", "fill", etc.).
-    Value from_value;             ///< Start value (number or color string).
-    Value to_value;               ///< End value (number or color string).
-    float duration;               ///< Duration of one cycle in seconds.
-    EasingFn easing;              ///< Easing function (from easing.h).
-    float delay{0.0f};            ///< Delay before the animation starts.
-    int repeat{1};                ///< Number of cycles (1 = play once).
+    uint64_t target_id;        ///< GraphicObject::id to animate.
+    std::string property_name; ///< Property key ("x", "y", "r", "fill", etc.).
+    Value from_value;          ///< Start value (number or color string).
+    Value to_value;            ///< End value (number or color string).
+    float duration;            ///< Duration of one cycle in seconds.
+    EasingFn easing;           ///< Easing function (from easing.h).
+    float delay{0.0f};         ///< Delay before the animation starts.
+    int repeat{1};             ///< Number of cycles (1 = play once).
 
-    Animation(
-        uint64_t target_id_,
-        std::string property_name_,
-        Value from_value_,
-        Value to_value_,
-        float duration_,
-        EasingFn easing_ = easing_linear,
-        float delay_ = 0.0f,
-        int repeat_ = 1
-    );
+    Animation(uint64_t target_id_,
+              std::string property_name_,
+              Value from_value_,
+              Value to_value_,
+              float duration_,
+              EasingFn easing_ = easing_linear,
+              float delay_ = 0.0f,
+              int repeat_ = 1);
 
     /// Total duration including delay and all repeats.
     [[nodiscard]] double get_duration() const noexcept {
@@ -64,13 +63,7 @@ struct Animation {
 
 /// Runtime playback state of the timeline.
 /// Matches Python's { "idle", "playing", "paused", "stopped", "finished" }.
-enum class TimelineState {
-    Idle,
-    Playing,
-    Paused,
-    Stopped,
-    Finished
-};
+enum class TimelineState { Idle, Playing, Paused, Stopped, Finished };
 
 /// Convert TimelineState to string (for debugging / PML introspection).
 std::string timeline_state_to_string(TimelineState s);
@@ -100,7 +93,7 @@ using FrameResult = std::tuple<uint64_t, std::string, Value>;
 ///   - Control playback with play()/stop()/pause()/seek()
 ///   - Call render_frames() to step through all frames
 class Timeline {
-public:
+  public:
     /// Registered animations (reference semantics via shared_ptr).
     std::vector<std::shared_ptr<Animation>> animations;
 
@@ -166,16 +159,17 @@ public:
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Global singleton
+// Context-scoped timeline
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/// The global timeline instance.
-/// Lazily created on first access (via _animate builtin or direct use).
-extern std::shared_ptr<Timeline> g_timeline;
-
-/// Ensure the global timeline exists (create if null).
-/// Returns the current g_timeline.
-std::shared_ptr<Timeline> get_or_create_timeline();
+/// Ensure the timeline for the current context exists (create if null).
+[[nodiscard]] inline std::shared_ptr<Timeline> get_or_create_timeline() {
+    auto& ctx = PMLContext::current();
+    if (!ctx.timeline) {
+        ctx.timeline = std::make_shared<Timeline>();
+    }
+    return ctx.timeline;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // _apply_modifications — apply animation frame to GraphicObject
@@ -193,9 +187,8 @@ std::shared_ptr<Timeline> get_or_create_timeline();
 ///   - "stroke-width"    → set stroke_width field
 ///   - "transform.tx"    → modify transform.e (translation x)
 ///   - "transform.ty"    → modify transform.f (translation y)
-GraphicObject _apply_modifications(
-    const GraphicObject& obj,
-    const std::unordered_map<std::string, Value>& mods);
+GraphicObject _apply_modifications(const GraphicObject& obj,
+                                   const std::unordered_map<std::string, Value>& mods);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Builtin registration

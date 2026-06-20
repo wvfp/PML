@@ -33,9 +33,9 @@ Result<Value> builtin_set_backend(const std::vector<Value>& args, Environment&) 
     }
 
     std::string backend_name;
-    if (const auto* s = std::get_if<std::string>(&args[0])) {
+    if (const auto* s = args[0].as_string()) {
         backend_name = *s;
-    } else if (const auto* sym = std::get_if<Symbol>(&args[0])) {
+    } else if (const auto* sym = args[0].as_symbol()) {
         backend_name = sym->name;
     } else {
         return std::unexpected(type_error("set-backend!: argument must be a string or symbol"));
@@ -90,9 +90,9 @@ Result<Value> builtin_backend_available(const std::vector<Value>& args, Environm
     }
 
     std::string backend_name;
-    if (const auto* s = std::get_if<std::string>(&args[0])) {
+    if (const auto* s = args[0].as_string()) {
         backend_name = *s;
-    } else if (const auto* sym = std::get_if<Symbol>(&args[0])) {
+    } else if (const auto* sym = args[0].as_symbol()) {
         backend_name = sym->name;
     } else {
         return std::unexpected(type_error("backend-available?: argument must be a string or symbol"));

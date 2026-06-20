@@ -10,6 +10,7 @@ target_link_libraries(pml PRIVATE
     pml_frontend
     pml_evaluator
     pml_graphics
+    pml_layer
     pml_sprites
     pml_animation
     pml_skeleton
@@ -17,10 +18,9 @@ target_link_libraries(pml PRIVATE
 )
 
 # Force inclusion of backend static initializers by wrapping with whole-archive.
-# Each backend target is optional (gated by PML_BUILD_CAIRO / PML_BUILD_GIF /
-# PML_BUILD_SKIA in the top-level CMakeLists.txt).
+# Each backend target is optional (gated by PML_BUILD_GIF / PML_BUILD_SKIA in
+# the top-level CMakeLists.txt).
 set(_pml_optional_backends
-    pml_backend_cairo
     pml_backend_gif
     pml_backend_skia
 )
