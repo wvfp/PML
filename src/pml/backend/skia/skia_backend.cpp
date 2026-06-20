@@ -20,6 +20,7 @@
 
 #include <skia.h>
 #include <codec/SkCodec.h>
+#include <effects/SkPerlinNoiseShader.h>
 
 #include <png.h>
 
@@ -821,15 +822,28 @@ public:
     [[nodiscard]] sk_sp<SkShader> lookup_shader(int64_t handle) const
     {
         if (handle <= 0) return nullptr;
+
+        // Check runtime effect cache (handles 1 - 999999)
         auto it = shader_cache_.find(static_cast<uint64_t>(handle));
-        if (it == shader_cache_.end() || !it->second) return nullptr;
-        // No uniforms for now; pass empty uniforms data and no children.
-        return it->second->makeShader(SkData::MakeEmpty(), {}, nullptr);
+        if (it != shader_cache_.end() && it->second) {
+            // No uniforms for now; pass empty uniforms data and no children.
+            return it->second->makeShader(SkData::MakeEmpty(), {}, nullptr);
+        }
+
+        // Check pre-built shader cache (handles >= 1000000)
+        auto pit = preshader_cache_.find(static_cast<uint64_t>(handle));
+        if (pit != preshader_cache_.end() && pit->second) {
+            return pit->second;
+        }
+
+        return nullptr;
     }
 
 private:
     uint64_t next_shader_handle_{1};
+    uint64_t next_preshader_handle_{1000000};
     std::unordered_map<uint64_t, sk_sp<SkRuntimeEffect>> shader_cache_;
+    std::unordered_map<uint64_t, sk_sp<SkShader>> preshader_cache_;
 
     auto draw(Surface& surface, const GraphicObject& obj)
         -> Result<void> override
@@ -1152,6 +1166,66 @@ private:
 
         uint64_t handle = next_shader_handle_++;
         shader_cache_[handle] = std::move(result.effect);
+        return handle;
+    }
+
+    auto create_noise_shader(NoiseType type,
+                            float base_freq_x, float base_freq_y,
+                            int octaves, float seed,
+                            int tile_w, int tile_h) -> Result<uint64_t> override
+    {
+        SkISize tile_size = (tile_w > 0 && tile_h > 0)
+            ? SkISize{tile_w, tile_h}
+            : SkISize::MakeEmpty();
+
+        sk_sp<SkShader> noise_shader;
+
+        if (type == NoiseType::Fractal) {
+            noise_shader = SkShaders::MakeFractalNoise(
+                base_freq_x, base_freq_y, octaves, seed,
+                tile_size.isEmpty() ? nullptr : &tile_size);
+        } else {
+            noise_shader = SkShaders::MakeTurbulence(
+                base_freq_x, base_freq_y, octaves, seed,
+                tile_size.isEmpty() ? nullptr : &tile_size);
+        }
+
+        if (!noise_shader) {
+            return std::unexpected(general_error(
+                "skia create_noise_shader: failed to create noise shader"));
+        }
+
+        uint64_t handle = next_preshader_handle_++;
+        preshader_cache_[handle] = std::move(noise_shader);
+        return handle;
+    }
+
+    auto create_shader_with_uniforms(uint64_t shader_handle,
+                                     const std::vector<uint8_t>& uniform_data)
+        -> Result<uint64_t> override
+    {
+        auto it = shader_cache_.find(shader_handle);
+        if (it == shader_cache_.end() || !it->second) {
+            return std::unexpected(general_error(
+                "skia create_shader_with_uniforms: invalid shader handle"));
+        }
+
+        sk_sp<SkData> data = SkData::MakeWithCopy(
+            uniform_data.data(), uniform_data.size());
+        if (!data) {
+            return std::unexpected(general_error(
+                "skia create_shader_with_uniforms: failed to allocate uniform data"));
+        }
+
+        // Create a pre-baked shader with uniforms
+        sk_sp<SkShader> baked = it->second->makeShader(data, {}, nullptr);
+        if (!baked) {
+            return std::unexpected(general_error(
+                "skia create_shader_with_uniforms: failed to create shader with uniforms"));
+        }
+
+        uint64_t handle = next_preshader_handle_++;
+        preshader_cache_[handle] = std::move(baked);
         return handle;
     }
 

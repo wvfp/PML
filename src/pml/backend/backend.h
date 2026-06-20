@@ -136,6 +136,49 @@ public:
     /// Compile a GLSL shader string. Returns a backend-specific shader
     /// handle (opaque integer) on success, or an error on failure.
     virtual auto compile_shader(const std::string& glsl) -> Result<uint64_t> = 0;
+
+    // ── Noise Shaders ────────────────────────────────────────────────
+
+    /// Noise shader type.
+    enum class NoiseType {
+        Fractal,    ///< Fractal noise (smooth, continuous)
+        Turbulence,  ///< Turbulence noise (harsher, more variation)
+    };
+
+    /// Create a Perlin noise shader.
+    /// @param type       Noise type (Fractal or Turbulence)
+    /// @param base_freq_x  Base frequency X (usually 0.0 - 1.0)
+    /// @param base_freq_y  Base frequency Y (usually 0.0 - 1.0)
+    /// @param octaves    Number of octaves (1-8 typical)
+    /// @param seed       Random seed
+    /// @param tile_w    Tile width for seamless noise (0 = no tiling)
+    /// @param tile_h    Tile height for seamless noise (0 = no tiling)
+    /// @return          Shader handle on success
+    virtual auto create_noise_shader(NoiseType type,
+                                    float base_freq_x, float base_freq_y,
+                                    int octaves, float seed,
+                                    int tile_w, int tile_h)
+        -> Result<uint64_t>
+    {
+        return std::unexpected(general_error(
+            "noise shaders not supported by this backend"));
+    }
+
+    // ── Shader Uniforms ─────────────────────────────────────────────
+
+    /// Create a shader with uniform values bound.
+    /// SkSL uniforms are passed as a raw byte vector (layout matches SkRuntimeEffect).
+    /// @param shader_handle  Handle from compile_shader
+    /// @param uniform_data  Raw uniform data (floats aligned to 4 bytes)
+    /// @return              New shader handle with uniforms bound
+    virtual auto create_shader_with_uniforms(uint64_t shader_handle,
+                                             const std::vector<uint8_t>& uniform_data)
+        -> Result<uint64_t>
+    {
+        return std::unexpected(general_error(
+            "shader uniforms not supported by this backend"));
+    }
+
 };
 
 }  // namespace pml
