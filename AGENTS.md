@@ -130,6 +130,8 @@ port-time deltas are listed below — add new ones as they appear.
 - Hygienic macros — `defmacro` with automatic variable renaming to avoid capture
 - Module introspection — `module-available?`, `module-list`, `module-exports`
 - Skin binding — `bind-skin` with skeleton-driven transform merge into animation frames
+- **Noise shaders** — `noise-fractal`, `noise-turbulence` with seamless tiling support
+- **Shader uniforms** — `make-uniforms`, `apply-uniforms`, `uniform-float` for passing data to SkSL shaders
 
 ### Implemented differently (intentional ports)
 - **Value representation**: `std::variant` instead of Python's dynamic types.
@@ -151,6 +153,9 @@ port-time deltas are listed below — add new ones as they appear.
   `rounded-cuboid3d`, `cone3d`, `plane3d`, `sphere3d`), per-face PML 2D material
   mapping, 3D transforms (`rotate-x`/`y`/`z`, `translate3d`, `scale3d`), and a
   perspective/orthographic camera (`camera`). Python reference has no 3D support.
+- **Shader support**: C++ port adds SkSL shader compilation with uniform support.
+  New builtins: `shader`, `apply-shader!`, `noise-fractal`, `noise-turbulence`,
+  `make-uniforms`, `apply-uniforms`, `uniform-float`.
 
 ### NOT yet ported — known gaps
 - Windows watch mode — CLI `--watch` now uses `FindFirstChangeNotification` on
@@ -283,6 +288,8 @@ cmake --build --preset debug --target rebuild_cache
 | Add a new error code                    | `src/pml/core/error.h` (`ErrorCode` enum) + factory function |
 | Change the CLI                          | `src/pml/cli/main.cpp`; CLI flags in `CLIOptions` struct |
 | Add an MCP tool                         | `src/pml/mcp/mcp_server.cpp` |
+| Add noise / shader builtins             | `src/pml/evaluator/shader_builtins.cpp`; expose `register_shader_builtins` |
+| Add seamless noise support               | `src/pml/backend/backend.h` (`create_noise_shader`); impl in `skia_backend.cpp` |
 
 ---
 
