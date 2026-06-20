@@ -22,6 +22,7 @@
 #include <format>
 #include <iostream>
 #include <memory>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -1035,6 +1036,53 @@ void register_builtins(std::shared_ptr<Environment> env) {
         return Value(false);
     });
 
+    // ── memq, assq ─────────────────────────────────────────────────────
+
+    def("memq", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 2) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+        const auto* lst = args[1].as_list();
+        if (!lst || !*lst) {
+            return std::unexpected(
+                type_error("memq: second argument must be list"));
+        }
+        for (size_t i = 0; i < (*lst)->elements.size(); ++i) {
+            if ((*lst)->elements[i] == args[0]) {
+                // Return the tail starting from the matching element
+                std::vector<Value> tail;
+                tail.reserve((*lst)->elements.size() - i);
+                for (size_t j = i; j < (*lst)->elements.size(); ++j) {
+                    tail.push_back((*lst)->elements[j]);
+                }
+                return make_list_value(std::move(tail));
+            }
+        }
+        return Value(false);
+    });
+
+    def("assq", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 2) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+        const auto* lst = args[1].as_list();
+        if (!lst || !*lst) {
+            return std::unexpected(
+                type_error("assq: second argument must be list"));
+        }
+        for (const auto& item : (*lst)->elements) {
+            const auto* pair = item.as_list();
+            if (pair && *pair && !(*pair)->elements.empty()) {
+                if ((*pair)->elements[0] == args[0]) {
+                    return item;
+                }
+            }
+        }
+        return Value(false);
+    });
+
     def("range", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
         if (args.size() < 2 || args.size() > 3) {
             return std::unexpected(
@@ -1223,6 +1271,43 @@ void register_builtins(std::shared_ptr<Environment> env) {
             return Value(s->substr(static_cast<size_t>(start),
                                     static_cast<size_t>(end - start)));
         });
+
+    // ── string-copy, make-string ──────────────────────────────
+
+    def("string-copy", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 1) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        const auto* s = args[0].as_string();
+        if (!s) {
+            return std::unexpected(
+                type_error("string-copy: expected string"));
+        }
+        return Value(*s);  // return a copy
+    });
+
+    def("make-string", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() < 1 || args.size() > 2) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        if (!is_integer(args[0]) || to_int64(args[0]) < 0) {
+            return std::unexpected(
+                type_error("make-string: expected non-negative integer"));
+        }
+        int64_t len = to_int64(args[0]);
+        char fill = ' ';
+        if (args.size() == 2) {
+            const auto* s = args[1].as_string();
+            if (!s || s->size() != 1) {
+                return std::unexpected(
+                    type_error("make-string: fill must be a single character string"));
+            }
+            fill = (*s)[0];
+        }
+        return Value(std::string(static_cast<size_t>(len), fill));
+    });
 
     def("string-ref",
         [](const std::vector<Value>& args, Environment&) -> Result<Value> {
@@ -1917,6 +2002,188 @@ void register_builtins(std::shared_ptr<Environment> env) {
             }
             return Value(std::make_shared<ValueList>(std::move(symbols)));
         });
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Math extensions (gcd, lcm, log, exp, asin, acos, atan)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    def("gcd", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.empty()) return Value(static_cast<int64_t>(0));
+        int64_t result = 0;
+        for (const auto& arg : args) {
+            if (!is_integer(arg)) {
+                return std::unexpected(type_error("gcd: expected integer arguments"));
+            }
+            int64_t n = to_int64(arg);
+            while (n != 0) {
+                int64_t t = n;
+                n = result % n;
+                result = t;
+            }
+        }
+        return Value(result < 0 ? -result : result);
+    });
+
+    def("lcm", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.empty()) return Value(static_cast<int64_t>(1));
+        int64_t result = 1;
+        for (const auto& arg : args) {
+            if (!is_integer(arg)) {
+                return std::unexpected(type_error("lcm: expected integer arguments"));
+            }
+            int64_t n = to_int64(arg);
+            if (n == 0) return Value(static_cast<int64_t>(0));
+            // gcd of result and n
+            int64_t a = result < 0 ? -result : result;
+            int64_t b = n < 0 ? -n : n;
+            while (b != 0) {
+                int64_t t = b;
+                b = a % b;
+                a = t;
+            }
+            result = (result / a) * n;
+        }
+        return Value(result < 0 ? -result : result);
+    });
+
+    def("log", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 1) {
+            return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        if (!is_number(args[0])) {
+            return std::unexpected(type_error("log: expected numeric argument"));
+        }
+        return Value(std::log(to_double(args[0])));
+    });
+
+    def("exp", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 1) {
+            return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        if (!is_number(args[0])) {
+            return std::unexpected(type_error("exp: expected numeric argument"));
+        }
+        return Value(std::exp(to_double(args[0])));
+    });
+
+    def("asin", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 1) {
+            return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        if (!is_number(args[0])) {
+            return std::unexpected(type_error("asin: expected numeric argument"));
+        }
+        return Value(std::asin(to_double(args[0])));
+    });
+
+    def("acos", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 1) {
+            return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        if (!is_number(args[0])) {
+            return std::unexpected(type_error("acos: expected numeric argument"));
+        }
+        return Value(std::acos(to_double(args[0])));
+    });
+
+    def("atan", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 1) {
+            return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        if (!is_number(args[0])) {
+            return std::unexpected(type_error("atan: expected numeric argument"));
+        }
+        return Value(std::atan(to_double(args[0])));
+    });
+
+    def("random", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 1) {
+            return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        if (!is_number(args[0])) {
+            return std::unexpected(type_error("random: expected numeric argument"));
+        }
+        static std::mt19937_64 s_rng(std::random_device{}());
+        int64_t limit = to_int64(args[0]);
+        if (limit <= 0) {
+            return std::unexpected(type_error("random: limit must be positive"));
+        }
+        if (limit == 1) return Value(static_cast<int64_t>(0));
+        std::uniform_int_distribution<int64_t> dist(0, limit - 1);
+        return Value(dist(s_rng));
+    });
+
+    def("sort", [](const std::vector<Value>& args, Environment& env) -> Result<Value> {
+        if (args.size() != 2) {
+            return std::unexpected(arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+        const auto* lst = args[0].as_list();
+        if (!lst || !*lst) {
+            return std::unexpected(type_error("sort: first argument must be a list"));
+        }
+        std::vector<Value> elements = (*lst)->elements;
+        // Use the less-than predicate to sort
+        std::sort(elements.begin(), elements.end(),
+            [&](const Value& a, const Value& b) {
+                auto r = trampoline(apply_function(args[1], {a, b}, {}, env.shared_from_this()));
+                return r.has_value() && is_truthy(*r);
+            });
+        return Value(std::make_shared<ValueList>(std::move(elements)));
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Vector extensions (vector-fill!, vector-copy)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    def("vector-fill!", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 3) {
+            return std::unexpected(arity_error(SourceLocation{}, 3, static_cast<int>(args.size())));
+        }
+        const auto* vec = args[0].as_vector();
+        if (!vec || !*vec) {
+            return std::unexpected(type_error("vector-fill!: expected vector"));
+        }
+        if (!args[1].is_int()) {
+            return std::unexpected(type_error("vector-fill!: index must be an integer"));
+        }
+        size_t idx = static_cast<size_t>(args[1].int_val());
+        if (idx >= (*vec)->elements.size()) {
+            return std::unexpected(general_error(
+                std::format("vector-fill!: index {} out of bounds", idx)));
+        }
+        (*vec)->elements[idx] = args[2];
+        return Value(true);
+    });
+
+    def("vector-copy", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() < 1 || args.size() > 3) {
+            return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        const auto* vec = args[0].as_vector();
+        if (!vec || !*vec) {
+            return std::unexpected(type_error("vector-copy: expected vector"));
+        }
+        size_t start = 0;
+        size_t end = (*vec)->elements.size();
+        if (args.size() >= 2) {
+            if (!args[1].is_int()) {
+                return std::unexpected(type_error("vector-copy: start must be an integer"));
+            }
+            start = static_cast<size_t>(args[1].int_val());
+        }
+        if (args.size() >= 3) {
+            if (!args[2].is_int()) {
+                return std::unexpected(type_error("vector-copy: end must be an integer"));
+            }
+            end = static_cast<size_t>(args[2].int_val());
+        }
+        if (start > (*vec)->elements.size() || end > (*vec)->elements.size() || start > end) {
+            return std::unexpected(general_error("vector-copy: invalid range"));
+        }
+        std::vector<Value> copied((*vec)->elements.begin() + start,
+                                   (*vec)->elements.begin() + end);
+        return Value(std::make_shared<ValueVector>(std::move(copied)));
+    });
 }
 
 void register_builtins(Environment& env) {

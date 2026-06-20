@@ -463,7 +463,7 @@ int main() {
     CHECK("asin",          "(asin 0)",             "0.0");
     CHECK("acos",          "(acos 1)",             "0.0");
     CHECK("atan",          "(atan 0)",             "0.0");
-    CHECK("atan2",         "(atan 1 1)",           "0.785398");
+    CHECK("atan2-2arg",   "(atan2 1 1)",          "0.785398");
     CHECK("random-range",  "(< -1 (random 100) 100)", "#t");
 
     // ── Logic / Comparison extensions ────────────────────────────────────
