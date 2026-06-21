@@ -11,6 +11,7 @@
 //     — create a named tilemap
 //   (tilemap-set! tilemap-name layer col row tile-id)
 //     — set a tile in the tilemap
+//   (render-tilemap ...)  — registered via register_tilemap_render() (in pml_graphics)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 #include "tilemap_builtins.h"
@@ -158,6 +159,11 @@ void register_tilemap_builtins(std::shared_ptr<Environment> env) {
 
     auto def = [&](const std::string& name, BuiltinProcedure::BuiltinFn fn) {
         auto proc = std::make_shared<BuiltinProcedure>(name, std::move(fn));
+        env->define(name, Value(proc));
+    };
+
+    auto def_kw = [&](const std::string& name, BuiltinProcedure::BuiltinFn fn) {
+        auto proc = std::make_shared<BuiltinProcedure>(name, std::move(fn), true);
         env->define(name, Value(proc));
     };
 
@@ -370,6 +376,8 @@ void register_tilemap_builtins(std::shared_ptr<Environment> env) {
 
         return Value(true);
     });
+
+    // ── (render-tilemap ...) — registered in render.cpp ────────────────
 }
 
 } // namespace pml

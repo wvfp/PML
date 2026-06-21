@@ -343,7 +343,7 @@ void PMLRuntime::init_global_env() {
     register_asset_builtins(m_env);
 
     // 17. Tilemap builtins
-    //     (define-tileset, make-tilemap, tilemap-set!)
+    //     (define-tileset, make-tilemap, tilemap-set!, render-tilemap)
     register_tilemap_builtins(m_env);
 
     // ── Module loading is handled via the evaluator's eval_import/eval_provide

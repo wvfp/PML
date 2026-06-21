@@ -16,9 +16,12 @@
 
 #include "pml/api/context.h"
 #include "pml/asset/asset_builtins.h"
+#include "pml/backend/backend.h"
+#include "pml/backend/registry.h"
 #include "pml/evaluator/canvas_builtins.h"
 #include "pml/evaluator/tilemap_builtins.h"
 #include "pml/filter/filter_builtins.h"
+#include "pml/graphics/render.h"
 #include "pml/graphics3d/builtins_3d.h"
 #include "pml/layer/layer_builtins.h"
 
@@ -102,7 +105,14 @@ int main() {
     pml::register_asset_builtins(_env);
     pml::register_3d_builtins(_env);
     pml::register_tilemap_builtins(_env);
+    pml::register_render(_env);     // (render ...), (render-set ...), (render-tilemap ...)
     pml::PMLContext::current().reset();
+
+    // Force-link the null backend and activate it so that render builtins
+    // (including render-tilemap) can create surfaces and save files without
+    // requiring a real Skia/GPU backend.
+    pml::force_link_null_backend();
+    pml::BackendRegistry::instance().set_active("null");
 
     std::cout << "═══ PML Builtins Smoke Test ═══\n\n";
 
@@ -688,9 +698,10 @@ int main() {
     CHECK("tilemap-set!",
         "(tilemap-set! tm 0 2 2 1)",
         "#t");
-    // RED phase — render-tilemap not implemented yet (T7/T8)
-    CHECK_ERROR("render-tilemap-not-implemented",
-        "(render-tilemap 'test 'test)");
+    // GREEN phase — render-tilemap implemented (T7)
+    CHECK("render-tilemap",
+        "(render-tilemap tm :output \"render_tilemap_test.png\")",
+        "render_tilemap_test.png");
 
     // ── Render channels ──────────────────────────────────────────────────
     std::cout << "\n── Render channels ──\n";

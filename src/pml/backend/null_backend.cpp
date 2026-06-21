@@ -253,4 +253,20 @@ private:
     }
 );
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Force-link helper
+// ═══════════════════════════════════════════════════════════════════════════════
+// This trivial function exists purely to give test code a symbol it can
+// reference from another translation unit.  Without any public symbol
+// referenced from null_backend.obj, MSVC's linker (link.exe) skips the
+// entire object file when it is embedded in a static library (.lib),
+// and the static NullBackend registration above is never executed.
+//
+// Callers (e.g. smoke test main()) invoke this function once to force
+// null_backend.obj into the link, after which the static registration
+// runs normally during CRT startup.
+
+void force_link_null_backend() noexcept {
+}
+
 }  // namespace pml

@@ -209,4 +209,20 @@ public:
 
 };
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Force-link helper — NullBackend registration
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Ensure the NullBackend (in null_backend.cpp) is linked into the binary.
+///
+/// When the NullBackend lives in a static library, MSVC's link.exe may skip
+/// null_backend.obj because no public symbol from that translation unit is
+/// referenced from other TUs.  Calling this function once forces the linker
+/// to include the object file, which in turn runs the static registration
+/// that adds "null" to BackendRegistry.
+///
+/// After calling this, use BackendRegistry::set_active("null") to activate
+/// the null backend in test / headless environments.
+void force_link_null_backend() noexcept;
+
 }  // namespace pml

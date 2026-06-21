@@ -10,6 +10,8 @@
 #include "canvas.h"        // Canvas (+ g_current_canvas)
 #include "objects.h"       // GraphicObject
 #include "transform.h"     // AffineTransform
+#include "tilemap.h"       // TilemapManager, Tilemap, tile_at
+#include "tileset.h"       // TilesetManager, Tileset, TileType
 #include "pml/graphics3d/camera3d.h"
 #include "timeline.h"      // Timeline, Animation, _apply_modifications
 #include "graphics_types.h"
@@ -860,6 +862,191 @@ void register_render(std::shared_ptr<Environment> env) {
         env->define("render-spritesheet",
                     Value(std::make_shared<BuiltinProcedure>(
                         "render-spritesheet", std::move(spritesheet_fn), true)));
+    }
+
+    // ── (render-tilemap name :output "out.png" [:bg "transparent"]) ──────
+    //
+    // Signature: (render-tilemap name [kwargs...])
+    //   - name: string or symbol (tilemap name, required, first positional)
+    //   - :output: string (required, output file path)
+    //   - :bg: string (optional, background colour, default "transparent")
+    //
+    // Looks up the named tilemap and its associated tileset, builds a
+    // rendering surface, places each visible tile as a GraphicObject, and
+    // saves the result as PNG via the active backend.
+    {
+        auto tilemap_fn = [](const std::vector<Value>& args,
+                             Environment& /*env*/) -> Result<Value> {
+            if (args.empty()) {
+                return std::unexpected(
+                    arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+            }
+
+            // First positional: tilemap name
+            auto tm_name_opt = pml::kwargs::value_to_opt_string(args[0]);
+            if (!tm_name_opt) {
+                return std::unexpected(
+                    type_error("render-tilemap: first argument must be a string or symbol (tilemap name)"));
+            }
+
+            // Parse kwargs starting at position 1
+            auto kwargs = pml::kwargs::parse_kwargs(args, 1);
+
+            // :output kwarg (required)
+            std::string output = pml::kwargs::kw_string(kwargs, "output", "");
+            if (output.empty()) {
+                return std::unexpected(
+                    type_error("render-tilemap: :output keyword argument is required"));
+            }
+
+            // :bg kwarg (optional, default "transparent")
+            std::string bg = pml::kwargs::kw_string(kwargs, "bg", "transparent");
+
+            // Look up the tilemap
+            Tilemap* tm = TilemapManager::instance().lookup_tilemap(*tm_name_opt);
+            if (!tm) {
+                return std::unexpected(
+                    type_error(std::format("render-tilemap: unknown tilemap '{}'", *tm_name_opt)));
+            }
+
+            // Look up the tileset associated with this tilemap
+            const Tileset* ts = TilesetManager::instance().lookup_tileset(tm->tileset_name);
+            if (!ts) {
+                return std::unexpected(
+                    type_error(std::format("render-tilemap: tileset '{}' not found for tilemap '{}'",
+                                           tm->tileset_name, *tm_name_opt)));
+            }
+
+            // Build a fast tile_id -> TileType* lookup
+            std::unordered_map<int, const TileType*> tile_lookup;
+            tile_lookup.reserve(ts->tile_types.size());
+            for (const auto& tt : ts->tile_types) {
+                tile_lookup[tt.id] = &tt;
+            }
+
+            // :projection kwarg (optional, default 'orthogonal)
+            std::string projection = pml::kwargs::kw_string(kwargs, "projection", "orthogonal");
+
+            // Calculate output pixel dimensions
+            int pixel_w, pixel_h;
+            if (projection == "isometric") {
+                // Isometric bounds: the diamond spans (cols+rows)*tile_size/2 in each axis
+                pixel_w = (tm->cols + tm->rows) * tm->tile_size / 2;
+                pixel_h = (tm->cols + tm->rows) * tm->tile_size / 2;
+                if (pixel_w < 8) pixel_w = 8;
+                if (pixel_h < 8) pixel_h = 8;
+            } else {
+                // Orthogonal: simple grid dimensions
+                pixel_w = tm->cols * tm->tile_size;
+                pixel_h = tm->rows * tm->tile_size;
+            }
+            if (pixel_w <= 0 || pixel_h <= 0) {
+                return std::unexpected(
+                    type_error("render-tilemap: tilemap has zero pixel dimensions"));
+            }
+
+            // Create a canvas with the tilemap dimensions
+            auto canvas = std::make_shared<Canvas>(pixel_w, pixel_h, bg);
+
+            // Helper: collect non-empty tile entries for a layer
+            struct TileEntry {
+                const TileType* tile;
+                int col;
+                int row;
+            };
+
+            if (projection == "isometric") {
+                // ── Isometric projection ─────────────────────────────────
+                // Uses Painter's Algorithm: sort non-empty tiles by
+                // (row + col) ascending and render back-to-front.
+                //
+                // Screen position for isometric tile (col, row):
+                //   sx = (col - row) * tile_size / 2  +  pixel_w / 2
+                //   sy = (col + row) * tile_size / 4
+                double half_w = static_cast<double>(pixel_w) / 2.0;
+                double ts = static_cast<double>(tm->tile_size);
+
+                // Render each visible layer bottom-to-top
+                for (const auto& layer : tm->layers) {
+                    if (!layer.visible) continue;
+
+                    // Collect non-empty tiles
+                    std::vector<TileEntry> entries;
+                    entries.reserve(static_cast<size_t>(layer.rows * layer.cols));
+                    for (int row = 0; row < layer.rows; ++row) {
+                        for (int col = 0; col < layer.cols; ++col) {
+                            int tile_id = tile_at(layer, col, row);
+                            if (tile_id == 0) continue;
+                            auto it = tile_lookup.find(tile_id);
+                            if (it == tile_lookup.end()) continue;
+                            entries.push_back({it->second, col, row});
+                        }
+                    }
+
+                    // Depth sort by (row + col) ascending (Painter's Algorithm)
+                    std::ranges::sort(entries, [](const TileEntry& a, const TileEntry& b) {
+                        return (a.row + a.col) < (b.row + b.col);
+                    });
+
+                    // Render sorted tiles
+                    for (const auto& entry : entries) {
+                        double sx = (static_cast<double>(entry.col - entry.row)) * ts / 2.0 + half_w;
+                        double sy = (static_cast<double>(entry.col + entry.row)) * ts / 4.0;
+
+                        GraphicObject positioned = entry.tile->graphic.with_transform(
+                            AffineTransform::translate(sx, sy));
+                        canvas->add(positioned);
+
+                        if (entry.tile->detail.has_value()) {
+                            GraphicObject detail_pos = entry.tile->detail->with_transform(
+                                AffineTransform::translate(sx, sy));
+                            canvas->add(detail_pos);
+                        }
+                    }
+                }
+            } else {
+                // ── Orthogonal projection (default) ──────────────────────
+                // Simple grid layout: tile at (col, row) → pixel (col*S, row*S)
+                for (const auto& layer : tm->layers) {
+                    if (!layer.visible) continue;
+
+                    for (int row = 0; row < layer.rows; ++row) {
+                        for (int col = 0; col < layer.cols; ++col) {
+                            int tile_id = tile_at(layer, col, row);
+                            if (tile_id == 0) continue;  // empty tile
+
+                            auto it = tile_lookup.find(tile_id);
+                            if (it == tile_lookup.end()) continue;  // unknown tile id
+
+                            const TileType* tile = it->second;
+                            double x = static_cast<double>(col * tm->tile_size);
+                            double y = static_cast<double>(row * tm->tile_size);
+
+                            // Add the base graphic at the tile position
+                            GraphicObject positioned = tile->graphic.with_transform(
+                                AffineTransform::translate(x, y));
+                            canvas->add(positioned);
+
+                            // Add detail overlay (if present) at the same position
+                            if (tile->detail.has_value()) {
+                                GraphicObject detail_pos = tile->detail->with_transform(
+                                    AffineTransform::translate(x, y));
+                                canvas->add(detail_pos);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Use the existing render() function to save to file
+            auto r = render(output, "PNG", canvas);
+            if (!r) return std::unexpected(std::move(r.error()));
+            return Value(std::move(*r));
+        };
+
+        env->define("render-tilemap",
+                    Value(std::make_shared<BuiltinProcedure>(
+                        "render-tilemap", std::move(tilemap_fn), true)));
     }
 }
 
