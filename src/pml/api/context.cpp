@@ -9,6 +9,8 @@
 #include "pml/animation/timeline.h"
 #include "pml/sprites/style.h"
 #include "pml/sprites/palette.h"
+#include "pml/graphics/tilemap.h"
+#include "pml/graphics/tileset.h"
 
 namespace pml {
 
@@ -36,6 +38,8 @@ void PMLContext::reset() {
     timeline.reset();
     styles = std::make_unique<StyleRegistry>();
     palettes = std::make_unique<PaletteManager>();
+    tilemaps = std::make_unique<TilemapManager>();
+    tilesets = std::make_unique<TilesetManager>();
     assets = std::make_unique<AssetCache>();
     compositions.clear();
     output_files.clear();

@@ -5,6 +5,8 @@ add_library(pml_graphics
     objects.cpp
     canvas.cpp
     render.cpp
+    tilemap.cpp
+    tileset.cpp
 )
 
 target_include_directories(pml_graphics PUBLIC

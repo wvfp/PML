@@ -30,6 +30,8 @@ class Composition;
 class Timeline;
 class StyleRegistry;
 class PaletteManager;
+class TilemapManager;
+class TilesetManager;
 
 /// Runtime context that holds all per-instance mutable global state.
 class PMLContext {
@@ -46,6 +48,8 @@ class PMLContext {
     std::shared_ptr<Timeline> timeline;       ///< Active animation timeline
     std::unique_ptr<StyleRegistry> styles;    ///< Named style registry
     std::unique_ptr<PaletteManager> palettes; ///< Named palette registry + active palette
+    std::unique_ptr<TilemapManager> tilemaps; ///< Named tilemap registry
+    std::unique_ptr<TilesetManager> tilesets; ///< Named tileset registry
     std::unique_ptr<AssetCache> assets;       ///< Loaded image asset cache
 
     std::vector<std::shared_ptr<Composition>> compositions; ///< Registered compositions
