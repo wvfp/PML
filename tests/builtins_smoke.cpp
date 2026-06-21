@@ -778,6 +778,29 @@ int main() {
     CHECK_ERROR("bind-textures-null-backend",
         "(bind-textures 42 :textures '())");
 
+    // ── Quantize noise ──────────────────────────────────────────────────
+    std::cout << "\n── Quantize noise ──\n";
+
+    // Error: missing :levels kwarg
+    CHECK_ERROR("quantize-noise-missing-levels",
+        "(quantize-noise 1)");
+
+    // Error: :levels must be a list
+    CHECK_ERROR("quantize-noise-levels-not-list",
+        "(quantize-noise 1 :levels 'bad)");
+
+    // Error: invalid shader handle (0)
+    CHECK_ERROR("quantize-noise-zero-handle",
+        "(quantize-noise 0 :levels '((1.0 \"red\")))");
+
+    // Error: invalid color string
+    CHECK_ERROR("quantize-noise-bad-color",
+        "(quantize-noise 1 :levels '((0.5 \"notacolor\")))");
+
+    // Null backend can't compose — default impl returns error
+    CHECK_ERROR("quantize-noise-null-backend",
+        "(quantize-noise 1 :levels '((1.0 \"#ff0000\")))");
+
     // ── Summary ──────────────────────────────────────────────────────────
     std::cout << "\n═══ Results ═══\n"
               << "Passed: " << g_passed << " / "
