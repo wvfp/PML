@@ -2,10 +2,20 @@ add_library(pml_evaluator
     environment.cpp
     evaluator.cpp
     builtins.cpp
+    builtins_arithmetic.cpp
+    builtins_io.cpp
+    builtins_list.cpp
+    builtins_string.cpp
+    builtins_predicates.cpp
+    builtins_containers.cpp
     backend_builtins.cpp
     shader_builtins.cpp
     transform_builtins.cpp
     canvas_builtins.cpp
+    shape_builtins.cpp
+    object_style_builtins.cpp
+    color_builtins.cpp
+    macro_expansion.cpp
 )
 
 target_include_directories(pml_evaluator PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR})
