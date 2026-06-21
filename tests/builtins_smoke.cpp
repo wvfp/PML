@@ -673,6 +673,33 @@ int main() {
           "(camera :position '(0 0 300) :projection 'orthographic :size 200)",
           "nil");
 
+    // ── Tilemap basics ───────────────────────────────────────────────────
+    std::cout << "\n── Tilemap basics ──\n";
+
+    // RED phase — expected to fail until builtin is implemented
+    CHECK_ERROR("tileset-not-implemented",
+        "(define-tileset 'test :tile-size 32 :tiles '((1 none)))");
+    CHECK_ERROR("tilemap-not-implemented",
+        "(make-tilemap 'test 5 5)");
+    CHECK_ERROR("tilemap-set!-not-implemented",
+        "(tilemap-set! 'test 0 0 0 1)");
+    CHECK_ERROR("render-tilemap-not-implemented",
+        "(render-tilemap 'test 'test)");
+
+    // ── Render channels ──────────────────────────────────────────────────
+    std::cout << "\n── Render channels ──\n";
+
+    // RED phase — expected to fail until builtin is implemented
+    CHECK_ERROR("render-channels-not-implemented",
+        "(render-channels (rect 0 0 16 16 :fill \"red\") :output 'rc_test :channels '(albedo))");
+
+    // ── Multi-texture shaders ────────────────────────────────────────────
+    std::cout << "\n── Multi-texture shaders ──\n";
+
+    // RED phase — expected to fail until builtin is implemented
+    CHECK_ERROR("bind-textures-not-implemented",
+        "(bind-textures 'nonexistent :textures '())");
+
     // ── Summary ──────────────────────────────────────────────────────────
     std::cout << "\n═══ Results ═══\n"
               << "Passed: " << g_passed << " / "
