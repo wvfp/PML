@@ -293,7 +293,9 @@ private:
     auto create_noise_shader(NoiseType type,
                             float base_freq_x, float base_freq_y,
                             int octaves, float seed,
-                            int tile_w, int tile_h) -> Result<uint64_t> override;
+                            int tile_w, int tile_h,
+                            float lacunarity = 2.0f,
+                            float persistence = 0.5f) -> Result<uint64_t> override;
 
     auto create_shader_with_uniforms(uint64_t shader_handle,
                                      const std::vector<uint8_t>& uniform_data)
@@ -308,6 +310,17 @@ private:
     auto bind_textures_to_shader(
         uint64_t shader_handle,
         const std::vector<std::pair<std::string, Value>>& textures)
+        -> Result<uint64_t> override;
+
+    auto compose_with_child_shader(
+        uint64_t preshader_handle,
+        const std::string& sksl_wrapper_src)
+        -> Result<uint64_t> override;
+
+    auto compose_with_child_shaders(
+        const std::vector<uint64_t>& preshader_handles,
+        const std::string& sksl_wrapper_src,
+        const std::vector<uint8_t>& uniform_data = {})
         -> Result<uint64_t> override;
 
     // ── FilterBackend ────────────────────────────────────────────────

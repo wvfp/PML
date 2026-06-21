@@ -158,20 +158,26 @@ public:
     };
 
     /// Create a Perlin noise shader.
-    /// @param type       Noise type (Fractal or Turbulence)
+    /// @param type         Noise type (Fractal or Turbulence)
     /// @param base_freq_x  Base frequency X (usually 0.0 - 1.0)
     /// @param base_freq_y  Base frequency Y (usually 0.0 - 1.0)
-    /// @param octaves    Number of octaves (1-8 typical)
-    /// @param seed       Random seed
-    /// @param tile_w    Tile width for seamless noise (0 = no tiling)
-    /// @param tile_h    Tile height for seamless noise (0 = no tiling)
-    /// @return          Shader handle on success
+    /// @param octaves      Number of octaves (1-8 typical)
+    /// @param seed         Random seed
+    /// @param tile_w       Tile width for seamless noise (0 = no tiling)
+    /// @param tile_h       Tile height for seamless noise (0 = no tiling)
+    /// @param lacunarity   Frequency multiplier per octave (default 2.0)
+    /// @param persistence  Amplitude multiplier per octave (default 0.5)
+    /// @return             Shader handle on success
     virtual auto create_noise_shader(NoiseType type,
                                     float base_freq_x, float base_freq_y,
                                     int octaves, float seed,
-                                    int tile_w, int tile_h)
+                                    int tile_w, int tile_h,
+                                    float lacunarity = 2.0f,
+                                    float persistence = 0.5f)
         -> Result<uint64_t>
     {
+        (void)lacunarity;
+        (void)persistence;
         return std::unexpected(general_error(
             "noise shaders not supported by this backend"));
     }
@@ -205,6 +211,47 @@ public:
     {
         return std::unexpected(general_error(
             "create_shader_with_children not supported by this backend"));
+    }
+
+    /// Compose an existing preshader (from preshader_cache_) as a child of a new
+    /// SkSL wrapper shader.  The wrapper SkSL must declare `uniform shader src;`
+    /// as a child slot; the preshader is bound to that slot.
+    /// This lets us wrap noise shaders (or any baked shader) with custom SkSL code
+    /// (e.g. color quantization) without rasterising the source to an intermediate image.
+    /// @param preshader_handle  Handle returned by create_noise_shader or
+    ///                          create_shader_with_uniforms (preshader_cache)
+    /// @param sksl_wrapper_src  SkSL source with `uniform shader src;` child slot
+    /// @return                  New shader handle for the composed shader
+    virtual auto compose_with_child_shader(
+        uint64_t preshader_handle,
+        const std::string& sksl_wrapper_src) -> Result<uint64_t>
+    {
+        (void)preshader_handle;
+        (void)sksl_wrapper_src;
+        return std::unexpected(general_error(
+            "compose_with_child_shader not supported by this backend"));
+    }
+
+    /// Compose multiple existing preshaders as children of a new SkSL wrapper.
+    /// The SkSL wrapper declares `uniform shader child_N;` slots (N = 0, 1, ...)
+    /// matching the order of preshader_handles.  Uniform data is passed as
+    /// a raw byte vector matching the SkSL uniform layout.
+    /// This is the multi-child generalization of compose_with_child_shader,
+    /// needed for domain warp (base + warp field) and noise-blend (source A + B).
+    /// @param preshader_handles  Vector of handles from preshader_cache_
+    /// @param sksl_wrapper_src  SkSL source with N `uniform shader child_N;` slots
+    /// @param uniform_data      Raw uniform data bytes (may be empty)
+    /// @return                  New shader handle for the composed shader
+    virtual auto compose_with_child_shaders(
+        const std::vector<uint64_t>& preshader_handles,
+        const std::string& sksl_wrapper_src,
+        const std::vector<uint8_t>& uniform_data = {}) -> Result<uint64_t>
+    {
+        (void)preshader_handles;
+        (void)sksl_wrapper_src;
+        (void)uniform_data;
+        return std::unexpected(general_error(
+            "compose_with_child_shaders not supported by this backend"));
     }
 
     /// Bind texture GraphicObjects to a compiled shader's `uniform shader` slots.

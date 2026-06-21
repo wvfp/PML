@@ -1,21 +1,16 @@
-// ═══════════════════════════════════════════════════════════════════════════════
-// PML Skia render backend — SkiaBackend class + I/O + shaders + registration
-// ═══════════════════════════════════════════════════════════════════════════════
-//
+﻿// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?// PML Skia render backend 鈥?SkiaBackend class + I/O + shaders + registration
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?//
 // Member function definitions for the SkiaBackend class (core rendering, I/O,
 // compositing, and shader operations).  Draw primitives live in
 // skia_backend_draw.cpp, PNG loading in skia_backend_png.cpp, and filter
 // operations in skia_backend_filter.cpp.
-// ═══════════════════════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 #include "skia_backend_internal.h"
 
 namespace pml {
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Drawing
-// ═══════════════════════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?// Drawing
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 auto SkiaBackend::draw(Surface& surface, const GraphicObject& obj)
     -> Result<void>
 {
@@ -28,10 +23,8 @@ auto SkiaBackend::draw(Surface& surface, const GraphicObject& obj)
     return draw_object(skia_surf->surface->getCanvas(), obj, nullptr, lookup);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Output — save_image (PNG via libpng)
-// ═══════════════════════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?// Output 鈥?save_image (PNG via libpng)
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 auto SkiaBackend::save_image(Surface& surface, const std::string& path,
                              const std::string& format) -> Result<void>
 {
@@ -126,10 +119,8 @@ auto SkiaBackend::save_image(Surface& surface, const std::string& path,
     return {};
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Output — save_animation (GIF export)
-// ═══════════════════════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?// Output 鈥?save_animation (GIF export)
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 auto SkiaBackend::save_animation(const std::vector<Surface*>& frames,
                                  const std::string& path,
                                  const std::string& /*format*/,
@@ -191,10 +182,8 @@ auto SkiaBackend::save_animation(const std::vector<Surface*>& frames,
     return {};
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Image loading
-// ═══════════════════════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?// Image loading
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 auto SkiaBackend::load_image(const std::string& path)
     -> Result<std::unique_ptr<Surface>>
 {
@@ -238,10 +227,8 @@ auto SkiaBackend::load_image(const std::string& path)
     return std::make_unique<SkiaSurface>(std::move(bitmap));
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Compositing
-// ═══════════════════════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?// Compositing
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 auto SkiaBackend::composite(Surface& dst, Surface& src, int x, int y)
     -> Result<void>
 {
@@ -332,10 +319,8 @@ auto SkiaBackend::apply_mask(Surface& dst, Surface& mask) -> Result<void>
     return {};
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Shaders
-// ═══════════════════════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?// Shaders
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 auto SkiaBackend::compile_shader(const std::string& sksl) -> Result<uint64_t>
 {
     if (sksl.empty()) {
@@ -361,24 +346,190 @@ auto SkiaBackend::compile_shader(const std::string& sksl) -> Result<uint64_t>
 auto SkiaBackend::create_noise_shader(NoiseType type,
                                       float base_freq_x, float base_freq_y,
                                       int octaves, float seed,
-                                      int tile_w, int tile_h) -> Result<uint64_t>
+                                      int tile_w, int tile_h,
+                                      float lacunarity,
+                                      float persistence) -> Result<uint64_t>
 {
-    SkISize tile_size = (tile_w > 0 && tile_h > 0)
-        ? SkISize{tile_w, tile_h}
-        : SkISize::MakeEmpty();
-
-    sk_sp<SkShader> noise_shader;
-
-    if (type == NoiseType::Fractal) {
-        noise_shader = SkShaders::MakeFractalNoise(
-            base_freq_x, base_freq_y, octaves, seed,
-            tile_size.isEmpty() ? nullptr : &tile_size);
-    } else {
-        noise_shader = SkShaders::MakeTurbulence(
-            base_freq_x, base_freq_y, octaves, seed,
-            tile_size.isEmpty() ? nullptr : &tile_size);
+    // =====================================================================
+    // Frequency pre-adjustment for seamless tiling
+    //
+    // Ensure tile_w * freq == n (integer >= 1) so the wrapping period in
+    // the custom SkSL shader is exact.  Uses round() to minimise frequency
+    // distortion, with max(1, ...) to guarantee at least one lattice cell
+    // per tile.
+    // =====================================================================
+    if (tile_w > 0 && base_freq_x > 0.0f) {
+        float n = std::max(1.0f, std::round(base_freq_x * static_cast<float>(tile_w)));
+        base_freq_x = n / static_cast<float>(tile_w);
+    }
+    if (tile_h > 0 && base_freq_y > 0.0f) {
+        float n = std::max(1.0f, std::round(base_freq_y * static_cast<float>(tile_h)));
+        base_freq_y = n / static_cast<float>(tile_h);
     }
 
+    octaves = std::clamp(octaves, 1, 32);
+
+    // =====================================================================
+    // Custom SkSL Perlin noise shader
+    //
+    // Implements 2D Perlin noise directly in SkSL with:
+    //   - Hash-based gradient generation (no lookup tables)
+    //   - Gradient wrapping via mod(floor(p), period) for pixel-exact
+    //     seamless tiling at tile_w × tile_h boundaries — guaranteed by
+    //     integer period = floor(tile_{w,h} * freq * lacunarity^{octave} + 0.5)
+    //   - FBM fractal sum with lacunarity / persistence control
+    //   - Turbulence mode (abs of noise per octave)
+    //   - Seed-dependent hash offset for varied patterns
+    //
+    // Replaces the previous Skia Shaders::MakeFractalNoise/Turbulence path.
+    //
+    // NOTE: octaves is baked into the SkSL source rather than a uniform
+    // because this Skia build's SkSL requires constant loop bounds.
+    // =====================================================================
+
+    // ── Generate octave loop body ──
+    // Each octave iteration is emitted as a separate source block with
+    // its own constant period computation, so no runtime loop is needed.
+    std::string octave_code;
+    for (int oi = 0; oi < octaves; ++oi) {
+        // Each octave i has frequency scaled by lacunarity^i
+        octave_code += "{\n";
+        octave_code += "    float n;\n";
+        if (tile_w > 0 && tile_h > 0) {
+            // Compute integer period for this octave (baked constant)
+            float oc_w = static_cast<float>(tile_w) * base_freq_x
+                         * std::pow(lacunarity, static_cast<float>(oi));
+            float oc_h = static_cast<float>(tile_h) * base_freq_y
+                         * std::pow(lacunarity, static_cast<float>(oi));
+            int p_w = std::max(1, static_cast<int>(oc_w + 0.5f));
+            int p_h = std::max(1, static_cast<int>(oc_h + 0.5f));
+            octave_code += "    n = perlin_noise(p, float2("
+                           + std::to_string(p_w) + ".0, "
+                           + std::to_string(p_h) + ".0));\n";
+        } else {
+            octave_code += "    n = perlin_noise(p, float2(1.0e10, 1.0e10));\n";
+        }
+        if (type == NoiseType::Turbulence) {
+            octave_code += "    n = abs(n);\n";
+        }
+        octave_code += "    value += amplitude * n;\n";
+        octave_code += "    norm  += amplitude;\n";
+        octave_code += "    p        *= u_lacunarity;\n";
+        octave_code += "    amplitude *= u_persistence;\n";
+        octave_code += "}\n";
+    }
+
+    std::string sksl = R"(
+        uniform float u_freq_x;
+        uniform float u_freq_y;
+        uniform float u_lacunarity;
+        uniform float u_persistence;
+        uniform float u_seed;
+        uniform float u_type;   // 0.0 = fractal, 1.0 = turbulence
+
+        // Hash-based 2D gradient generator
+        // Returns an approximately unit-length gradient on the unit circle.
+        float2 random_grad(float2 p) {
+            p += float2(u_seed * 0.771, u_seed * 0.453);
+            float3 p3 = fract(float3(p.xyx) * 0.1031);
+            p3 += dot(p3, p3.yzx + 33.33);
+            return normalize(-1.0 + 2.0 * fract(float2(p3.x + p3.y, p3.y + p3.z)));
+        }
+
+        // Quintic fade: smoothstep with zero 2nd derivative at endpoints
+        // (Perlin's improved interpolation function)
+        float fade(float t) {
+            return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+        }
+
+        // Single-octave 2D Perlin noise with gradient wrapping.
+        // period = (0, 0) disables wrapping.
+        float perlin_noise(float2 p, float2 period) {
+            float2 i = floor(p);
+            float2 f = fract(p);
+            float2 u = float2(fade(f.x), fade(f.y));
+
+            // Wrap lattice coordinates modulo period for seamless tiling
+            float2 i00 = float2(mod(i.x,        period.x), mod(i.y,        period.y));
+            float2 i10 = float2(mod(i.x + 1.0,  period.x), mod(i.y,        period.y));
+            float2 i01 = float2(mod(i.x,        period.x), mod(i.y + 1.0,  period.y));
+            float2 i11 = float2(mod(i.x + 1.0,  period.x), mod(i.y + 1.0,  period.y));
+
+            float2 g00 = random_grad(i00);
+            float2 g10 = random_grad(i10);
+            float2 g01 = random_grad(i01);
+            float2 g11 = random_grad(i11);
+
+            float n00 = dot(g00, f - float2(0.0, 0.0));
+            float n10 = dot(g10, f - float2(1.0, 0.0));
+            float n01 = dot(g01, f - float2(0.0, 1.0));
+            float n11 = dot(g11, f - float2(1.0, 1.0));
+
+            return mix(mix(n00, n10, u.x), mix(n01, n11, u.x), u.y);
+        }
+
+        half4 main(float2 xy) {
+            float2 p = xy * float2(u_freq_x, u_freq_y);
+
+            float value = 0.0;
+            float norm   = 0.0;
+            float amplitude = 1.0;
+
+            // Unrolled octaves (baked at shader-generation time)
+    )" + octave_code + R"(
+
+            float v = value / max(norm, 0.0001);
+
+            // Map Perlin noise [-1, 1] → [0, 1]; turbulence is already [0, 1]
+            if (u_type < 0.5) {
+                v = v * 0.5 + 0.5;
+            }
+            v = clamp(v, 0.0, 1.0);
+
+            return half4(v, v, v, 1.0);
+        }
+    )";
+
+    // ── Compile SkSL ──
+    auto result = SkRuntimeEffect::MakeForShader(SkString(sksl));
+    if (!result.effect) {
+        return std::unexpected(general_error(
+            "skia create_noise_shader: SkSL compilation failed: " +
+            std::string(result.errorText.c_str())));
+    }
+    sk_sp<SkRuntimeEffect> effect = std::move(result.effect);
+
+    // ── Build uniform data (matches SkSL declaration order) ──
+    // SkSL packs scalar uniforms at 4-byte boundaries in declaration order.
+    // 6 uniforms × 4 bytes = 24 bytes.
+    struct NoiseUniforms {
+        float freq_x;       // offset  0
+        float freq_y;       // offset  4
+        float lacunarity_v; // offset  8
+        float persistence_v;// offset 12
+        float seed_v;       // offset 16
+        float type_v;        // offset 20
+    };
+    static_assert(sizeof(NoiseUniforms) == 24,
+                  "NoiseUniforms size must match SkSL uniform layout");
+
+    NoiseUniforms uniforms{};
+    uniforms.freq_x        = base_freq_x;
+    uniforms.freq_y        = base_freq_y;
+    uniforms.lacunarity_v  = lacunarity;
+    uniforms.persistence_v = persistence;
+    uniforms.seed_v        = seed;
+    uniforms.type_v        = (type == NoiseType::Turbulence) ? 1.0f : 0.0f;
+
+    sk_sp<SkData> uniform_data = SkData::MakeWithCopy(&uniforms, sizeof(uniforms));
+    if (!uniform_data) {
+        return std::unexpected(general_error(
+            "skia create_noise_shader: failed to allocate uniform data"));
+    }
+
+    // ── Create shader from compiled effect + uniforms ──
+    sk_sp<SkShader> noise_shader = effect->makeShader(
+        std::move(uniform_data), {}, nullptr);
     if (!noise_shader) {
         return std::unexpected(general_error(
             "skia create_noise_shader: failed to create noise shader"));
@@ -431,7 +582,7 @@ auto SkiaBackend::bind_textures_to_shader(
     }
     sk_sp<SkRuntimeEffect> effect = it->second;
 
-    // 2. If no child slots in the effect, or no textures → just return the same handle
+    // 2. If no child slots in the effect, or no textures 鈫?just return the same handle
     auto children_meta = effect->children();
     if (children_meta.empty() || textures.empty()) {
         return shader_handle;
@@ -619,6 +770,127 @@ auto SkiaBackend::bind_textures_to_shader(
     return handle;
 }
 
+// 鈹€鈹€ compose_with_child_shader 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// Compose an existing preshader (e.g. noise) as the `src` child of a new
+// SkSL wrapper effect, without rasterising the source to an image.
+auto SkiaBackend::compose_with_child_shader(
+    uint64_t preshader_handle,
+    const std::string& sksl_wrapper_src) -> Result<uint64_t>
+{
+    // 1. Look up the preshader from preshader_cache_
+    auto pit = preshader_cache_.find(preshader_handle);
+    if (pit == preshader_cache_.end() || !pit->second) {
+        return std::unexpected(general_error(
+            "skia compose_with_child_shader: invalid preshader handle"));
+    }
+    sk_sp<SkShader> source_shader = pit->second;
+
+    // 2. Compile the wrapper SkSL
+    auto opts = SkRuntimeEffect::Options{};
+    auto comp_result = SkRuntimeEffect::MakeForShader(
+        SkString(sksl_wrapper_src), opts);
+    if (!comp_result.effect) {
+        std::string msg = "skia compose_with_child_shader: "
+                          "failed to compile wrapper shader";
+        if (comp_result.errorText.size() > 0) {
+            msg += ": ";
+            msg += comp_result.errorText.c_str();
+        }
+        return std::unexpected(general_error(msg));
+    }
+    sk_sp<SkRuntimeEffect> effect = std::move(comp_result.effect);
+
+    // 3. The wrapper must have exactly one `uniform shader src;` child slot.
+    //    Bind the source shader directly as a ChildPtr (no rasterisation).
+    SkRuntimeEffect::ChildPtr child(source_shader);
+
+    // 4. Create the baked shader (empty uniforms)
+    sk_sp<SkData> empty_uniforms = SkData::MakeEmpty();
+    sk_sp<SkShader> baked = effect->makeShader(
+        std::move(empty_uniforms),
+        SkSpan<const SkRuntimeEffect::ChildPtr>(&child, 1),
+        nullptr);
+    if (!baked) {
+        return std::unexpected(general_error(
+            "skia compose_with_child_shader: "
+            "failed to create composed shader"));
+    }
+
+    // 5. Cache and return new handle
+    uint64_t handle = next_preshader_handle_++;
+    preshader_cache_[handle] = std::move(baked);
+    return handle;
+}
+
+auto SkiaBackend::compose_with_child_shaders(
+    const std::vector<uint64_t>& preshader_handles,
+    const std::string& sksl_wrapper_src,
+    const std::vector<uint8_t>& uniform_data) -> Result<uint64_t>
+{
+    if (preshader_handles.empty()) {
+        return std::unexpected(general_error(
+            "skia compose_with_child_shaders: at least one preshader required"));
+    }
+
+    // 1. Look up all preshaders from preshader_cache_
+    std::vector<sk_sp<SkShader>> child_shaders;
+    child_shaders.reserve(preshader_handles.size());
+    for (auto h : preshader_handles) {
+        auto pit = preshader_cache_.find(h);
+        if (pit == preshader_cache_.end() || !pit->second) {
+            return std::unexpected(general_error(
+                "skia compose_with_child_shaders: invalid preshader handle"));
+        }
+        child_shaders.push_back(pit->second);
+    }
+
+    // 2. Compile the wrapper SkSL
+    auto opts = SkRuntimeEffect::Options{};
+    auto comp_result = SkRuntimeEffect::MakeForShader(
+        SkString(sksl_wrapper_src), opts);
+    if (!comp_result.effect) {
+        std::string msg = "skia compose_with_child_shaders: "
+                          "failed to compile wrapper shader";
+        if (comp_result.errorText.size() > 0) {
+            msg += ": ";
+            msg += comp_result.errorText.c_str();
+        }
+        return std::unexpected(general_error(msg));
+    }
+    sk_sp<SkRuntimeEffect> effect = std::move(comp_result.effect);
+
+    // 3. Bind all child shaders as ChildPtrs (no rasterisation)
+    std::vector<SkRuntimeEffect::ChildPtr> children;
+    children.reserve(child_shaders.size());
+    for (auto& sh : child_shaders) {
+        children.emplace_back(sh);
+    }
+
+    // 4. Create the baked shader (with uniforms if provided)
+    sk_sp<SkData> uniform_skdata;
+    if (uniform_data.empty()) {
+        uniform_skdata = SkData::MakeEmpty();
+    } else {
+        uniform_skdata = SkData::MakeWithCopy(
+            uniform_data.data(), uniform_data.size());
+    }
+
+    sk_sp<SkShader> baked = effect->makeShader(
+        std::move(uniform_skdata),
+        SkSpan<const SkRuntimeEffect::ChildPtr>(children.data(), children.size()),
+        nullptr);
+    if (!baked) {
+        return std::unexpected(general_error(
+            "skia compose_with_child_shaders: "
+            "failed to create composed shader"));
+    }
+
+    // 5. Cache and return new handle
+    uint64_t handle = next_preshader_handle_++;
+    preshader_cache_[handle] = std::move(baked);
+    return handle;
+}
+
 auto SkiaBackend::create_shader_with_children(
     const std::string& src,
     const std::vector<ShaderChildInfo>& childDescs,
@@ -708,10 +980,8 @@ auto SkiaBackend::create_shader_with_children(
 
 }  // namespace pml
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Registration
-// ═══════════════════════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?// Registration
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 namespace pml {
 
 [[maybe_unused]] static bool registered_skia = BackendRegistry::register_backend(
