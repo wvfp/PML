@@ -305,6 +305,11 @@ private:
         const std::vector<Value>& uniforms)
         -> Result<Value> override;
 
+    auto bind_textures_to_shader(
+        uint64_t shader_handle,
+        const std::vector<std::pair<std::string, Value>>& textures)
+        -> Result<uint64_t> override;
+
     // ── FilterBackend ────────────────────────────────────────────────
 
     [[nodiscard]] Result<void> apply_sk_image_filter(

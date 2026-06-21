@@ -418,6 +418,136 @@ auto SkiaBackend::create_shader_with_uniforms(uint64_t shader_handle,
     return handle;
 }
 
+auto SkiaBackend::bind_textures_to_shader(
+    uint64_t shader_handle,
+    const std::vector<std::pair<std::string, Value>>& textures)
+    -> Result<uint64_t>
+{
+    // 1. Look up the raw SkRuntimeEffect from shader_cache_
+    auto it = shader_cache_.find(shader_handle);
+    if (it == shader_cache_.end() || !it->second) {
+        return std::unexpected(general_error(
+            "skia bind_textures_to_shader: invalid shader handle"));
+    }
+    sk_sp<SkRuntimeEffect> effect = it->second;
+
+    // 2. If no child slots in the effect, or no textures → just return the same handle
+    auto children_meta = effect->children();
+    if (children_meta.empty() || textures.empty()) {
+        return shader_handle;
+    }
+
+    // 3. Build children array in declaration order (index-based)
+    //    We use the effect's children() span to map slot names to indices.
+    std::vector<SkRuntimeEffect::ChildPtr> children(children_meta.size());
+
+    // Helper: determine texture size from GraphicObject
+    auto compute_texture_size = [](const GraphicObject& obj) -> std::pair<int, int> {
+        if (obj.shape_type == "rect") {
+            int w = 256, h = 256;
+            if (const Value* v = obj.params.find(ParamKey::w)) {
+                if (v->is_int()) w = static_cast<int>(v->int_val());
+                else if (v->is_double()) w = static_cast<int>(v->double_val());
+            }
+            if (const Value* v = obj.params.find(ParamKey::h)) {
+                if (v->is_int()) h = static_cast<int>(v->int_val());
+                else if (v->is_double()) h = static_cast<int>(v->double_val());
+            }
+            return {std::max(1, w), std::max(1, h)};
+        }
+        if (obj.shape_type == "circle") {
+            double r = 32.0;
+            if (const Value* v = obj.params.find(ParamKey::r)) {
+                if (v->is_int()) r = static_cast<double>(v->int_val());
+                else if (v->is_double()) r = v->double_val();
+            }
+            int size = std::max(1, static_cast<int>(std::ceil(r * 2.0)));
+            return {size, size};
+        }
+        if (obj.shape_type == "ellipse") {
+            double rx = 32.0, ry = 32.0;
+            if (const Value* v = obj.params.find(ParamKey::rx)) {
+                if (v->is_int()) rx = static_cast<double>(v->int_val());
+                else if (v->is_double()) rx = v->double_val();
+            }
+            if (const Value* v = obj.params.find(ParamKey::ry)) {
+                if (v->is_int()) ry = static_cast<double>(v->int_val());
+                else if (v->is_double()) ry = v->double_val();
+            }
+            int w = std::max(1, static_cast<int>(std::ceil(rx * 2.0)));
+            int h = std::max(1, static_cast<int>(std::ceil(ry * 2.0)));
+            return {w, h};
+        }
+        // Default: 256 x 256
+        return {256, 256};
+    };
+
+    for (const auto& [slot_name, val] : textures) {
+        // Look up the child index by slot name
+        const SkRuntimeEffect::Child* child_info = effect->findChild(slot_name);
+        if (!child_info) {
+            return std::unexpected(type_error(
+                std::format("skia bind_textures_to_shader: unknown child slot '{}'", slot_name)));
+        }
+
+        const auto* go = val.as_graphic_object();
+        if (!go || !*go) {
+            return std::unexpected(type_error(
+                std::format("skia bind_textures_to_shader: value for slot '{}' is not a GraphicObject", slot_name)));
+        }
+
+        // Determine texture dimensions
+        auto [tex_w, tex_h] = compute_texture_size(**go);
+
+        // Create temp surface, draw the GraphicObject, snapshot to SkImage
+        auto info = SkImageInfo::MakeN32Premul(tex_w, tex_h);
+        auto temp_surf = SkSurfaces::Raster(info);
+        if (!temp_surf) {
+            return std::unexpected(resource_error(
+                "skia bind_textures_to_shader: failed to create temp surface"));
+        }
+
+        // We need to translate the object so it appears at (0,0) on the temp surface.
+        // For objects already at origin, no translation needed.
+        // Create a shader lookup that uses this backend's cache.
+        ShaderLookup lookup = [this](int64_t h) { return lookup_shader(h); };
+        auto dr = draw_object(temp_surf->getCanvas(), **go, nullptr, lookup);
+        if (!dr) return std::unexpected(std::move(dr.error()));
+
+        auto image = temp_surf->makeImageSnapshot();
+        if (!image) {
+            return std::unexpected(resource_error(
+                "skia bind_textures_to_shader: failed to snapshot temp surface"));
+        }
+
+        auto child_shader = image->makeShader(
+            SkSamplingOptions(SkFilterMode::kLinear));
+        if (!child_shader) {
+            return std::unexpected(resource_error(
+                "skia bind_textures_to_shader: failed to create child shader from image"));
+        }
+
+        children[static_cast<size_t>(child_info->index)] =
+            SkRuntimeEffect::ChildPtr(std::move(child_shader));
+    }
+
+    // 4. Create the baked shader with children (empty uniforms)
+    sk_sp<SkData> uniform_data = SkData::MakeEmpty();
+    sk_sp<SkShader> baked = effect->makeShader(
+        std::move(uniform_data),
+        SkSpan<const SkRuntimeEffect::ChildPtr>(children.data(), children.size()),
+        nullptr);
+    if (!baked) {
+        return std::unexpected(general_error(
+            "skia bind_textures_to_shader: failed to create shader with children"));
+    }
+
+    // 5. Cache and return new handle
+    uint64_t handle = next_preshader_handle_++;
+    preshader_cache_[handle] = std::move(baked);
+    return handle;
+}
+
 auto SkiaBackend::create_shader_with_children(
     const std::string& src,
     const std::vector<ShaderChildInfo>& childDescs,

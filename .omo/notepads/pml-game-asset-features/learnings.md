@@ -87,3 +87,32 @@
 **Build gotcha (Windows/MSVC):**
 - `2>&1 | tail -N` doesn't work in PowerShell — use `2>&1 | Select-Object -Last N`
 - `git -m` with multi-line messages across PowerShell strings fails on `Co-authored-by:` footer — use single `-m` for body
+
+### Multi-texture shader binding (bind-textures)
+
+**Files created:**
+- `src/pml/evaluator/multi_texture_builtins.h` — declares `register_multi_texture_builtins(env)`
+- `src/pml/evaluator/multi_texture_builtins.cpp` — implements `(bind-textures ...)` builtin
+
+**Key implementation details:**
+- Approach A (pre-baking): `bind-textures` renders each GraphicObject to a temp SkSurface, creates a child shader from the image, and bakes everything into a new preshader handle stored in `preshader_cache_`
+- SkiaBackend::bind_textures_to_shader() uses `effect->findChild(slot_name)` to map slot names to child indices
+- Uses `effect->children()` to determine the number of child slots (in declaration order)
+- Texture size auto-detection: rect → w×h, circle → r*2, ellipse → rx*2×ry*2, default → 256×256
+- `draw_object()` is called to render the GraphicObject onto the temp surface (handles nested objects, transforms, etc.)
+- `lookup_shader()` bug is effectively fixed: bind-textures stores pre-baked shaders in `preshader_cache_`, which `lookup_shader()` returns directly (no empty-children `makeShader` call)
+- The test `bind-textures-null-backend` verifies error handling when no Skia backend is available
+- `SkRuntimeEffect::ChildPtr` accepts `sk_sp<SkShader>`, `sk_sp<SkColorFilter>`, or `sk_sp<SkBlender>`
+- `SkRuntimeEffect::children()` returns `SkSpan<const Child>` where each Child has name, type, and index
+- `SkRuntimeEffect::findChild(std::string_view)` returns `const Child*` or nullptr
+
+**Files modified:**
+- `src/pml/backend/backend.h` — added `bind_textures_to_shader()` virtual to RenderBackend ABC
+- `src/pml/backend/skia/skia_backend_internal.h` — added override declaration
+- `src/pml/backend/skia/skia_backend.cpp` — implemented `bind_textures_to_shader()`
+- `src/pml/evaluator/CMakeLists.txt` — added `multi_texture_builtins.cpp`
+- `src/pml/api/api.cpp` — added include + registration
+- `tests/builtins_smoke.cpp` — added include + registration + updated test
+
+**Test results:**
+- 271/271 pass (2 bind-textures CHECK_ERROR tests)

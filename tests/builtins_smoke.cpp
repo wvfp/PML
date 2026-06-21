@@ -21,6 +21,8 @@
 #include "pml/evaluator/canvas_builtins.h"
 #include "pml/evaluator/tilemap_builtins.h"
 #include "pml/evaluator/render_channels_builtins.h"
+#include "pml/evaluator/multi_texture_builtins.h"
+#include "pml/evaluator/shader_builtins.h"
 #include "pml/filter/filter_builtins.h"
 #include "pml/graphics/render.h"
 #include "pml/graphics3d/builtins_3d.h"
@@ -108,6 +110,8 @@ int main() {
     pml::register_tilemap_builtins(_env);
     pml::register_render(_env);     // (render ...), (render-set ...), (render-tilemap ...)
     pml::register_render_channels(_env);  // (render-channels ...)
+    pml::register_multi_texture_builtins(_env);  // (bind-textures ...)
+    pml::register_shader_builtins(_env);          // (shader ...), noise, uniforms
     pml::PMLContext::current().reset();
 
     // Force-link the null backend and activate it so that render builtins
@@ -761,9 +765,18 @@ int main() {
     // ── Multi-texture shaders ────────────────────────────────────────────
     std::cout << "\n── Multi-texture shaders ──\n";
 
-    // RED phase — expected to fail until builtin is implemented
-    CHECK_ERROR("bind-textures-not-implemented",
+    // Verify shader with `uniform shader` compiles (NullBackend returns dummy handle 1)
+    CHECK("shader-with-uniform-shader",
+        "(shader \"uniform shader tex; half4 main(float2 xy) { return tex.eval(xy); }\")",
+        "1");
+
+    // Error: first arg must be a number (shader handle), not a symbol
+    CHECK_ERROR("bind-textures-invalid-handle",
         "(bind-textures 'nonexistent :textures '())");
+
+    // Error: null backend doesn't support texture binding
+    CHECK_ERROR("bind-textures-null-backend",
+        "(bind-textures 42 :textures '())");
 
     // ── Summary ──────────────────────────────────────────────────────────
     std::cout << "\n═══ Results ═══\n"

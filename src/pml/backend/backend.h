@@ -207,6 +207,22 @@ public:
             "create_shader_with_children not supported by this backend"));
     }
 
+    /// Bind texture GraphicObjects to a compiled shader's `uniform shader` slots.
+    /// Renders each GraphicObject to an image and binds it as a child shader
+    /// matched by SkSL `uniform shader <slot_name>` declaration.
+    /// @param shader_handle  Handle from compile_shader
+    /// @param textures       List of (slot_name, GraphicObject) pairs
+    /// @return               New shader handle with children bound, or an error
+    virtual auto bind_textures_to_shader(
+        uint64_t shader_handle,
+        const std::vector<std::pair<std::string, Value>>& textures) -> Result<uint64_t>
+    {
+        (void)shader_handle;
+        (void)textures;
+        return std::unexpected(general_error(
+            "bind_textures_to_shader not supported by this backend"));
+    }
+
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════

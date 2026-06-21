@@ -16,6 +16,8 @@ add_library(pml_evaluator
     object_style_builtins.cpp
     color_builtins.cpp
     tilemap_builtins.cpp
+    render_channels_builtins.cpp
+    multi_texture_builtins.cpp
     macro_expansion.cpp
 )
 
