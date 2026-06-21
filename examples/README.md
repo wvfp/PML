@@ -32,6 +32,7 @@ examples/
 ├── 04-animation/                     # 动画
 ├── 05-layer-composition-filter/      # 图层、合成、滤镜
 ├── 06-sprites-style-palette/         # 精灵组件、样式、调色板
+├── 07-shaders-noise/                 # 着色器与噪声（Voronoi / 域扭曲 / 混合）
 ├── 08-asset-bitmap/                  # 资源加载与 Bitmap
 └── 09-projects/                      # 复杂项目
 ```
@@ -103,6 +104,15 @@ examples/
 | 自定义调色板 | `06-sprites-style-palette/04_define_palette.pml` | `04_define_palette.png` |
 | 角色组件 | `06-sprites-style-palette/05_character_component.pml` | `05_character_component.png` |
 | UI 组件 | `06-sprites-style-palette/06_ui_components.pml` | `06_ui_components.png` |
+
+### 07 着色器与噪声
+
+| 功能 | 文件 | 输出 |
+|------|------|------|
+| Voronoi 细胞噪声 | `07-shaders-noise/01_voronoi_noise.pml` | `01_voronoi_noise.png` |
+| 域扭曲 (Domain Warp) | `07-shaders-noise/02_domain_warp.pml` | `02_domain_warp.png` |
+| 噪声混合过渡 | `07-shaders-noise/03_noise_blend.pml` | `03_noise_blend.png` (含三模式独立图) |
+| 噪声高级展示 | `07-shaders-noise/04_noise_showcase.pml` | `04_noise_showcase.png` (含地形/大理石/过渡/对比) |
 
 ### 08 资源加载与 Bitmap
 
