@@ -361,17 +361,6 @@ GraphicObject _apply_modifications(const GraphicObject& obj,
                                             value_to_double(value),
                                             new_transform.e,
                                             new_transform.f};
-        } else if (prop == "x" || prop == "y") {
-            // Animate x/y → update transform translation.
-            // Preserve the other axis to avoid destroying translate-object offset.
-            double new_e = (prop == "x") ? value_to_double(value) : new_transform.e;
-            double new_f = (prop == "y") ? value_to_double(value) : new_transform.f;
-            new_transform = AffineTransform{new_transform.a,
-                                            new_transform.b,
-                                            new_transform.c,
-                                            new_transform.d,
-                                            new_e,
-                                            new_f};
         } else {
             // Assume it's a param key (x, y, r, w, h, cx, cy, etc.)
             new_params[prop] = value;
