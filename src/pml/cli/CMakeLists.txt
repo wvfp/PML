@@ -1,6 +1,9 @@
 add_executable(pml
     main.cpp
     repl.cpp
+    cli_errors.cpp
+    cli_watch.cpp
+    cli_execute.cpp
 )
 
 target_include_directories(pml PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
