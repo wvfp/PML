@@ -43,3 +43,28 @@
 **CMake:**
 - Both `tilemap.cpp` and `tileset.cpp` in `src/pml/graphics/CMakeLists.txt`
 - Smoke tests: 262/262 pass (tilemap/tileset builtins correctly show UnboundVariableError)
+
+### Wave 2 — Tilemap builtins (define-tileset, make-tilemap, tilemap-set!)
+
+**Files created:**
+- `src/pml/evaluator/tilemap_builtins.h` — declares `register_tilemap_builtins(env)`
+- `src/pml/evaluator/tilemap_builtins.cpp` — implements 3 builtins
+
+**Key implementation details:**
+- Uses `def()` lambda pattern matching `shader_builtins.cpp` style (not `render.cpp`'s separate variable pattern)
+- `value_to_expr()` helper converts a runtime Value back to an AST Expr for evaluating quoted graphic expressions via `eval_to_value()`
+- `define-tileset`: positional name + kwargs `:tile-size` (default 32) and `:tiles` (list of `(id name [graphic [detail]])` entries)
+- `make-tilemap`: positional tileset-name, cols, rows + kwargs `:projection` ('orthogonal|'isometric, default 'orthogonal) and `:layers` (default 1)
+- `tilemap-set!`: 5 positional args (tilemap-name, layer, col, row, tile-id), returns #t
+- Kwargs parsing uses `pml::kwargs::parse_kwargs` / `kw_int` / `value_to_opt_string`
+- Error handling: `arity_error`, `type_error` (no `throw` — `Result<T>` + `std::unexpected`)
+- **Gotcha**: `value_to_opt_string`, `parse_kwargs`, `kw_int` are in `pml::kwargs::` namespace — need `using pml::kwargs::value_to_opt_string;` etc.
+- **Gotcha**: `eval_to_value` needs `env.shared_from_this()` — requires `evaluator.h` include
+
+**Files modified:**
+- `src/pml/evaluator/CMakeLists.txt` — added `tilemap_builtins.cpp`
+- `src/pml/api/api.cpp` — added `#include "pml/evaluator/tilemap_builtins.h"` and `register_tilemap_builtins(m_env)` call
+- `tests/builtins_smoke.cpp` — added include + registration + converted 3 CHECK_ERRORs to CHECKs (render-tilemap stays CHECK_ERROR for T7/T8)
+
+**Test results:**
+- 262/262 pass (3 tilemap tests converted from CHECK_ERROR to CHECK)

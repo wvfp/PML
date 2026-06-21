@@ -17,6 +17,7 @@
 #include "pml/evaluator/builtins.h"
 #include "pml/evaluator/backend_builtins.h"
 #include "pml/evaluator/shader_builtins.h"
+#include "pml/evaluator/tilemap_builtins.h"
 
 // ── Graphics ─────────────────────────────────────────────────────────────
 #include "pml/graphics/render.h"
@@ -340,6 +341,10 @@ void PMLRuntime::init_global_env() {
     //     (image, load-image, bitmap-layer, load-spritesheet,
     //      asset-path?, clear-assets!)
     register_asset_builtins(m_env);
+
+    // 17. Tilemap builtins
+    //     (define-tileset, make-tilemap, tilemap-set!)
+    register_tilemap_builtins(m_env);
 
     // ── Module loading is handled via the evaluator's eval_import/eval_provide
     // special forms — no separate module registration call needed.

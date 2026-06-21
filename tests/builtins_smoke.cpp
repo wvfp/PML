@@ -17,6 +17,7 @@
 #include "pml/api/context.h"
 #include "pml/asset/asset_builtins.h"
 #include "pml/evaluator/canvas_builtins.h"
+#include "pml/evaluator/tilemap_builtins.h"
 #include "pml/filter/filter_builtins.h"
 #include "pml/graphics3d/builtins_3d.h"
 #include "pml/layer/layer_builtins.h"
@@ -100,6 +101,7 @@ int main() {
     pml::register_filter_builtins(_env);
     pml::register_asset_builtins(_env);
     pml::register_3d_builtins(_env);
+    pml::register_tilemap_builtins(_env);
     pml::PMLContext::current().reset();
 
     std::cout << "═══ PML Builtins Smoke Test ═══\n\n";
@@ -676,13 +678,17 @@ int main() {
     // ── Tilemap basics ───────────────────────────────────────────────────
     std::cout << "\n── Tilemap basics ──\n";
 
-    // RED phase — expected to fail until builtin is implemented
-    CHECK_ERROR("tileset-not-implemented",
-        "(define-tileset 'test :tile-size 32 :tiles '((1 none)))");
-    CHECK_ERROR("tilemap-not-implemented",
-        "(make-tilemap 'test 5 5)");
-    CHECK_ERROR("tilemap-set!-not-implemented",
-        "(tilemap-set! 'test 0 0 0 1)");
+    // GREEN phase — tilemap builtins implemented
+    CHECK("define-tileset",
+        "(define-tileset 'terrain :tile-size 32 :tiles '((1 grass (rect 0 0 32 32 :fill \"green\"))))",
+        "terrain");
+    CHECK("make-tilemap",
+        "(define tm (make-tilemap 'terrain 5 5 :projection 'orthogonal :layers 2))",
+        "nil");
+    CHECK("tilemap-set!",
+        "(tilemap-set! tm 0 2 2 1)",
+        "#t");
+    // RED phase — render-tilemap not implemented yet (T7/T8)
     CHECK_ERROR("render-tilemap-not-implemented",
         "(render-tilemap 'test 'test)");
 
