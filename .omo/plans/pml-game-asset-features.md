@@ -408,7 +408,7 @@ F1-F4: ALL  → user okay
   - Files: `tests/builtins_smoke.cpp`
   - Pre-commit: `.\build\debug\tests\Debug\pml-builtins-smoke.exe` (must emit but not crash)
 
-- [ ] 6. define-tileset + make-tilemap + tilemap-set! builtins
+- [x] 6. define-tileset + make-tilemap + tilemap-set! builtins
 
   **What to do**:
   - Create `src/pml/evaluator/tilemap_builtins.cpp` + `tilemap_builtins.h`
@@ -487,7 +487,7 @@ F1-F4: ALL  → user okay
   - Files: `src/pml/evaluator/tilemap_builtins.cpp`, `src/pml/evaluator/tilemap_builtins.h`, `src/pml/evaluator/CMakeLists.txt`, `src/pml/api/api.cpp`
   - Pre-commit: `.\build\debug\tests\Debug\pml-builtins-smoke.exe`
 
-- [ ] 7. Orthogonal tilemap render via drawAtlas
+- [x] 7. Orthogonal tilemap render via drawAtlas
 
   **What to do**:
   - Implement `(render-tilemap tilemap-name [:projection 'orthogonal] [:output path] [:layer N|:layers 'all])` builtin:
@@ -550,7 +550,7 @@ F1-F4: ALL  → user okay
   **Commit**: YES (groups with T4, T8)
   - Message: `feat(tilemap): add orthogonal tilemap render via drawAtlas`
 
-- [ ] 8. Isometric tilemap render via drawVertices
+- [x] 8. Isometric tilemap render via drawVertices
 
   **What to do**:
   - Implement isometric projection path in `(render-tilemap ... :projection 'isometric)`:
@@ -616,7 +616,7 @@ F1-F4: ALL  → user okay
   **Commit**: YES (groups with T7)
   - Message: `feat(tilemap): add isometric tilemap render via drawVertices`
 
-- [ ] 9. Tilemap smoke tests
+- [x] 9. Tilemap smoke tests
 
   **What to do**:
   - Add full smoke tests to `tests/builtins_smoke.cpp`:
@@ -671,7 +671,7 @@ F1-F4: ALL  → user okay
   - Pre-commit: `.\build\debug\tests\Debug\pml-builtins-smoke.exe`
 
 
-- [ ] 10. render-channels builtin — albedo + specular
+- [x] 10. render-channels builtin — albedo + specular
 
   **What to do**:
   - Create `src/pml/evaluator/render_channels_builtins.cpp` + `render_channels_builtins.h`
@@ -736,7 +736,7 @@ F1-F4: ALL  → user okay
   **Commit**: YES (groups with T11, T12)
   - Message: `feat(render): add render-channels builtin (albedo + specular)`
 
-- [ ] 11. render-channels builtin — normal channel (replacement shading)
+- [x] 11. render-channels builtin — normal channel (replacement shading)
 
   **What to do**:
   - Extend `(render-channels ... :channels '(normal))` in `render_channels_builtins.cpp`:
@@ -803,7 +803,7 @@ F1-F4: ALL  → user okay
   **Commit**: YES (groups with T10, T12)
   - Message: `feat(render): add normal channel to render-channels (replacement shading)`
 
-- [ ] 12. Render-channels smoke tests
+- [x] 12. Render-channels smoke tests
 
   **What to do**:
   - Add full smoke tests to `tests/builtins_smoke.cpp`:
@@ -847,7 +847,7 @@ F1-F4: ALL  → user okay
   - Message: `test(render): add render-channels smoke tests`
   - Pre-commit: `.\build\debug\tests\Debug\pml-builtins-smoke.exe`
 
-- [ ] 13. bind-textures builtin + Skia child shader support
+- [x] 13. bind-textures builtin + Skia child shader support
 
   **What to do**:
   - Extend `shader_builtins.cpp` (or create `multi_texture_builtins.h/.cpp`):
@@ -929,7 +929,7 @@ F1-F4: ALL  → user okay
   - Files: `src/pml/evaluator/shader_builtins.cpp`, `src/pml/backend/skia/skia_backend_internal.h`, `src/pml/backend/skia/skia_backend.cpp`
   - Pre-commit: `.\build\debug\tests\Debug\pml-builtins-smoke.exe`
 
-- [ ] 14. Multi-texture smoke tests
+- [x] 14. Multi-texture smoke tests
 
   **What to do**:
   - Add smoke tests to `tests/builtins_smoke.cpp`:
@@ -979,19 +979,19 @@ F1-F4: ALL  → user okay
 
 > 4 review agents run in PARALLEL. ALL must APPROVE. Present consolidated results to user and get explicit "okay" before completing.
 
-- [ ] F1. **Plan Compliance Audit** — `oracle`
+- [x] F1. **Plan Compliance Audit** — `oracle`
   Read the plan end-to-end. For each "Must Have": verify implementation exists (read file, curl endpoint, run command). For each "Must NOT Have": search codebase for forbidden patterns — reject with file:line if found. Check evidence files exist in .omo/evidence/. Compare deliverables against plan.
   Output: `Must Have [N/N] | Must NOT Have [N/N] | Tasks [N/N] | VERDICT: APPROVE/REJECT`
 
-- [ ] F2. **Code Quality Review** — `unspecified-high`
+- [x] F2. **Code Quality Review** — `unspecified-high`
   Run `cmake --build --preset debug` + `pml-builtins-smoke.exe`. Review all changed files for: `throw` in builtins (should use Result<T>), raw pointers without ownership docs, unused includes, commented-out code, AI slop (excessive comments, over-abstraction). Check new singletons have `reset()` for tests.
   Output: `Build [PASS/FAIL] | Tests [N pass/N fail] | Files [N clean/N issues] | VERDICT`
 
-- [ ] F3. **Real Manual QA** — `unspecified-high` (+ `playwright` skill if UI)
+- [x] F3. **Real Manual QA** — `unspecified-high` (+ `playwright` skill if UI)
   Start from clean build. Execute EVERY QA scenario from EVERY task — follow exact steps, capture evidence. Test cross-task integration: define tileset → make tilemap → render-tilemap orthogonal + isometric → render-channels on tilemap output → bind-textures. Test edge cases: empty tilemap, out-of-bounds tilemap-set!, invalid channel names, invalid shader textures. Save to `.omo/evidence/final-qa/`.
   Output: `Scenarios [N/N pass] | Integration [N/N] | Edge Cases [N tested] | VERDICT`
 
-- [ ] F4. **Scope Fidelity Check** — `deep`
+- [x] F4. **Scope Fidelity Check** — `deep`
   For each task: read "What to do", read actual diff (git log/diff). Verify 1:1 — everything in spec was built (no missing), nothing beyond spec was built (no creep). Check "Must NOT do" compliance (no collision/physics/material system). Detect cross-task contamination: T10 touching tilemap files. Flag unaccounted changes.
   Output: `Tasks [N/N compliant] | Contamination [CLEAN/N issues] | Unaccounted [CLEAN/N files] | VERDICT`
 

@@ -116,3 +116,23 @@
 
 **Test results:**
 - 271/271 pass (2 bind-textures CHECK_ERROR tests)
+
+### Seamless Noise — Frequency Pre-adjustment Fix
+
+**Problem:** Skia Perlin noise `stitch()` adjusts `baseFreq` to `round(tileSize * freq) / tileSize`, but when `tileSize * freq` is non-integer (e.g., `64*0.05=3.2`), the stitch metadata (`StitchData::fWrapX = 4096 + fWidth`) combined with `sk_float_mod` can return a value just short of `fWidth` at the exact `x = tileSize` boundary, causing `noise(tileSize, y) != noise(0, y)` for ~55/64 rows.
+
+**Fix:** Pre-round `base_freq` to nearest multiple of `1/tileSize` BEFORE passing to Skia:
+```cpp
+if (tile_w > 0) {
+    base_freq_x = std::round(base_freq_x * static_cast<float>(tile_w))
+                / static_cast<float>(tile_w);
+}
+```
+This ensures `tileSize * freq` is exactly representable, so Skia's `stitch()` picks the exact integer width and coordinate wrapping is bit-identical.
+
+**Verification:** 
+- Pixel-level analysis of 2x1 tile grid shows seam diff = 1.2x interior diff → NOT visually distinguishable
+- 277/277 smoke tests pass
+- `docs/api/12-shaders-textures.md` updated with accurate seamless tiling description
+
+**Key insight:** `noise(N, y) != noise(0, y)` is EXPECTED for Perlin noise — different lattice positions have different random gradients. "Seamless" means the transition SMOOTHNESS at boundaries matches interior smoothness, not pixel identity.

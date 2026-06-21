@@ -6,9 +6,9 @@
       "work_id": "pml-game-asset-features",
       "active_plan": "G:\\Project\\PML\\.omo\\plans\\pml-game-asset-features.md",
       "plan_name": "pml-game-asset-features",
-      "status": "active",
+      "status": "completed",
       "started_at": "2026-06-21T05:45:00.000Z",
-      "updated_at": "2026-06-21T05:59:57.413Z",
+      "updated_at": "2026-06-21T08:44:18.090Z",
       "session_ids": [
         "opencode:ses_119ff2aa9ffeYKwUOL9vttjXuz"
       ],
@@ -27,14 +27,93 @@
           "status": "completed",
           "ended_at": "2026-06-21T05:59:57.412Z",
           "elapsed_ms": 59904
+        },
+        "todo:6": {
+          "task_key": "todo:6",
+          "task_label": "6",
+          "task_title": "define-tileset + make-tilemap + tilemap-set! builtins",
+          "session_id": "opencode:ses_1173a892bffenpu2b2YAtr4JnJ",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-06-21T06:12:20.388Z",
+          "started_at": "2026-06-21T06:11:57.076Z",
+          "status": "completed",
+          "ended_at": "2026-06-21T06:12:20.388Z",
+          "elapsed_ms": 23312
+        },
+        "todo:7": {
+          "task_key": "todo:7",
+          "task_label": "7",
+          "task_title": "Orthogonal tilemap render via drawAtlas",
+          "session_id": "opencode:ses_11730aec5ffeu6Yyw5nS5UJkDo",
+          "agent": "Sisyphus-Junior",
+          "category": "unspecified-high",
+          "updated_at": "2026-06-21T07:57:54.083Z",
+          "started_at": "2026-06-21T07:54:16.955Z",
+          "status": "completed",
+          "ended_at": "2026-06-21T07:57:54.083Z",
+          "elapsed_ms": 217128
+        },
+        "todo:9": {
+          "task_key": "todo:9",
+          "task_label": "9",
+          "task_title": "Tilemap smoke tests",
+          "session_id": "opencode:ses_116ce82d8ffe6BKS3znyJzhh0A",
+          "agent": "Sisyphus-Junior",
+          "category": "quick",
+          "updated_at": "2026-06-21T08:11:57.618Z",
+          "started_at": "2026-06-21T08:02:29.102Z",
+          "status": "completed",
+          "ended_at": "2026-06-21T08:11:57.618Z",
+          "elapsed_ms": 568516
+        },
+        "todo:13": {
+          "task_key": "todo:13",
+          "task_label": "13",
+          "task_title": "bind-textures builtin + Skia child shader support",
+          "session_id": "opencode:ses_116c2815fffep4OcL6MHcIlHNG",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-06-21T08:24:39.916Z",
+          "started_at": "2026-06-21T08:24:12.476Z",
+          "status": "completed",
+          "ended_at": "2026-06-21T08:24:39.916Z",
+          "elapsed_ms": 27440
+        },
+        "todo:14": {
+          "task_key": "todo:14",
+          "task_label": "14",
+          "task_title": "Multi-texture smoke tests",
+          "session_id": "opencode:ses_116b72381ffe39R3c7jKlAbc5e",
+          "agent": "Sisyphus-Junior",
+          "category": "quick",
+          "updated_at": "2026-06-21T08:30:15.223Z",
+          "started_at": "2026-06-21T08:30:02.468Z",
+          "status": "completed",
+          "ended_at": "2026-06-21T08:30:15.223Z",
+          "elapsed_ms": 12755
+        },
+        "final-wave:f1": {
+          "task_key": "final-wave:f1",
+          "task_label": "F1",
+          "task_title": "**Plan Compliance Audit** — `oracle`",
+          "session_id": "opencode:ses_116a900a7ffesZzQP3Uca9D21V",
+          "agent": "oracle",
+          "started_at": "2026-06-21T08:36:36.970Z",
+          "ended_at": "2026-06-21T08:42:55.834Z",
+          "elapsed_ms": 378864,
+          "status": "completed",
+          "updated_at": "2026-06-21T08:42:55.834Z"
         }
-      }
+      },
+      "ended_at": "2026-06-21T08:44:18.090Z",
+      "elapsed_ms": 10758090
     }
   },
   "active_plan": "G:\\Project\\PML\\.omo\\plans\\pml-game-asset-features.md",
   "started_at": "2026-06-21T05:45:00.000Z",
-  "status": "active",
-  "updated_at": "2026-06-21T05:59:57.413Z",
+  "status": "completed",
+  "updated_at": "2026-06-21T08:44:18.090Z",
   "session_ids": [
     "opencode:ses_119ff2aa9ffeYKwUOL9vttjXuz"
   ],
@@ -54,6 +133,85 @@
       "status": "completed",
       "ended_at": "2026-06-21T05:59:57.412Z",
       "elapsed_ms": 59904
+    },
+    "todo:6": {
+      "task_key": "todo:6",
+      "task_label": "6",
+      "task_title": "define-tileset + make-tilemap + tilemap-set! builtins",
+      "session_id": "opencode:ses_1173a892bffenpu2b2YAtr4JnJ",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-06-21T06:12:20.388Z",
+      "started_at": "2026-06-21T06:11:57.076Z",
+      "status": "completed",
+      "ended_at": "2026-06-21T06:12:20.388Z",
+      "elapsed_ms": 23312
+    },
+    "todo:7": {
+      "task_key": "todo:7",
+      "task_label": "7",
+      "task_title": "Orthogonal tilemap render via drawAtlas",
+      "session_id": "opencode:ses_11730aec5ffeu6Yyw5nS5UJkDo",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-06-21T07:57:54.083Z",
+      "started_at": "2026-06-21T07:54:16.955Z",
+      "status": "completed",
+      "ended_at": "2026-06-21T07:57:54.083Z",
+      "elapsed_ms": 217128
+    },
+    "todo:9": {
+      "task_key": "todo:9",
+      "task_label": "9",
+      "task_title": "Tilemap smoke tests",
+      "session_id": "opencode:ses_116ce82d8ffe6BKS3znyJzhh0A",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-06-21T08:11:57.618Z",
+      "started_at": "2026-06-21T08:02:29.102Z",
+      "status": "completed",
+      "ended_at": "2026-06-21T08:11:57.618Z",
+      "elapsed_ms": 568516
+    },
+    "todo:13": {
+      "task_key": "todo:13",
+      "task_label": "13",
+      "task_title": "bind-textures builtin + Skia child shader support",
+      "session_id": "opencode:ses_116c2815fffep4OcL6MHcIlHNG",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-06-21T08:24:39.916Z",
+      "started_at": "2026-06-21T08:24:12.476Z",
+      "status": "completed",
+      "ended_at": "2026-06-21T08:24:39.916Z",
+      "elapsed_ms": 27440
+    },
+    "todo:14": {
+      "task_key": "todo:14",
+      "task_label": "14",
+      "task_title": "Multi-texture smoke tests",
+      "session_id": "opencode:ses_116b72381ffe39R3c7jKlAbc5e",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-06-21T08:30:15.223Z",
+      "started_at": "2026-06-21T08:30:02.468Z",
+      "status": "completed",
+      "ended_at": "2026-06-21T08:30:15.223Z",
+      "elapsed_ms": 12755
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "**Plan Compliance Audit** — `oracle`",
+      "session_id": "opencode:ses_116a900a7ffesZzQP3Uca9D21V",
+      "agent": "oracle",
+      "started_at": "2026-06-21T08:36:36.970Z",
+      "ended_at": "2026-06-21T08:42:55.834Z",
+      "elapsed_ms": 378864,
+      "status": "completed",
+      "updated_at": "2026-06-21T08:42:55.834Z"
     }
-  }
+  },
+  "ended_at": "2026-06-21T08:44:18.090Z",
+  "elapsed_ms": 10758090
 }
