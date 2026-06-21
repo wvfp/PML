@@ -1,0 +1,81 @@
+;; PML 噪声和 Shader 功能演示
+;; 此示例展示如何创建无缝噪声纹理和自定义着色器
+
+(set-backend! "skia")
+(canvas 256 256 :bg "#2E2E1E")
+
+;; ═══════════════════════════════════════════════════════════════
+;; 示例 1: 无缝分形噪声 (草原纹理)
+;; ═══════════════════════════════════════════════════════════════
+
+(define grass-noise
+  (noise-fractal
+    :freq-x 0.03
+    :freq-y 0.03
+    :octaves 5
+    :seed 42
+    :tile-width 256
+    :tile-height 256))
+
+;; 创建自定义着色器，将噪声映射到绿色渐变
+(define grass-shader
+  (shader
+    (string-append
+      "half4 main(float2 p) {\n"
+      "  float n = sin(p.x * 0.05) * 0.5 + 0.5;\n"
+      "  half3 dark = half3(0.1, 0.4, 0.1);\n"
+      "  half3 light = half3(0.3, 0.8, 0.2);\n"
+      "  return half4(mix(dark, light, half(n)), 1.0);\n"
+      "}\n")))
+
+;; 应用噪声和着色器
+(define grass-rect (rect 10 10 236 236 :fill "#FFF"))
+(add (apply-shader! grass-rect grass-noise))
+
+;; ═══════════════════════════════════════════════════════════════
+;; 示例 2: 湍流噪声 (云层纹理)
+;; ═══════════════════════════════════════════════════════════════
+
+(define cloud-noise
+  (noise-turbulence
+    :freq-x 0.02
+    :freq-y 0.02
+    :octaves 6
+    :seed 123
+    :tile-width 256
+    :tile-height 256))
+
+(define cloud-rect (rect 10 10 236 236 :fill "#888"))
+(add (apply-shader! cloud-rect cloud-noise))
+
+;; ═══════════════════════════════════════════════════════════════
+;; 示例 3: 使用 Uniform 的自定义着色器
+;; ═══════════════════════════════════════════════════════════════
+
+;; 创建一个带 uniform 的着色器 (亮度控制)
+(define brightness-shader
+  (shader
+    (string-append
+      "uniform float brightness;\n"
+      "half4 main(float2 p) {\n"
+      "  half b = half(brightness);\n"
+      "  return half4(b, b * 0.8, b * 0.6, 1.0);\n"
+      "}\n")))
+
+;; 创建 uniform 数据 (float = 0.7)
+(define brightness-uniform (make-uniforms 0.7))
+
+;; 应用 uniform 到着色器
+(define bright-shader (apply-uniforms brightness-shader brightness-uniform))
+
+;; 应用到图形
+(define warm-rect (rect 50 50 156 156 :fill "#FFF"))
+(add (apply-shader! warm-rect bright-shader))
+
+;; ═══════════════════════════════════════════════════════════════
+;; 渲染输出
+;; ═══════════════════════════════════════════════════════════════
+
+(render "noise_demo.png")
+(print "✓ 噪声和 Shader 功能演示完成!")
+(print "  输出: noise_demo.png")

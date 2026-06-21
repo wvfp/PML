@@ -1,0 +1,97 @@
+; shaders.pml - 动漫风地形着色器
+; 柔和色调 + 3 色阶赛璐璐
+
+(provide grass-shader dirt-shader stone-shader sand-shader)
+
+; 共享噪声 (低频，大色块)
+(define cel-noise
+  (string-append
+    "float h = fract(sin(dot(floor(p * 0.6), float2(127.1, 311.7)) + 0.001) * 43758.5453);\n"
+    "float h2 = fract(sin(dot(floor(p * 0.6 + float2(1,0)), float2(127.1, 311.7)) + 0.001) * 43758.5453);\n"
+    "float h3 = fract(sin(dot(floor(p * 0.6 + float2(0,1)), float2(127.1, 311.7)) + 0.001) * 43758.5453);\n"
+    "float h4 = fract(sin(dot(floor(p * 0.6 + float2(1,1)), float2(127.1, 311.7)) + 0.001) * 43758.5453);\n"
+    "float2 f = fract(p * 0.6);\n"
+    "float2 u = f * f * (3.0 - 2.0 * f);\n"
+    "float n = mix(mix(h, h2, u.x), mix(h3, h4, u.x), u.y);\n"
+    "float band = floor(n * 3.0 + 0.1) / 2.0;\n"))
+
+; ═══════════════════════════════════════════════════════════════════════════════
+; 草地 — 柔和绿
+; ═══════════════════════════════════════════════════════════════════════════════
+
+(define grass-shader
+  (shader
+    (string-append
+      "half4 main(float2 p) {\n"
+      cel-noise
+      "  half3 c = band < 0.3 ? half3(0.28, 0.50, 0.22)\n"
+      "        : band < 0.7 ? half3(0.38, 0.60, 0.28)\n"
+      "        : half3(0.50, 0.69, 0.38);\n"
+      "  return half4(c, 1.0);\n"
+      "}\n")))
+
+; ═══════════════════════════════════════════════════════════════════════════════
+; 泥土 — 柔和暖棕
+; ═══════════════════════════════════════════════════════════════════════════════
+
+(define dirt-shader
+  (shader
+    (string-append
+      "half4 main(float2 p) {\n"
+      "float h = fract(sin(dot(floor(p*0.5), float2(269.5, 183.3)) + 0.001) * 43758.5453);\n"
+      "float h2 = fract(sin(dot(floor(p*0.5 + float2(1,0)), float2(269.5, 183.3)) + 0.001) * 43758.5453);\n"
+      "float h3 = fract(sin(dot(floor(p*0.5 + float2(0,1)), float2(269.5, 183.3)) + 0.001) * 43758.5453);\n"
+      "float h4 = fract(sin(dot(floor(p*0.5 + float2(1,1)), float2(269.5, 183.3)) + 0.001) * 43758.5453);\n"
+      "float2 f = fract(p*0.5);\n"
+      "float2 u = f * f * (3.0 - 2.0 * f);\n"
+      "float n = mix(mix(h, h2, u.x), mix(h3, h4, u.x), u.y);\n"
+      "float band = floor(n * 3.0 + 0.1) / 2.0;\n"
+      "  half3 c = band < 0.3 ? half3(0.40, 0.31, 0.22)\n"
+      "        : band < 0.7 ? half3(0.50, 0.38, 0.25)\n"
+      "        : half3(0.61, 0.47, 0.30);\n"
+      "  return half4(c, 1.0);\n"
+      "}\n")))
+
+; ═══════════════════════════════════════════════════════════════════════════════
+; 石头 — 冷蓝灰
+; ═══════════════════════════════════════════════════════════════════════════════
+
+(define stone-shader
+  (shader
+    (string-append
+      "half4 main(float2 p) {\n"
+      "float h = fract(sin(dot(floor(p*0.7), float2(183.3, 127.1)) + 0.001) * 43758.5453);\n"
+      "float h2 = fract(sin(dot(floor(p*0.7 + float2(1,0)), float2(183.3, 127.1)) + 0.001) * 43758.5453);\n"
+      "float h3 = fract(sin(dot(floor(p*0.7 + float2(0,1)), float2(183.3, 127.1)) + 0.001) * 43758.5453);\n"
+      "float h4 = fract(sin(dot(floor(p*0.7 + float2(1,1)), float2(183.3, 127.1)) + 0.001) * 43758.5453);\n"
+      "float2 f = fract(p*0.7);\n"
+      "float2 u = f * f * (3.0 - 2.0 * f);\n"
+      "float n = mix(mix(h, h2, u.x), mix(h3, h4, u.x), u.y);\n"
+      "float band = floor(n * 3.0 + 0.1) / 2.0;\n"
+      "  half3 c = band < 0.3 ? half3(0.35, 0.36, 0.41)\n"
+      "        : band < 0.7 ? half3(0.44, 0.45, 0.50)\n"
+      "        : half3(0.56, 0.58, 0.63);\n"
+      "  return half4(c, 1.0);\n"
+      "}\n")))
+
+; ═══════════════════════════════════════════════════════════════════════════════
+; 沙地 — 柔和暖沙
+; ═══════════════════════════════════════════════════════════════════════════════
+
+(define sand-shader
+  (shader
+    (string-append
+      "half4 main(float2 p) {\n"
+      "float h = fract(sin(dot(floor(p*0.5), float2(311.7, 269.5)) + 0.001) * 43758.5453);\n"
+      "float h2 = fract(sin(dot(floor(p*0.5 + float2(1,0)), float2(311.7, 269.5)) + 0.001) * 43758.5453);\n"
+      "float h3 = fract(sin(dot(floor(p*0.5 + float2(0,1)), float2(311.7, 269.5)) + 0.001) * 43758.5453);\n"
+      "float h4 = fract(sin(dot(floor(p*0.5 + float2(1,1)), float2(311.7, 269.5)) + 0.001) * 43758.5453);\n"
+      "float2 f = fract(p*0.5);\n"
+      "float2 u = f * f * (3.0 - 2.0 * f);\n"
+      "float n = mix(mix(h, h2, u.x), mix(h3, h4, u.x), u.y);\n"
+      "float band = floor(n * 3.0 + 0.1) / 2.0;\n"
+      "  half3 c = band < 0.3 ? half3(0.66, 0.56, 0.38)\n"
+      "        : band < 0.7 ? half3(0.75, 0.66, 0.47)\n"
+      "        : half3(0.85, 0.77, 0.60);\n"
+      "  return half4(c, 1.0);\n"
+      "}\n")))

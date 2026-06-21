@@ -1,0 +1,113 @@
+; decorations.pml - 动漫风装饰物 (柔和色调)
+; 类型: 0=圆冠大树 1=松树 2=阔叶树 3=灌木 4=花朵 5=岩石
+
+(provide draw-decoration)
+
+(define (draw-decoration type cx cy)
+  (cond
+    ((= type 0) (draw-round-tree cx cy))
+    ((= type 1) (draw-pine-tree cx cy))
+    ((= type 2) (draw-broadleaf-tree cx cy))
+    ((= type 3) (draw-bush cx cy))
+    ((= type 4) (draw-flower cx cy))
+    ((= type 5) (draw-rock cx cy))
+    (else (group))))
+
+; ═══════════════════════════════════════════════════════════════════════════════
+; 0: 圆冠大树
+; ═══════════════════════════════════════════════════════════════════════════════
+
+(define (draw-round-tree cx cy)
+  (group
+    (rect (- cx 5) (- cy 45) 10 45 :fill "#7A6050" :stroke "#4A3828" :stroke-width 0.8)
+    (ellipse cx cy 8 3 :fill "#5A4838" :stroke "none")
+    ; 树冠 4 层 (暗→亮)
+    (ellipse cx (- cy 42) 35 22 :fill "#2D5E28" :stroke "#1E4A1A" :stroke-width 0.8)
+    (ellipse cx (- cy 52) 30 20 :fill "#3A7232" :stroke "#2D5E28" :stroke-width 0.8)
+    (ellipse cx (- cy 60) 24 16 :fill "#4A8840" :stroke "#3A7232" :stroke-width 0.6)
+    (ellipse (- cx 5) (- cy 66) 16 11 :fill "#5CA050" :stroke "#4A8840" :stroke-width 0.5)
+    ; 高光
+    (ellipse (- cx 10) (- cy 62) 7 4 :fill "#70B464" :stroke "none")
+    (ellipse (+ cx 8) (- cy 55) 5 3 :fill "#88C878" :stroke "none")
+    (ellipse (+ cx 2) (- cy 68) 4 2 :fill "#A0D890" :stroke "none")))
+
+; ═══════════════════════════════════════════════════════════════════════════════
+; 1: 松树
+; ═══════════════════════════════════════════════════════════════════════════════
+
+(define (draw-pine-tree cx cy)
+  (group
+    (rect (- cx 3) (- cy 45) 6 45 :fill "#6A5545" :stroke "#4A3828" :stroke-width 0.8)
+    ; 3 层三角 (暗→亮)
+    (polygon (list (list cx (- cy 40)) (list (- cx 25) (- cy 22)) (list (+ cx 25) (- cy 22)))
+             :fill "#2A5525" :stroke "#1E4A1A" :stroke-width 0.8)
+    (polygon (list (list cx (- cy 55)) (list (- cx 20) (- cy 36)) (list (+ cx 20) (- cy 36)))
+             :fill "#356A30" :stroke "#2A5525" :stroke-width 0.8)
+    (polygon (list (list cx (- cy 72)) (list (- cx 14) (- cy 52)) (list (+ cx 14) (- cy 52)))
+             :fill "#428038" :stroke "#356A30" :stroke-width 0.6)
+    ; 尖端
+    (polygon (list (list cx (- cy 72)) (list (- cx 6) (- cy 62)) (list (+ cx 6) (- cy 62)))
+             :fill "#529848" :stroke "none")
+    (ellipse (- cx 5) (- cy 48) 4 2 :fill "#60A858" :stroke "none")))
+
+; ═══════════════════════════════════════════════════════════════════════════════
+; 2: 阔叶树
+; ═══════════════════════════════════════════════════════════════════════════════
+
+(define (draw-broadleaf-tree cx cy)
+  (group
+    (polygon (list
+               (list (- cx 5) cy) (list (+ cx 3) cy)
+               (list (+ cx 6) (- cy 20)) (list (+ cx 4) (- cy 35))
+               (list (- cx 2) (- cy 35)) (list (- cx 4) (- cy 20)))
+             :fill "#7A6050" :stroke "#4A3828" :stroke-width 0.8)
+    ; 宽展树冠
+    (ellipse cx (- cy 38) 38 20 :fill "#2A5825" :stroke "#1E4A1A" :stroke-width 0.8)
+    (ellipse (- cx 16) (- cy 46) 22 15 :fill "#357030" :stroke "#2A5825" :stroke-width 0.6)
+    (ellipse (+ cx 14) (- cy 44) 20 14 :fill "#3A7835" :stroke "#357030" :stroke-width 0.6)
+    (ellipse cx (- cy 54) 24 14 :fill "#458840" :stroke "#3A7835" :stroke-width 0.5)
+    ; 高光
+    (ellipse (- cx 6) (- cy 58) 14 8 :fill "#58A050" :stroke "none")
+    (ellipse (+ cx 10) (- cy 50) 8 5 :fill "#70B464" :stroke "none")
+    (ellipse (- cx 3) (- cy 62) 5 3 :fill "#88C878" :stroke "none")))
+
+; ═══════════════════════════════════════════════════════════════════════════════
+; 3: 灌木
+; ═══════════════════════════════════════════════════════════════════════════════
+
+(define (draw-bush cx cy)
+  (group
+    (circle cx (- cy 6) 9 :fill "#2D5E28" :stroke "#1E4A1A" :stroke-width 0.6)
+    (circle (- cx 4) (- cy 10) 7 :fill "#3A7232" :stroke "#2D5E28" :stroke-width 0.5)
+    (circle (+ cx 3) (- cy 8) 5 :fill "#4A8840" :stroke "none")
+    (circle (- cx 2) (- cy 13) 3 :fill "#5CA050" :stroke "none")))
+
+; ═══════════════════════════════════════════════════════════════════════════════
+; 4: 花朵
+; ═══════════════════════════════════════════════════════════════════════════════
+
+(define (draw-flower cx cy)
+  (group
+    (line cx cy cx (- cy 10) :stroke "#3A7232" :stroke-width 0.8)
+    (circle (- cx 3) (- cy 11) 2.5 :fill "#E8A0B0" :stroke "#D08090" :stroke-width 0.4)
+    (circle (+ cx 3) (- cy 11) 2.5 :fill "#E8A0B0" :stroke "#D08090" :stroke-width 0.4)
+    (circle cx (- cy 14) 2.5 :fill "#E8A0B0" :stroke "#D08090" :stroke-width 0.4)
+    (circle cx (- cy 8) 2.5 :fill "#E8A0B0" :stroke "#D08090" :stroke-width 0.4)
+    (circle cx (- cy 11) 2 :fill "#F0D080" :stroke "none")))
+
+; ═══════════════════════════════════════════════════════════════════════════════
+; 5: 岩石
+; ═══════════════════════════════════════════════════════════════════════════════
+
+(define (draw-rock cx cy)
+  (group
+    (polygon (list
+               (list (- cx 10) (+ cy 2)) (list (- cx 7) (- cy 10))
+               (list (+ cx 3) (- cy 12)) (list (+ cx 11) (- cy 5))
+               (list (+ cx 9) (+ cy 3)))
+             :fill "#686E78" :stroke "#3A3E48" :stroke-width 0.8)
+    (polygon (list
+               (list (- cx 6) (- cy 8)) (list (+ cx 2) (- cy 11))
+               (list cx (- cy 5)) (list (- cx 5) (- cy 3)))
+             :fill "#7E848E" :stroke "none")
+    (ellipse (- cx 3) (- cy 8) 3 1.5 :fill "#98A0AA" :stroke "none")))
