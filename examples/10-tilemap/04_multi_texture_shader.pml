@@ -1,0 +1,94 @@
+; 示例 4：多纹理着色器 — bind-textures + SkSL uniform shader
+; 展示 shader / bind-textures / apply-shader! 的完整管线
+;
+; 运行：pml.exe examples/10-tilemap/04_multi_texture_shader.pml
+; 输出：04_multi_texture_shader.png（输出到当前工作目录）
+
+(set-backend! "skia")
+
+; ══════════════════════════════════════════════════════════════════════════════
+; 1. 创建纹理 GraphicObject（将被渲染为 SkImage 绑定到着色器）
+; ═══════════════════════════════════════════════════════════════════════════════
+
+; 纹理 A：红色圆环纹理
+(define tex-a
+  (group
+    (rect 0 0 64 64 :fill "#1a1a2e")
+    (circle 32 32 28 :fill "#E74C3C" :stroke "#C0392B" :stroke-width 2)
+    (circle 32 32 14 :fill "#1a1a2e")
+  ))
+
+; 纹理 B：蓝色条纹纹理
+(define tex-b
+  (group
+    (rect 0 0 64 64 :fill "#0F3460")
+    (rect 0 8 64 8 :fill "#3498DB" :fill-opacity 0.6)
+    (rect 0 24 64 8 :fill "#3498DB" :fill-opacity 0.6)
+    (rect 0 40 64 8 :fill "#3498DB" :fill-opacity 0.6)
+    (rect 0 56 64 8 :fill "#3498DB" :fill-opacity 0.6)
+  ))
+
+; 纹理 C：绿色渐变纹理
+(define tex-c
+  (group
+    (rect 0 0 64 64 :fill "#16213E")
+    (ellipse 32 32 24 16 :fill "#2ECC71" :fill-opacity 0.7)
+    (ellipse 32 32 12 6 :fill "#1a1a2e")
+  ))
+
+; ══════════════════════════════════════════════════════════════════════════════
+; 2. 编译 SkSL 着色器 — 多纹理混合
+; ═══════════════════════════════════════════════════════════════════════════════
+; (shader "SkSL source") 编译着色器，返回句柄
+
+(define s (shader "
+uniform shader tex_a;
+uniform shader tex_b;
+uniform shader tex_c;
+
+half4 main(float2 xy) {
+  half4 a = tex_a.eval(xy);
+  half4 b = tex_b.eval(xy);
+  half4 c = tex_c.eval(xy);
+
+  half4 blended = half4(
+    a.rgb * (1.0 - b.a) + b.rgb * b.a,
+    1.0
+  );
+
+  half luminance = dot(c.rgb, half3(0.299, 0.587, 0.114));
+  blended.rgb += luminance * 0.3;
+
+  return blended;
+}"))
+
+; ══════════════════════════════════════════════════════════════════════════════
+; 3. 绑定纹理到着色器
+; ═══════════════════════════════════════════════════════════════════════════════
+; (bind-textures 着色器句柄 :textures '((slot-name GraphicObject) ...))
+
+(define bound (bind-textures s :textures (list
+  (list "tex_a" tex-a)
+  (list "tex_b" tex-b)
+  (list "tex_c" tex-c)
+)))
+
+; ══════════════════════════════════════════════════════════════════════════════
+; 4. 应用着色器到图形对象并渲染
+; ═══════════════════════════════════════════════════════════════════════════════
+; (apply-shader! graphic-object shader-handle) -> 返回带着色器的新 GraphicObject
+
+(canvas 256 256 :bg "#0a0a1a")
+
+(define shaded-rect (apply-shader! (rect 32 32 192 192 :fill "#FFFFFF") bound))
+(add shaded-rect)
+
+(add (text 128 20
+  "Multi-Texture Shader"
+  :fill "#ECF0F1" :font-size 14 :align 'center))
+
+(add (text 128 240
+  "tex_a (red) + tex_b (blue) + tex_c (green glow)"
+  :fill "#95A5A6" :font-size 10 :align 'center))
+
+(render "04_multi_texture_shader.png")
