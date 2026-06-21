@@ -18,6 +18,7 @@
 #include "pml/evaluator/backend_builtins.h"
 #include "pml/evaluator/shader_builtins.h"
 #include "pml/evaluator/tilemap_builtins.h"
+#include "pml/evaluator/render_channels_builtins.h"
 
 // ── Graphics ─────────────────────────────────────────────────────────────
 #include "pml/graphics/render.h"
@@ -345,6 +346,10 @@ void PMLRuntime::init_global_env() {
     // 17. Tilemap builtins
     //     (define-tileset, make-tilemap, tilemap-set!, render-tilemap)
     register_tilemap_builtins(m_env);
+
+    // 18. Render channels builtins
+    //     (render-channels graphic :output "path" [:channels ...] [:width W] [:height H] [:bg "transparent"])
+    register_render_channels(m_env);
 
     // ── Module loading is handled via the evaluator's eval_import/eval_provide
     // special forms — no separate module registration call needed.

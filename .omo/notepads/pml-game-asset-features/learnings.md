@@ -68,3 +68,22 @@
 
 **Test results:**
 - 262/262 pass (3 tilemap tests converted from CHECK_ERROR to CHECK)
+
+### Wave 2 — Tilemap render (orthogonal + isometric)
+
+**T7 orthogonal render:**
+- `render-tilemap` builtin registered in `src/pml/graphics/render.cpp` inside `register_render()` (NOT in tilemap_builtins.cpp)
+- Orthogonal path: canvas of `cols*tile_size` × `rows*tile_size`, tiles at `(col*S, row*S)` via `AffineTransform::translate()`
+- Uses existing `Canvas` → `render()` pipeline for output file saving
+- `:output` kwarg (required), `:bg` kwarg (default "transparent")
+
+**T8 isometric render:**
+- Added to same `render-tilemap` builtin via `:projection` kwarg dispatch
+- Isometric canvas: `(cols+rows)*tile_size/2` × `(cols+rows)*tile_size/2` (diamond bounds)
+- Screen position: `sx = (col-row)*tile_size/2 + width/2`, `sy = (col+row)*tile_size/4`
+- Painter's Algorithm depth sort by `(row + col)` ascending
+- `std::ranges::sort` for stable depth ordering
+
+**Build gotcha (Windows/MSVC):**
+- `2>&1 | tail -N` doesn't work in PowerShell — use `2>&1 | Select-Object -Last N`
+- `git -m` with multi-line messages across PowerShell strings fails on `Co-authored-by:` footer — use single `-m` for body

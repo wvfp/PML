@@ -20,6 +20,7 @@
 #include "pml/backend/registry.h"
 #include "pml/evaluator/canvas_builtins.h"
 #include "pml/evaluator/tilemap_builtins.h"
+#include "pml/evaluator/render_channels_builtins.h"
 #include "pml/filter/filter_builtins.h"
 #include "pml/graphics/render.h"
 #include "pml/graphics3d/builtins_3d.h"
@@ -106,6 +107,7 @@ int main() {
     pml::register_3d_builtins(_env);
     pml::register_tilemap_builtins(_env);
     pml::register_render(_env);     // (render ...), (render-set ...), (render-tilemap ...)
+    pml::register_render_channels(_env);  // (render-channels ...)
     pml::PMLContext::current().reset();
 
     // Force-link the null backend and activate it so that render builtins
@@ -703,12 +705,58 @@ int main() {
         "(render-tilemap tm :output \"render_tilemap_test.png\")",
         "render_tilemap_test.png");
 
+    // Isometric render
+    CHECK("render-tilemap-iso",
+        "(begin "
+          "(define-tileset 'iso-terrain :tile-size 32 :tiles '((1 grass (rect 0 0 32 32 :fill \"green\")))) "
+          "(define tm2 (make-tilemap 'iso-terrain 3 3 :projection 'isometric :layers 1)) "
+          "(tilemap-set! tm2 0 1 1 1) "
+          "(render-tilemap tm2 :projection 'isometric :output \"render_iso_test.png\"))",
+        "render_iso_test.png");
+
+    // Error cases
+    CHECK_ERROR("tilemap-set-nonexistent",
+        "(tilemap-set! 'nonexistent 0 0 1)");
+
+    CHECK_ERROR("render-tilemap-nonexistent",
+        "(render-tilemap 'nonexistent :output \"x.png\")");
+
+    // Edge case: out-of-range layer (silent #t)
+    CHECK("tilemap-set-out-of-range-layer",
+        "(begin "
+          "(define-tileset 'edge-terrain :tile-size 16 :tiles '((1 tile (rect 0 0 16 16 :fill \"red\")))) "
+          "(define em (make-tilemap 'edge-terrain 2 2 :layers 1)) "
+          "(tilemap-set! em 999 0 0 1))",
+        "#t");
+
+    // Edge case: all-empty tiles
+    CHECK("render-tilemap-empty",
+        "(begin "
+          "(define-tileset 'empty-ts :tile-size 16 :tiles '((1 tile (rect 0 0 16 16 :fill \"blue\")))) "
+          "(define empty-tm (make-tilemap 'empty-ts 3 3 :layers 1)) "
+          "(render-tilemap empty-tm :output \"render_tilemap_empty.png\"))",
+        "render_tilemap_empty.png");
+
     // ── Render channels ──────────────────────────────────────────────────
     std::cout << "\n── Render channels ──\n";
 
-    // RED phase — expected to fail until builtin is implemented
-    CHECK_ERROR("render-channels-not-implemented",
-        "(render-channels (rect 0 0 16 16 :fill \"red\") :output 'rc_test :channels '(albedo))");
+    // Basic render-channels with single albedo channel
+    CHECK("render-channels-albedo",
+        "(render-channels (rect 0 0 16 16 :fill \"red\") :output 'rc_test :channels '(albedo))",
+        "(rc_test_albedo.png)");
+
+    // Render-channels with all default channels
+    CHECK("render-channels-all",
+        "(render-channels (rect 0 0 16 16 :fill \"red\") :output 'rc_test_all :channels '(albedo specular normal))",
+        "(rc_test_all_albedo.png rc_test_all_specular.png rc_test_all_normal.png)");
+
+    // Error on unknown channel name
+    CHECK_ERROR("render-channels-unknown-channel",
+        "(render-channels (rect 0 0 16 16 :fill \"red\") :output 'rc_test :channels '(bump))");
+
+    // Error on invalid sprite (not a GraphicObject)
+    CHECK_ERROR("render-channels-invalid-sprite",
+        "(render-channels 'nonexistent :channels '(albedo))");
 
     // ── Multi-texture shaders ────────────────────────────────────────────
     std::cout << "\n── Multi-texture shaders ──\n";
