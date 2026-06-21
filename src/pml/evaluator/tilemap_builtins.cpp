@@ -180,7 +180,7 @@ void register_tilemap_builtins(std::shared_ptr<Environment> env) {
     //   - detail-expr: optional overlay expression
     //
     // Returns the tileset name (as string) for chaining.
-    def("define-tileset", [](const std::vector<Value>& args,
+    def_kw("define-tileset", [](const std::vector<Value>& args,
                               Environment& env) -> Result<Value> {
         if (args.empty()) {
             return std::unexpected(
@@ -306,7 +306,7 @@ void register_tilemap_builtins(std::shared_ptr<Environment> env) {
 
         // Register the tilemap with name = tileset_name
         TilemapManager::instance().create_tilemap(
-            *ts_name_opt, *ts_name_opt, cols, rows, projection, std::move(layers));
+            *ts_name_opt, *ts_name_opt, cols, rows, projection, std::move(layers), ts->tile_size);
 
         return Value(*ts_name_opt);
     });

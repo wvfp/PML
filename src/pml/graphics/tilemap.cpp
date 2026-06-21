@@ -57,12 +57,13 @@ void TilemapManager::create_tilemap(const std::string& name,
                                      const std::string& tileset_name,
                                      int cols, int rows,
                                      Projection projection,
-                                     std::vector<TilemapLayer> layers) {
+                                     std::vector<TilemapLayer> layers,
+                                     int tile_size) {
     Tilemap tm;
     tm.tileset_name = tileset_name;
     tm.cols = cols;
     tm.rows = rows;
-    tm.tile_size = 32;
+    tm.tile_size = tile_size;
     tm.layers = std::move(layers);
     tm.projection = projection;
     m_tilemaps[name] = std::move(tm);

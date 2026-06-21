@@ -94,7 +94,8 @@ class TilemapManager {
                         const std::string& tileset_name,
                         int cols, int rows,
                         Projection projection,
-                        std::vector<TilemapLayer> layers = {});
+                        std::vector<TilemapLayer> layers = {},
+                        int tile_size = 32);
 
     /// Look up a named tilemap by name.
     /// Returns nullptr if no tilemap with that name exists.
