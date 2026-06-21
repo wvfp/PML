@@ -13,6 +13,7 @@
 
 #include "capabilities.h"
 #include "pml/core/error.h"
+#include "pml/core/types.h"
 #include "pml/filter/filter_backend.h"
 
 #include <cstdint>
@@ -48,6 +49,17 @@ struct Surface {
     Surface& operator=(const Surface&) = delete;
     Surface(Surface&&) = default;
     Surface& operator=(Surface&&) = default;
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ShaderChildInfo — descriptor for a child shader input (backend-agnostic)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Describes a child shader image input for shaders that accept child
+/// shader references (e.g., SkSL shaders with `in shader child`).
+struct ShaderChildInfo {
+    int width{};   ///< Width of the child shader image in pixels
+    int height{};  ///< Height of the child shader image in pixels
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -177,6 +189,22 @@ public:
     {
         return std::unexpected(general_error(
             "shader uniforms not supported by this backend"));
+    }
+
+    /// Create a shader with child shader inputs.
+    /// SkSL shaders with `in shader child` parameters need child shader
+    /// image descriptions to be bound alongside uniforms.
+    /// @param src          SkSL shader source string
+    /// @param childDescs   Descriptions of child shader image inputs
+    /// @param uniforms     Uniform values to bind
+    /// @return             A Value representing the created shader, or an error
+    virtual auto create_shader_with_children(
+        const std::string& src,
+        const std::vector<ShaderChildInfo>& childDescs,
+        const std::vector<Value>& uniforms) -> Result<Value>
+    {
+        return std::unexpected(general_error(
+            "create_shader_with_children not supported by this backend"));
     }
 
 };

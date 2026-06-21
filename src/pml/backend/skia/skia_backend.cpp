@@ -418,6 +418,92 @@ auto SkiaBackend::create_shader_with_uniforms(uint64_t shader_handle,
     return handle;
 }
 
+auto SkiaBackend::create_shader_with_children(
+    const std::string& src,
+    const std::vector<ShaderChildInfo>& childDescs,
+    const std::vector<Value>& uniforms) -> Result<Value>
+{
+    // 1. Compile the SkSL effect (with uniform support)
+    auto opts = SkRuntimeEffect::Options{};
+    auto comp_result = SkRuntimeEffect::MakeForShader(SkString(src), opts);
+    if (!comp_result.effect) {
+        std::string msg =
+            "skia create_shader_with_children: failed to compile shader";
+        if (comp_result.errorText.size() > 0) {
+            msg += ": ";
+            msg += comp_result.errorText.c_str();
+        }
+        return std::unexpected(general_error(msg));
+    }
+
+    sk_sp<SkRuntimeEffect> effect = std::move(comp_result.effect);
+
+    // 2. Build uniform data from Value list (convert each to float)
+    std::vector<uint8_t> uniform_bytes;
+    uniform_bytes.reserve(uniforms.size() * sizeof(float));
+    for (const auto& val : uniforms) {
+        float f = 0.0f;
+        if (val.is_int()) {
+            f = static_cast<float>(val.int_val());
+        } else if (val.is_double()) {
+            f = static_cast<float>(val.double_val());
+        }
+        const uint8_t* p = reinterpret_cast<const uint8_t*>(&f);
+        for (size_t i = 0; i < sizeof(float); ++i) {
+            uniform_bytes.push_back(p[i]);
+        }
+    }
+
+    sk_sp<SkData> uniform_data = SkData::MakeWithCopy(
+        uniform_bytes.data(), uniform_bytes.size());
+    if (!uniform_data) {
+        return std::unexpected(general_error(
+            "skia create_shader_with_children: "
+            "failed to allocate uniform data"));
+    }
+
+    // 3. Create child shader references from child descriptions.
+    //    For each child, create a temporary surface, snapshot it, and wrap
+    //    its image shader as a ChildPtr.
+    std::vector<SkRuntimeEffect::ChildPtr> children;
+    children.reserve(childDescs.size());
+    for (const auto& desc : childDescs) {
+        auto info = SkImageInfo::MakeN32Premul(desc.width, desc.height);
+        auto temp_surf = SkSurfaces::Raster(info);
+        if (!temp_surf) {
+            return std::unexpected(general_error(
+                "skia create_shader_with_children: "
+                "failed to create temporary surface for child"));
+        }
+        auto image = temp_surf->makeImageSnapshot();
+        if (!image) {
+            return std::unexpected(general_error(
+                "skia create_shader_with_children: "
+                "failed to snapshot child surface"));
+        }
+        auto child_shader = image->makeShader(
+            SkSamplingOptions(SkFilterMode::kLinear));
+        children.emplace_back(std::move(child_shader));
+    }
+
+    // 4. Create the shader with children bound
+    sk_sp<SkShader> baked = effect->makeShader(
+        std::move(uniform_data),
+        SkSpan<const SkRuntimeEffect::ChildPtr>(
+            children.data(), children.size()),
+        nullptr);
+    if (!baked) {
+        return std::unexpected(general_error(
+            "skia create_shader_with_children: "
+            "failed to create shader with children"));
+    }
+
+    // 5. Cache and return handle as Value
+    uint64_t handle = next_preshader_handle_++;
+    preshader_cache_[handle] = std::move(baked);
+    return Value(static_cast<int64_t>(handle));
+}
+
 }  // namespace pml
 
 // ═══════════════════════════════════════════════════════════════════════════════

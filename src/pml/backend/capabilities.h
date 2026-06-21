@@ -14,15 +14,17 @@ namespace pml {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /// Capability flags for render backends.
-enum class BackendCap : uint8_t {
-    RasterCPU      = 1 << 0,  ///< CPU-based raster rendering
-    GPUAccel       = 1 << 1,  ///< GPU-accelerated rendering
-    Shaders        = 1 << 2,  ///< GLSL shader compilation support
-    VectorOutput   = 1 << 3,  ///< Vector graphics output (e.g., SVG)
-    AnimationGIF   = 1 << 4,  ///< Animated GIF export
-    FontRendering  = 1 << 5,  ///< Text / font rendering support
-    LoadPNG        = 1 << 6,  ///< PNG image loading
-    LoadImage      = 1 << 7,  ///< General raster image loading (PNG/JPEG/WebP/etc.)
+enum class BackendCap : uint16_t {
+    RasterCPU      = 1 << 0,   ///< CPU-based raster rendering
+    GPUAccel       = 1 << 1,   ///< GPU-accelerated rendering
+    Shaders        = 1 << 2,   ///< GLSL shader compilation support
+    VectorOutput   = 1 << 3,   ///< Vector graphics output (e.g., SVG)
+    AnimationGIF   = 1 << 4,   ///< Animated GIF export
+    FontRendering  = 1 << 5,   ///< Text / font rendering support
+    LoadPNG        = 1 << 6,   ///< PNG image loading
+    LoadImage      = 1 << 7,   ///< General raster image loading (PNG/JPEG/WebP/etc.)
+    Tilemap        = 1 << 8,   ///< Tilemap rendering support
+    RenderChannels = 1 << 9,   ///< Multi-channel / layer-channel rendering support
 };
 
 // ── Bitmask operators ─────────────────────────────────────────────────────────
@@ -31,14 +33,14 @@ enum class BackendCap : uint8_t {
 [[nodiscard]] inline constexpr BackendCap operator|(BackendCap a, BackendCap b) noexcept
 {
     return static_cast<BackendCap>(
-        static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
+        static_cast<uint16_t>(a) | static_cast<uint16_t>(b));
 }
 
 /// Bitwise AND for testing capability flags.
 [[nodiscard]] inline constexpr BackendCap operator&(BackendCap a, BackendCap b) noexcept
 {
     return static_cast<BackendCap>(
-        static_cast<uint8_t>(a) & static_cast<uint8_t>(b));
+        static_cast<uint16_t>(a) & static_cast<uint16_t>(b));
 }
 
 /// Bitwise OR assignment.
@@ -58,13 +60,13 @@ inline constexpr BackendCap& operator&=(BackendCap& a, BackendCap b) noexcept
 /// Bitwise NOT (complement).
 [[nodiscard]] inline constexpr BackendCap operator~(BackendCap a) noexcept
 {
-    return static_cast<BackendCap>(~static_cast<uint8_t>(a));
+    return static_cast<BackendCap>(~static_cast<uint16_t>(a));
 }
 
 /// Convenience: check whether a capability flag is set in a bitmask.
 [[nodiscard]] inline constexpr bool has_capability(BackendCap caps, BackendCap cap) noexcept
 {
-    return (static_cast<uint8_t>(caps) & static_cast<uint8_t>(cap)) != 0;
+    return (static_cast<uint16_t>(caps) & static_cast<uint16_t>(cap)) != 0;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

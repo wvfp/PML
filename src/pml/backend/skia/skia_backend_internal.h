@@ -299,6 +299,12 @@ private:
                                      const std::vector<uint8_t>& uniform_data)
         -> Result<uint64_t> override;
 
+    auto create_shader_with_children(
+        const std::string& src,
+        const std::vector<ShaderChildInfo>& childDescs,
+        const std::vector<Value>& uniforms)
+        -> Result<Value> override;
+
     // ── FilterBackend ────────────────────────────────────────────────
 
     [[nodiscard]] Result<void> apply_sk_image_filter(

@@ -188,6 +188,15 @@ public:
         return uint64_t{1};  // dummy handle
     }
 
+    auto create_shader_with_children(
+        const std::string& /*src*/,
+        const std::vector<ShaderChildInfo>& /*childDescs*/,
+        const std::vector<Value>& /*uniforms*/) -> Result<Value> override
+    {
+        return std::unexpected(general_error(
+            "null backend does not support shader with children"));
+    }
+
     // ── Test helpers ────────────────────────────────────────────────
 
     [[nodiscard]] auto draw_count() const noexcept -> int { return draw_count_; }
