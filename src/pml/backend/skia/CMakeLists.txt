@@ -12,10 +12,12 @@ if(NOT TARGET pml::skia_deps)
         "Set PML_SKIA_DIR and PML_SKIA_OUT to point at a pre-built Skia.")
 endif()
 
-# Skeleton implementation — flesh out in Task 12. The target is registered
-# so the rest of the build can link against it without further changes.
+# Skia backend — split across domain-specific files for maintainability.
 add_library(pml_backend_skia
     skia_backend.cpp
+    skia_backend_draw.cpp
+    skia_backend_png.cpp
+    skia_backend_filter.cpp
 )
 
 target_include_directories(pml_backend_skia PUBLIC
