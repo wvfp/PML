@@ -12,6 +12,8 @@
 #include "pml/backend/color_helpers.h"
 #include "pml/backend/gif/gif_exporter.h"
 #include "pml/graphics/objects.h"
+#include "pml/graphics/rough.h"
+#include "pml/graphics/rough_filler.h"
 #include "pml/graphics/transform.h"
 #include "pml/graphics3d/camera3d.h"
 #include "pml/graphics3d/mesh3d.h"
@@ -197,6 +199,51 @@ Result<void> draw_object(SkCanvas* canvas, const GraphicObject& obj,
 
 Result<void> draw_mesh3d(SkCanvas* canvas, const GraphicObject& obj,
                          const ShaderLookup& lookup);
+
+// ── Rough-style draw functions ─────────────────────────────────────────
+// Declared in skia_backend_internal.h, implemented in skia_backend_draw.cpp.
+
+/// Extract RoughStyleParams + RoughRandom from a GraphicObject's metadata.
+/// Returns false if no rough params are present (shape should render normally).
+bool extract_rough_params(const GraphicObject& obj,
+                          RoughStyleParams& params,
+                          RoughRandom& rng);
+
+/// Draw a rough circle (perturbed stroke + optional fill pattern).
+Result<void> draw_rough_circle(SkCanvas* canvas, const GraphicObject& obj,
+                               sk_sp<SkShader> shader,
+                               const RoughStyleParams& params,
+                               RoughRandom& rng);
+
+/// Draw a rough rect (perturbed stroke + optional fill pattern).
+Result<void> draw_rough_rect(SkCanvas* canvas, const GraphicObject& obj,
+                             sk_sp<SkShader> shader,
+                             const RoughStyleParams& params,
+                             RoughRandom& rng);
+
+/// Draw a rough ellipse.
+Result<void> draw_rough_ellipse(SkCanvas* canvas, const GraphicObject& obj,
+                                sk_sp<SkShader> shader,
+                                const RoughStyleParams& params,
+                                RoughRandom& rng);
+
+/// Draw a rough line.
+Result<void> draw_rough_line(SkCanvas* canvas, const GraphicObject& obj,
+                             const RoughStyleParams& params,
+                             RoughRandom& rng);
+
+/// Draw a rough polygon.
+Result<void> draw_rough_polygon(SkCanvas* canvas, const GraphicObject& obj,
+                                sk_sp<SkShader> shader,
+                                const RoughStyleParams& params,
+                                RoughRandom& rng);
+
+/// Render rough fill pattern (hachure/zigzag/etc.) for a closed polygon.
+Result<void> draw_rough_fill(SkCanvas* canvas,
+                             const std::vector<RoughPoint>& polygon,
+                             const std::optional<std::string>& fill_color,
+                             const RoughStyleParams& params,
+                             RoughRandom& rng);
 
 /// Decode a PNG file via libpng into a SkiaSurface.
 /// Defined in skia_backend_png.cpp.

@@ -318,6 +318,363 @@ Result<void> draw_image(SkCanvas* canvas, const GraphicObject& obj,
 }  // namespace
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Rough-style rendering functions
+// ═══════════════════════════════════════════════════════════════════════════════
+
+namespace {
+
+/// Convert a RoughOpSet to an SkPath.
+SkPath rough_ops_to_skpath(const std::vector<RoughOp>& ops)
+{
+    SkPathBuilder builder;
+    for (const auto& op : ops) {
+        switch (op.op) {
+        case RoughOpType::Move:
+            builder.moveTo(static_cast<SkScalar>(op.data[0]),
+                           static_cast<SkScalar>(op.data[1]));
+            break;
+        case RoughOpType::LineTo:
+            builder.lineTo(static_cast<SkScalar>(op.data[0]),
+                           static_cast<SkScalar>(op.data[1]));
+            break;
+        case RoughOpType::BCurveTo:
+            builder.cubicTo(
+                static_cast<SkScalar>(op.data[0]),
+                static_cast<SkScalar>(op.data[1]),
+                static_cast<SkScalar>(op.data[2]),
+                static_cast<SkScalar>(op.data[3]),
+                static_cast<SkScalar>(op.data[4]),
+                static_cast<SkScalar>(op.data[5]));
+            break;
+        }
+    }
+    return builder.snapshot();
+}
+
+/// Extract metadata value as double, returns default_val if not found or wrong type.
+double meta_double(const GraphicObject& obj, const std::string& key, double default_val)
+{
+    auto it = obj.metadata.find(key);
+    if (it == obj.metadata.end()) return default_val;
+    if (it->second.is_double()) return it->second.double_val();
+    if (it->second.is_int()) return static_cast<double>(it->second.int_val());
+    return default_val;
+}
+
+/// Extract metadata value as string, returns default_val if not found.
+std::string meta_string(const GraphicObject& obj, const std::string& key,
+                        const std::string& default_val)
+{
+    auto it = obj.metadata.find(key);
+    if (it == obj.metadata.end()) return default_val;
+    if (const auto* s = it->second.as_string()) return *s;
+    return default_val;
+}
+
+/// Convert PolygonObject flat-points list to vector of RoughPoint.
+std::vector<RoughPoint> polygon_to_rough_points(const GraphicObject& obj)
+{
+    std::vector<RoughPoint> pts;
+    const Value* v = obj.params.find(ParamKey::points);
+    if (!v) return pts;
+    const auto* list = v->as_list();
+    if (!list || !*list) return pts;
+    const auto& elems = (*list)->elements;
+    if (elems.size() < 4 || elems.size() % 2 != 0) return pts;
+    pts.reserve(elems.size() / 2);
+    auto to_double = [](const Value& val) -> double {
+        if (val.is_int()) return static_cast<double>(val.int_val());
+        if (val.is_double()) return val.double_val();
+        return 0.0;
+    };
+    for (size_t i = 0; i + 1 < elems.size(); i += 2) {
+        pts.push_back({to_double(elems[i]), to_double(elems[i + 1])});
+    }
+    return pts;
+}
+
+/// Build a closed polygon from rectangle params.
+std::vector<RoughPoint> rect_to_rough_points(const GraphicObject& obj)
+{
+    double x = get_double(obj.params, ParamKey::x, 0.0);
+    double y = get_double(obj.params, ParamKey::y, 0.0);
+    double w = get_double(obj.params, ParamKey::w, 0.0);
+    double h = get_double(obj.params, ParamKey::h, 0.0);
+    return {
+        {x, y}, {x + w, y}, {x + w, y + h}, {x, y + h}
+    };
+}
+
+/// Build a closed polygon from circle params (approximated as polygon).
+std::vector<RoughPoint> circle_to_rough_points(const GraphicObject& obj)
+{
+    double cx = get_double(obj.params, ParamKey::cx, 0.0);
+    double cy = get_double(obj.params, ParamKey::cy, 0.0);
+    double r = get_double(obj.params, ParamKey::r, 0.0);
+    return {{cx - r, cy - r}, {cx + r, cy - r}, {cx + r, cy + r}, {cx - r, cy + r}};
+}
+
+/// Render a rough fill pattern inside a closed polygon boundary.
+Result<void> draw_rough_fill_impl(SkCanvas* canvas,
+                                  const std::vector<RoughPoint>& polygon,
+                                  const std::optional<std::string>& fill_color,
+                                  const RoughStyleParams& params,
+                                  RoughRandom& rng)
+{
+    if (polygon.size() < 3) return {};
+
+    if (params.fill_style == "solid" || params.fill_style.empty()) {
+        // Native solid fill — nothing to do here; handled by caller.
+        return {};
+    }
+
+    // Generate fill pattern ops from rough_filler
+    auto ops = generate_fill_pattern(polygon, const_cast<RoughStyleParams&>(params), rng);
+    if (ops.empty()) return {};
+
+    SkPath path = rough_ops_to_skpath(ops);
+
+    // Only visible if we have a fill color (pattern lines use the fill color as stroke)
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    paint.setStyle(SkPaint::kStroke_Style);
+    double fweight = 2.0;  // default fill line weight
+    paint.setStrokeWidth(static_cast<SkScalar>(fweight));
+    if (fill_color) {
+        if (auto c = parse_sk_color(*fill_color)) {
+            paint.setColor(*c);
+        } else {
+            paint.setColor(SK_ColorTRANSPARENT);
+        }
+    } else {
+        paint.setColor(SK_ColorTRANSPARENT);
+    }
+
+    if (paint.getColor() != SK_ColorTRANSPARENT) {
+        canvas->drawPath(path, paint);
+    }
+    return {};
+}
+
+/// Render the perturbed stroke path for a rough shape.
+void draw_rough_stroke_path(SkCanvas* canvas, const SkPath& path,
+                            const std::optional<std::string>& stroke_color,
+                            double stroke_width)
+{
+    if (!stroke_color) return;
+    SkPaint paint;
+    configure_stroke_paint(paint, stroke_color, stroke_width);
+    if (paint.getColor() != SK_ColorTRANSPARENT) {
+        canvas->drawPath(path, paint);
+    }
+}
+
+} // namespace
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// extract_rough_params — public (declared in internal.h)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+bool extract_rough_params(const GraphicObject& obj,
+                          RoughStyleParams& params,
+                          RoughRandom& rng)
+{
+    params.roughness = meta_double(obj, "roughness", 0.0);
+    params.bowing = meta_double(obj, "bowing", 1.0);
+    params.seed = static_cast<int>(meta_double(obj, "seed", 0.0));
+    params.fill_style = meta_string(obj, "fill_style", "solid");
+
+    if (params.roughness <= 0.0 && params.fill_style == "solid") {
+        return false;  // no rough rendering needed
+    }
+
+    rng = RoughRandom(params.seed);
+    return true;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Rough draw functions — public (declared in internal.h)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+Result<void> draw_rough_line(SkCanvas* canvas, const GraphicObject& obj,
+                             const RoughStyleParams& params,
+                             RoughRandom& rng)
+{
+    double x1 = get_double(obj.params, ParamKey::x1, 0.0);
+    double y1 = get_double(obj.params, ParamKey::y1, 0.0);
+    double x2 = get_double(obj.params, ParamKey::x2, 0.0);
+    double y2 = get_double(obj.params, ParamKey::y2, 0.0);
+
+    // Generate perturbed line ops
+    auto ops = rough_double_line(x1, y1, x2, y2,
+                                 const_cast<RoughStyleParams&>(params), rng, false);
+    SkPath path = rough_ops_to_skpath(ops);
+
+    draw_rough_stroke_path(canvas, path, obj.stroke, obj.stroke_width);
+    return {};
+}
+
+Result<void> draw_rough_rect(SkCanvas* canvas, const GraphicObject& obj,
+                             sk_sp<SkShader> shader,
+                             const RoughStyleParams& params,
+                             RoughRandom& rng)
+{
+    // Build rect as a closed polygon
+    auto pts = rect_to_rough_points(obj);
+
+    // Fill layer
+    if (obj.fill || shader) {
+        if (params.fill_style == "solid" || params.fill_style.empty()) {
+            // Native solid fill — use perturbed polygon path as fill boundary
+            auto ops = rough_linear_path(pts, true, const_cast<RoughStyleParams&>(params), rng);
+            SkPath fill_path = rough_ops_to_skpath(ops);
+            SkPaint paint;
+            configure_fill_paint(paint, obj.fill, obj.stroke_width, shader);
+            if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
+                canvas->drawPath(fill_path, paint);
+            }
+        } else {
+            // Pattern fill
+            auto result = draw_rough_fill_impl(canvas, pts, obj.fill, params, rng);
+            if (!result) return result;
+        }
+    }
+
+    // Stroke layer
+    if (obj.stroke) {
+        auto ops = rough_linear_path(pts, true, const_cast<RoughStyleParams&>(params), rng);
+        SkPath path = rough_ops_to_skpath(ops);
+        draw_rough_stroke_path(canvas, path, obj.stroke, obj.stroke_width);
+    }
+
+    return {};
+}
+
+Result<void> draw_rough_ellipse(SkCanvas* canvas, const GraphicObject& obj,
+                                sk_sp<SkShader> shader,
+                                const RoughStyleParams& params,
+                                RoughRandom& rng)
+{
+    double cx = get_double(obj.params, ParamKey::cx, 0.0);
+    double cy = get_double(obj.params, ParamKey::cy, 0.0);
+    double rx = get_double(obj.params, ParamKey::rx, 0.0);
+    double ry = get_double(obj.params, ParamKey::ry, 0.0);
+
+    // Get ellipse points through Catmull-Rom curve
+    auto ellipse_pts = compute_rough_ellipse_points(cx, cy, rx, ry, const_cast<RoughStyleParams&>(params), rng);
+
+    // Fill layer
+    if (obj.fill || shader) {
+        if (params.fill_style == "solid" || params.fill_style.empty()) {
+            // Native solid fill using perturbed boundary
+            auto ops = rough_curve(ellipse_pts, nullptr, const_cast<RoughStyleParams&>(params), rng);
+            SkPath fill_path = rough_ops_to_skpath(ops);
+            { SkPathBuilder b(fill_path); b.close(); fill_path = b.detach(); }
+            SkPaint paint;
+            configure_fill_paint(paint, obj.fill, obj.stroke_width, shader);
+            if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
+                canvas->drawPath(fill_path, paint);
+            }
+        } else {
+            // For pattern fills, build a bounding polygon from the ellipse points
+            std::vector<RoughPoint> poly;
+            poly.reserve(ellipse_pts.size());
+            for (const auto& p : ellipse_pts) {
+                poly.push_back(p);
+            }
+            auto result = draw_rough_fill_impl(canvas, poly, obj.fill, params, rng);
+            if (!result) return result;
+        }
+    }
+
+    // Stroke layer
+    if (obj.stroke) {
+        auto ops = rough_curve(ellipse_pts, nullptr, const_cast<RoughStyleParams&>(params), rng);
+        SkPath path = rough_ops_to_skpath(ops);
+        draw_rough_stroke_path(canvas, path, obj.stroke, obj.stroke_width);
+    }
+
+    return {};
+}
+
+Result<void> draw_rough_circle(SkCanvas* canvas, const GraphicObject& obj,
+                               sk_sp<SkShader> shader,
+                               const RoughStyleParams& params,
+                               RoughRandom& rng)
+{
+    // Circle is rendered as a rough ellipse with rx=ry
+    double cx = get_double(obj.params, ParamKey::cx, 0.0);
+    double cy = get_double(obj.params, ParamKey::cy, 0.0);
+    double r  = get_double(obj.params, ParamKey::r, 0.0);
+
+    // Create temporary obj-like params for the ellipse
+    auto ellipse_pts = compute_rough_ellipse_points(cx, cy, r, r, const_cast<RoughStyleParams&>(params), rng);
+
+    // Fill layer
+    if (obj.fill || shader) {
+        if (params.fill_style == "solid" || params.fill_style.empty()) {
+            auto ops = rough_curve(ellipse_pts, nullptr, const_cast<RoughStyleParams&>(params), rng);
+            SkPath fill_path = rough_ops_to_skpath(ops);
+            { SkPathBuilder b(fill_path); b.close(); fill_path = b.detach(); }
+            SkPaint paint;
+            configure_fill_paint(paint, obj.fill, obj.stroke_width, shader);
+            if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
+                canvas->drawPath(fill_path, paint);
+            }
+        } else {
+            std::vector<RoughPoint> poly;
+            poly.reserve(ellipse_pts.size());
+            for (const auto& p : ellipse_pts) poly.push_back(p);
+            auto result = draw_rough_fill_impl(canvas, poly, obj.fill, params, rng);
+            if (!result) return result;
+        }
+    }
+
+    // Stroke layer
+    if (obj.stroke) {
+        auto ops = rough_curve(ellipse_pts, nullptr, const_cast<RoughStyleParams&>(params), rng);
+        SkPath path = rough_ops_to_skpath(ops);
+        draw_rough_stroke_path(canvas, path, obj.stroke, obj.stroke_width);
+    }
+
+    return {};
+}
+
+Result<void> draw_rough_polygon(SkCanvas* canvas, const GraphicObject& obj,
+                                sk_sp<SkShader> shader,
+                                const RoughStyleParams& params,
+                                RoughRandom& rng)
+{
+    auto pts = polygon_to_rough_points(obj);
+    if (pts.size() < 3) return {};
+
+    // Fill layer
+    if (obj.fill || shader) {
+        if (params.fill_style == "solid" || params.fill_style.empty()) {
+            auto ops = rough_linear_path(pts, true, const_cast<RoughStyleParams&>(params), rng);
+            SkPath fill_path = rough_ops_to_skpath(ops);
+            SkPaint paint;
+            configure_fill_paint(paint, obj.fill, obj.stroke_width, shader);
+            if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
+                canvas->drawPath(fill_path, paint);
+            }
+        } else {
+            auto result = draw_rough_fill_impl(canvas, pts, obj.fill, params, rng);
+            if (!result) return result;
+        }
+    }
+
+    // Stroke layer
+    if (obj.stroke) {
+        auto ops = rough_linear_path(pts, true, const_cast<RoughStyleParams&>(params), rng);
+        SkPath path = rough_ops_to_skpath(ops);
+        draw_rough_stroke_path(canvas, path, obj.stroke, obj.stroke_width);
+    }
+
+    return {};
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // draw_object — main dispatcher
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -348,6 +705,35 @@ Result<void> draw_object(SkCanvas* canvas, const GraphicObject& obj,
     if (obj.shape_type == "group") {
         return draw_group(canvas, obj, local_shader, lookup);
     }
+
+    // ── Rough-style dispatch ──────────────────────────────────────────────
+    // shape_type starting with "rough_" triggers the hand-drawn rendering path.
+    if (obj.shape_type.rfind("rough_", 0) == 0) {
+        RoughStyleParams params;
+        RoughRandom rng;
+        if (!extract_rough_params(obj, params, rng)) {
+            // roughness = 0 and solid fill → fall through to exact path below
+            goto exact_path;
+        }
+        if (obj.shape_type == "rough_circle") {
+            return draw_rough_circle(canvas, obj, local_shader, params, rng);
+        }
+        if (obj.shape_type == "rough_rect") {
+            return draw_rough_rect(canvas, obj, local_shader, params, rng);
+        }
+        if (obj.shape_type == "rough_ellipse") {
+            return draw_rough_ellipse(canvas, obj, local_shader, params, rng);
+        }
+        if (obj.shape_type == "rough_line") {
+            return draw_rough_line(canvas, obj, params, rng);
+        }
+        if (obj.shape_type == "rough_polygon") {
+            return draw_rough_polygon(canvas, obj, local_shader, params, rng);
+        }
+        // Unknown rough_ prefix → fall through to exact path
+    }
+
+exact_path:
     if (obj.shape_type == "circle")  return draw_circle(canvas, obj, local_shader);
     if (obj.shape_type == "rect")    return draw_rect(canvas, obj, local_shader);
     if (obj.shape_type == "ellipse") return draw_ellipse(canvas, obj, local_shader);

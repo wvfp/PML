@@ -7,6 +7,9 @@
 // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 #include "skia_backend_internal.h"
 
+#include <filesystem>
+namespace fs = std::filesystem;
+
 namespace pml {
 
 // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?// Drawing
@@ -50,10 +53,23 @@ auto SkiaBackend::save_image(Surface& surface, const std::string& path,
             "skia save_image: failed to access pixels"));
     }
 
+    // On Windows, git-checked-out PNGs carry FILE_ATTRIBUTE_READONLY,
+    // causing fopen_s("wb") / CreateFile to fail with EACCES.  Rather
+    // than relying on fs::permissions (which maps to _chmod on MSVC and
+    // may not fully clear the attribute on all Windows configurations),
+    // we delete any existing file first.  DeleteFileW handles read-only
+    // files correctly on Windows, and creating a brand-new file avoids
+    // any residual attribute or lock issues.
+    std::error_code ec;
+    fs::remove(path, ec);
+
     FILE* fp = nullptr;
+    errno = 0;
     if (fopen_s(&fp, path.c_str(), "wb") != 0 || !fp) {
+        const int os_err = errno;
         return std::unexpected(general_error(
-            "skia save_image: failed to open file: " + path));
+            "skia save_image: failed to open file: " + path
+            + " (errno=" + std::to_string(os_err) + ")"));
     }
 
     png_structp png = png_create_write_struct(
