@@ -63,7 +63,8 @@ $featureDirs = @(
     "04-animation",
     "05-layer-composition-filter",
     "06-sprites-style-palette",
-    "08-asset-bitmap"
+    "08-asset-bitmap",
+    "11-rough-style"
 )
 foreach ($d in $featureDirs) {
     $dir = Join-Path $scriptDir $d
