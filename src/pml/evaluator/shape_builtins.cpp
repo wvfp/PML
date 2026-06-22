@@ -18,7 +18,9 @@ using pml::kwargs::parse_kwargs;
 using pml::kwargs::value_to_opt_string;
 #include "../graphics/canvas.h"
 #include "../graphics/objects.h"
+#include "../graphics/rough.h"
 #include "../graphics/transform.h"
+#include "../sprites/style.h"
 
 #include <algorithm>
 #include <cmath>
@@ -39,6 +41,81 @@ void def(std::shared_ptr<Environment> env,
          bool accepts_kwargs = false) {
     auto proc = std::make_shared<BuiltinProcedure>(name, std::move(fn), accepts_kwargs);
     env->define(name, Value(proc));
+}
+
+// ── Rough-style param resolution ────────────────────────────────────────
+//
+// Resolve roughness parameters from two sources:
+//   1. `:style` — if the named style has roughness fields
+//   2. Explicit kwargs — override style values
+//
+// Returns the resolved RoughStyleParams, shape_type prefix, and whether
+// fill needs rough pattern rendering.
+
+struct RoughShapeResult {
+    RoughStyleParams params;
+    bool rough_stroke{false};  // true → prefix shape with "rough_"
+    bool rough_fill{false};    // true → fill_style in metadata != "solid"
+};
+
+RoughShapeResult resolve_rough_params(
+    const std::unordered_map<std::string, Value>& kwargs)
+{
+    RoughShapeResult result;
+
+    // Step 1: resolve from :style
+    double roughness = 0.0;
+    double bowing = 1.0;
+    int seed = 0;
+    std::string fill_style = "solid";
+
+    auto style_it = kwargs.find("style");
+    if (style_it != kwargs.end()) {
+        if (const auto* sym = style_it->second.as_symbol()) {
+            if (StyleRegistry::instance().has(sym->name)) {
+                auto style = StyleRegistry::instance().get(sym->name);
+                roughness = static_cast<double>(style.roughness);
+                bowing = static_cast<double>(style.bowing);
+                seed = style.seed;
+                fill_style = style.fill_style;
+            }
+        }
+    }
+
+    // Step 2: overlay explicit kwargs (win over style)
+    auto kw_it = kwargs.find("roughness");
+    if (kw_it != kwargs.end()) {
+        if (kw_it->second.is_double()) roughness = kw_it->second.double_val();
+        else if (kw_it->second.is_int()) roughness = static_cast<double>(kw_it->second.int_val());
+    }
+
+    kw_it = kwargs.find("bowing");
+    if (kw_it != kwargs.end()) {
+        if (kw_it->second.is_double()) bowing = kw_it->second.double_val();
+        else if (kw_it->second.is_int()) bowing = static_cast<double>(kw_it->second.int_val());
+    }
+
+    kw_it = kwargs.find("seed");
+    if (kw_it != kwargs.end()) {
+        if (kw_it->second.is_int()) seed = static_cast<int>(kw_it->second.int_val());
+    }
+
+    kw_it = kwargs.find("fill-style");
+    if (kw_it != kwargs.end()) {
+        auto fs = value_to_opt_string(kw_it->second);
+        if (fs) fill_style = *fs;
+    }
+
+    // Fill in RoughStyleParams
+    result.params.roughness = roughness;
+    result.params.bowing = bowing;
+    result.params.seed = seed;
+    result.params.fill_style = fill_style;
+
+    result.rough_stroke = roughness > 0.0;
+    result.rough_fill = fill_style != "solid";
+
+    return result;
 }
 
 } // anonymous namespace
@@ -72,8 +149,13 @@ static Result<Value> builtin_circle(const std::vector<Value>& args, Environment&
         stroke_color = value_to_opt_string(stroke_it->second);
     }
 
+    // Resolve rough-style params
+    auto rough = resolve_rough_params(kwargs);
+
+    std::string shape = rough.rough_stroke ? "rough_circle" : "circle";
+
     auto obj = std::make_shared<GraphicObject>(
-        "circle",
+        shape,
         Params{
             {ParamKey::cx, Value(cx)},
             {ParamKey::cy, Value(cy)},
@@ -82,6 +164,16 @@ static Result<Value> builtin_circle(const std::vector<Value>& args, Environment&
         fill_color ? std::optional<std::string>(*fill_color) : std::nullopt,
         stroke_color ? std::optional<std::string>(*stroke_color) : std::nullopt,
         sw);
+
+    if (rough.rough_stroke) {
+        obj->metadata["roughness"] = Value(rough.params.roughness);
+        obj->metadata["bowing"] = Value(rough.params.bowing);
+        obj->metadata["seed"] = Value(static_cast<double>(rough.params.seed));
+    }
+    if (rough.rough_fill) {
+        obj->metadata["fill_style"] = Value(std::string(rough.params.fill_style));
+    }
+
     return Value(std::move(obj));
 }
 
@@ -121,12 +213,27 @@ static Result<Value> builtin_rect(const std::vector<Value>& args, Environment& /
         params.set(ParamKey::rx, Value(rx));
     }
 
+    // Resolve rough-style params
+    auto rough = resolve_rough_params(kwargs);
+
+    std::string shape = rough.rough_stroke ? "rough_rect" : "rect";
+
     auto obj = std::make_shared<GraphicObject>(
-        "rect",
+        shape,
         std::move(params),
         fill_color ? std::optional<std::string>(*fill_color) : std::nullopt,
         stroke_color ? std::optional<std::string>(*stroke_color) : std::nullopt,
         sw);
+
+    if (rough.rough_stroke) {
+        obj->metadata["roughness"] = Value(rough.params.roughness);
+        obj->metadata["bowing"] = Value(rough.params.bowing);
+        obj->metadata["seed"] = Value(static_cast<double>(rough.params.seed));
+    }
+    if (rough.rough_fill) {
+        obj->metadata["fill_style"] = Value(std::string(rough.params.fill_style));
+    }
+
     return Value(std::move(obj));
 }
 
@@ -156,8 +263,13 @@ static Result<Value> builtin_ellipse(const std::vector<Value>& args, Environment
         stroke_color = value_to_opt_string(stroke_it->second);
     }
 
+    // Resolve rough-style params
+    auto rough = resolve_rough_params(kwargs);
+
+    std::string shape = rough.rough_stroke ? "rough_ellipse" : "ellipse";
+
     auto obj = std::make_shared<GraphicObject>(
-        "ellipse",
+        shape,
         Params{
             {ParamKey::cx, Value(cx)},
             {ParamKey::cy, Value(cy)},
@@ -167,6 +279,16 @@ static Result<Value> builtin_ellipse(const std::vector<Value>& args, Environment
         fill_color ? std::optional<std::string>(*fill_color) : std::nullopt,
         stroke_color ? std::optional<std::string>(*stroke_color) : std::nullopt,
         sw);
+
+    if (rough.rough_stroke) {
+        obj->metadata["roughness"] = Value(rough.params.roughness);
+        obj->metadata["bowing"] = Value(rough.params.bowing);
+        obj->metadata["seed"] = Value(static_cast<double>(rough.params.seed));
+    }
+    if (rough.rough_fill) {
+        obj->metadata["fill_style"] = Value(std::string(rough.params.fill_style));
+    }
+
     return Value(std::move(obj));
 }
 
@@ -191,8 +313,13 @@ static Result<Value> builtin_line(const std::vector<Value>& args, Environment& /
         stroke_color = value_to_opt_string(stroke_it->second);
     }
 
+    // Resolve rough-style params (lines have no fill, so only stroke roughness)
+    auto rough = resolve_rough_params(kwargs);
+
+    std::string shape = rough.rough_stroke ? "rough_line" : "line";
+
     auto obj = std::make_shared<GraphicObject>(
-        "line",
+        shape,
         Params{
             {ParamKey::x1, Value(x1)},
             {ParamKey::y1, Value(y1)},
@@ -202,6 +329,13 @@ static Result<Value> builtin_line(const std::vector<Value>& args, Environment& /
         std::nullopt, // lines don't have fill
         stroke_color ? std::optional<std::string>(*stroke_color) : std::nullopt,
         sw);
+
+    if (rough.rough_stroke) {
+        obj->metadata["roughness"] = Value(rough.params.roughness);
+        obj->metadata["bowing"] = Value(rough.params.bowing);
+        obj->metadata["seed"] = Value(static_cast<double>(rough.params.seed));
+    }
+
     return Value(std::move(obj));
 }
 
@@ -245,14 +379,29 @@ static Result<Value> builtin_polygon(const std::vector<Value>& args, Environment
         stroke_color = value_to_opt_string(stroke_it->second);
     }
 
+    // Resolve rough-style params
+    auto rough = resolve_rough_params(kwargs);
+
+    std::string shape = rough.rough_stroke ? "rough_polygon" : "polygon";
+
     auto obj = std::make_shared<GraphicObject>(
-        "polygon",
+        shape,
         Params{
             {ParamKey::points, make_list_value(std::move(flat_points))},
         },
         fill_color ? std::optional<std::string>(*fill_color) : std::nullopt,
         stroke_color ? std::optional<std::string>(*stroke_color) : std::nullopt,
         sw);
+
+    if (rough.rough_stroke) {
+        obj->metadata["roughness"] = Value(rough.params.roughness);
+        obj->metadata["bowing"] = Value(rough.params.bowing);
+        obj->metadata["seed"] = Value(static_cast<double>(rough.params.seed));
+    }
+    if (rough.rough_fill) {
+        obj->metadata["fill_style"] = Value(std::string(rough.params.fill_style));
+    }
+
     return Value(std::move(obj));
 }
 

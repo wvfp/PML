@@ -22,6 +22,7 @@
 #include "pml/core/error.h"
 #include "pml/core/kwargs.h"
 #include "pml/core/types.h"
+#include "pml/api/context.h" // PMLContext::current().output_files
 #include "environment.h"
 
 #include <algorithm>
@@ -265,6 +266,7 @@ void register_render_channels(std::shared_ptr<Environment> env) {
                 return std::unexpected(std::move(sr.error()));
             }
 
+            PMLContext::current().output_files.push_back(output_path);
             results.push_back(std::move(output_path));
         }
 

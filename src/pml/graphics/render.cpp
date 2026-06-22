@@ -18,6 +18,7 @@
 #include "error.h"
 #include "kwargs.h"
 #include "environment.h" // full definition for env->define()
+#include "pml/api/context.h" // PMLContext::current().output_files
 
 #include <algorithm>
 #include <cctype>
@@ -465,6 +466,7 @@ static void apply_skin_bindings_to_canvas(Canvas& canvas) {
     if (!sr)
         return std::unexpected(std::move(sr.error()));
 
+    PMLContext::current().output_files.push_back(filename);
     return filename;
 }
 
@@ -509,6 +511,8 @@ auto render(const std::string& filename,
     if (!sr)
         return std::unexpected(std::move(sr.error()));
 
+    PMLContext::current().output_files.push_back(filename);
+
     if (canvas->is_sprite) {
         json meta;
         meta["file"] = filename;
@@ -521,6 +525,7 @@ auto render(const std::string& filename,
         auto wj = write_json_file(meta_path(filename), meta);
         if (!wj) { /* non-fatal — match Python behaviour */
         }
+        PMLContext::current().output_files.push_back(meta_path(filename));
     }
 
     return filename;
@@ -577,6 +582,7 @@ auto render_set(const std::string& name,
         if (!sr)
             return std::unexpected(std::move(sr.error()));
 
+        PMLContext::current().output_files.push_back(out_name);
         results.push_back(std::move(out_name));
     }
 
@@ -642,6 +648,8 @@ auto render_spritesheet(const std::string& filename,
     if (!sr)
         return std::unexpected(std::move(sr.error()));
 
+    PMLContext::current().output_files.push_back(filename);
+
     json meta;
     meta["file"] = filename;
     meta["format"] = format;
@@ -658,6 +666,7 @@ auto render_spritesheet(const std::string& filename,
     auto wj = write_json_file(spritesheet_meta_path(filename), meta);
     if (!wj) { /* non-fatal */
     }
+    PMLContext::current().output_files.push_back(spritesheet_meta_path(filename));
 
     return filename;
 }
