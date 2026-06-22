@@ -120,6 +120,10 @@ int main() {
     pml::force_link_null_backend();
     pml::BackendRegistry::instance().set_active("null");
 
+    // Set __source_file__ so that (image ...) and (bitmap-layer ...) resolve
+    // paths relative to the tests/ directory (where test.png lives).
+    _env->define("__source_file__", pml::Value(std::string("tests/builtins_smoke.cpp")));
+
     std::cout << "═══ PML Builtins Smoke Test ═══\n\n";
 
     // ── Arithmetic ───────────────────────────────────────────────────────
