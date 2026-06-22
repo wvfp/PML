@@ -94,6 +94,10 @@ std::unordered_map<std::string, Value> StyleDescriptor::to_kwargs() const {
         {"pixel-size", Value(static_cast<int64_t>(pixel_size))},
         {"anti-alias", Value(anti_alias)},
         {"corner-radius", Value(static_cast<double>(corner_radius))},
+        {"roughness", Value(static_cast<double>(roughness))},
+        {"bowing", Value(static_cast<double>(bowing))},
+        {"seed", Value(static_cast<int64_t>(seed))},
+        {"fill-style", Value(fill_style)},
     };
 }
 
@@ -137,6 +141,20 @@ StyleDescriptor::merge(const std::unordered_map<std::string, Value>& overrides) 
         result.corner_radius = static_cast<float>(kw_double(overrides, "corner-radius", 0.0));
     }
 
+    // ── Rough-style fields ─────────────────────────────────────────
+    if (overrides.contains("roughness")) {
+        result.roughness = static_cast<float>(kw_double(overrides, "roughness", 0.0));
+    }
+    if (overrides.contains("bowing")) {
+        result.bowing = static_cast<float>(kw_double(overrides, "bowing", 1.0));
+    }
+    if (overrides.contains("seed")) {
+        result.seed = static_cast<int>(kw_int(overrides, "seed", 0));
+    }
+    if (overrides.contains("fill-style")) {
+        result.fill_style = kw_string(overrides, "fill-style", "solid");
+    }
+
     return result;
 }
 
@@ -152,6 +170,11 @@ StyleDescriptor StyleDescriptor::merge(const StyleDescriptor& overrides) const {
     result.pixel_size = overrides.pixel_size;
     result.anti_alias = overrides.anti_alias;
     result.corner_radius = overrides.corner_radius;
+
+    result.roughness = overrides.roughness;
+    result.bowing = overrides.bowing;
+    result.seed = overrides.seed;
+    result.fill_style = overrides.fill_style;
 
     return result;
 }

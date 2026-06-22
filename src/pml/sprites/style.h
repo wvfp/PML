@@ -36,6 +36,12 @@ struct StyleDescriptor {
     bool anti_alias = true;
     float corner_radius = 0.0f;
 
+    // ── Rough-style fields (optional, 0 = off) ─────────────────────
+    float roughness = 0.0f;
+    float bowing = 1.0f;
+    int seed = 0;
+    std::string fill_style = "solid";  // "solid", "hachure", "cross-hatch", "zigzag", "dots", "dashed"
+
     /// Convert all fields to a flat keyword-argument map for graphic primitives.
     /// Keys are hyphenated (e.g. "outline-width") matching PML keyword convention.
     [[nodiscard]] std::unordered_map<std::string, Value> to_kwargs() const;
