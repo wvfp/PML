@@ -5,6 +5,8 @@ add_library(pml_graphics
     objects.cpp
     canvas.cpp
     render.cpp
+    rough.cpp
+    rough_filler.cpp
     tilemap.cpp
     tileset.cpp
 )
