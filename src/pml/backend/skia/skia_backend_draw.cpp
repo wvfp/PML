@@ -20,6 +20,20 @@ namespace pml {
 
 namespace {
 
+// ── Stroke alignment helper ─────────────────────────────────────────────
+// Clip-based: draw at 2x stroke width, clip to keep only the inner or
+// outer half of the stroke.  Caller must save/restore canvas when used.
+
+inline void apply_clip_for_stroke_align(
+    SkCanvas* canvas, const GraphicObject& obj, const SkPath& shape_path)
+{
+    if (obj.stroke_align == "inside") {
+        canvas->clipPath(shape_path, SkClipOp::kIntersect, true);
+    } else if (obj.stroke_align == "outside") {
+        canvas->clipPath(shape_path, SkClipOp::kDifference, true);
+    }
+}
+
 Result<void> draw_group(SkCanvas* canvas, const GraphicObject& obj,
                         sk_sp<SkShader> shader, const ShaderLookup& lookup)
 {
@@ -39,7 +53,7 @@ Result<void> draw_circle(SkCanvas* canvas, const GraphicObject& obj,
 
     if (obj.fill || shader) {
         SkPaint paint;
-        configure_fill_paint(paint, obj.fill, obj.stroke_width, shader);
+        configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode);
         if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
             canvas->drawCircle(static_cast<SkScalar>(cx),
                                static_cast<SkScalar>(cy),
@@ -48,11 +62,22 @@ Result<void> draw_circle(SkCanvas* canvas, const GraphicObject& obj,
     }
     if (obj.stroke) {
         SkPaint paint;
-        configure_stroke_paint(paint, obj.stroke, obj.stroke_width);
+        configure_stroke_paint(paint, obj.stroke, obj.stroke_width, obj.blend_mode);
         if (paint.getColor() != SK_ColorTRANSPARENT) {
-            canvas->drawCircle(static_cast<SkScalar>(cx),
-                               static_cast<SkScalar>(cy),
-                               static_cast<SkScalar>(r), paint);
+            SkScalar scx = static_cast<SkScalar>(cx);
+            SkScalar scy = static_cast<SkScalar>(cy);
+            SkScalar sr  = static_cast<SkScalar>(r);
+            if (obj.stroke_align != "center") {
+                canvas->save();
+                SkPathBuilder path_builder;
+                path_builder.addCircle(scx, scy, sr);
+                apply_clip_for_stroke_align(canvas, obj, path_builder.snapshot());
+                paint.setStrokeWidth(paint.getStrokeWidth() * 2.0f);
+                canvas->drawCircle(scx, scy, sr, paint);
+                canvas->restore();
+            } else {
+                canvas->drawCircle(scx, scy, sr, paint);
+            }
         }
     }
     return {};
@@ -74,7 +99,7 @@ Result<void> draw_rect(SkCanvas* canvas, const GraphicObject& obj,
 
     if (obj.fill || shader) {
         SkPaint paint;
-        configure_fill_paint(paint, obj.fill, obj.stroke_width, shader);
+        configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode);
         if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
             if (rx > 0.0) {
                 canvas->drawRoundRect(rect,
@@ -87,14 +112,31 @@ Result<void> draw_rect(SkCanvas* canvas, const GraphicObject& obj,
     }
     if (obj.stroke) {
         SkPaint paint;
-        configure_stroke_paint(paint, obj.stroke, obj.stroke_width);
+        configure_stroke_paint(paint, obj.stroke, obj.stroke_width, obj.blend_mode);
         if (paint.getColor() != SK_ColorTRANSPARENT) {
-            if (rx > 0.0) {
-                canvas->drawRoundRect(rect,
-                                      static_cast<SkScalar>(rx),
-                                      static_cast<SkScalar>(rx), paint);
+            if (obj.stroke_align != "center") {
+                canvas->save();
+                SkPathBuilder path_builder;
+                if (rx > 0.0) {
+                    SkRRect rrect = SkRRect::MakeRectXY(rect, static_cast<SkScalar>(rx), static_cast<SkScalar>(rx));
+                    path_builder.addRRect(rrect);
+                } else {
+                    path_builder.addRect(rect);
+                }
+                apply_clip_for_stroke_align(canvas, obj, path_builder.snapshot());
+                paint.setStrokeWidth(paint.getStrokeWidth() * 2.0f);
+                if (rx > 0.0) {
+                    canvas->drawRoundRect(rect, static_cast<SkScalar>(rx), static_cast<SkScalar>(rx), paint);
+                } else {
+                    canvas->drawRect(rect, paint);
+                }
+                canvas->restore();
             } else {
-                canvas->drawRect(rect, paint);
+                if (rx > 0.0) {
+                    canvas->drawRoundRect(rect, static_cast<SkScalar>(rx), static_cast<SkScalar>(rx), paint);
+                } else {
+                    canvas->drawRect(rect, paint);
+                }
             }
         }
     }
@@ -116,16 +158,26 @@ Result<void> draw_ellipse(SkCanvas* canvas, const GraphicObject& obj,
 
     if (obj.fill || shader) {
         SkPaint paint;
-        configure_fill_paint(paint, obj.fill, obj.stroke_width, shader);
+        configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode);
         if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
             canvas->drawOval(oval, paint);
         }
     }
     if (obj.stroke) {
         SkPaint paint;
-        configure_stroke_paint(paint, obj.stroke, obj.stroke_width);
+        configure_stroke_paint(paint, obj.stroke, obj.stroke_width, obj.blend_mode);
         if (paint.getColor() != SK_ColorTRANSPARENT) {
-            canvas->drawOval(oval, paint);
+            if (obj.stroke_align != "center") {
+                canvas->save();
+                SkPathBuilder path_builder;
+                path_builder.addOval(oval);
+                apply_clip_for_stroke_align(canvas, obj, path_builder.snapshot());
+                paint.setStrokeWidth(paint.getStrokeWidth() * 2.0f);
+                canvas->drawOval(oval, paint);
+                canvas->restore();
+            } else {
+                canvas->drawOval(oval, paint);
+            }
         }
     }
     return {};
@@ -141,7 +193,7 @@ Result<void> draw_line(SkCanvas* canvas, const GraphicObject& obj,
 
     if (obj.stroke) {
         SkPaint paint;
-        configure_stroke_paint(paint, obj.stroke, obj.stroke_width);
+        configure_stroke_paint(paint, obj.stroke, obj.stroke_width, obj.blend_mode);
         if (paint.getColor() != SK_ColorTRANSPARENT) {
             canvas->drawLine(static_cast<SkScalar>(x1),
                              static_cast<SkScalar>(y1),
@@ -186,16 +238,24 @@ Result<void> draw_polygon(SkCanvas* canvas, const GraphicObject& obj,
 
     if (obj.fill || shader) {
         SkPaint paint;
-        configure_fill_paint(paint, obj.fill, obj.stroke_width, shader);
+        configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode);
         if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
             canvas->drawPath(path, paint);
         }
     }
     if (obj.stroke) {
         SkPaint paint;
-        configure_stroke_paint(paint, obj.stroke, obj.stroke_width);
+        configure_stroke_paint(paint, obj.stroke, obj.stroke_width, obj.blend_mode);
         if (paint.getColor() != SK_ColorTRANSPARENT) {
-            canvas->drawPath(path, paint);
+            if (obj.stroke_align != "center") {
+                canvas->save();
+                apply_clip_for_stroke_align(canvas, obj, path);
+                paint.setStrokeWidth(paint.getStrokeWidth() * 2.0f);
+                canvas->drawPath(path, paint);
+                canvas->restore();
+            } else {
+                canvas->drawPath(path, paint);
+            }
         }
     }
     return {};
@@ -212,7 +272,7 @@ Result<void> draw_text(SkCanvas* canvas, const GraphicObject& obj,
     if (text.empty()) return {};
 
     SkPaint paint;
-    configure_fill_paint(paint, obj.fill, obj.stroke_width, shader);
+    configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode);
     if (paint.getColor() == SK_ColorTRANSPARENT && !paint.getShader()) {
         paint.setColor(SK_ColorBLACK);
     }
@@ -305,12 +365,18 @@ Result<void> draw_image(SkCanvas* canvas, const GraphicObject& obj,
             static_cast<SkScalar>(get_double(obj.params, ParamKey::h, static_cast<double>(src_rect.height()))));
     }
 
+    // Apply blend mode via non-null SkPaint when specified
+    SkPaint img_paint;
+    if (obj.blend_mode.has_value()) {
+        img_paint.setBlendMode(to_skia_blend_mode(*obj.blend_mode));
+    }
+
     canvas->drawImageRect(
         skia_surf->bitmap.asImage().get(),
         src_rect,
         dst_rect,
         SkSamplingOptions(),
-        nullptr,
+        obj.blend_mode.has_value() ? &img_paint : nullptr,
         SkCanvas::kFast_SrcRectConstraint);
     return {};
 }
@@ -459,11 +525,12 @@ Result<void> draw_rough_fill_impl(SkCanvas* canvas,
 /// Render the perturbed stroke path for a rough shape.
 void draw_rough_stroke_path(SkCanvas* canvas, const SkPath& path,
                             const std::optional<std::string>& stroke_color,
-                            double stroke_width)
+                            double stroke_width,
+                            std::optional<BlendMode> blend_mode = std::nullopt)
 {
     if (!stroke_color) return;
     SkPaint paint;
-    configure_stroke_paint(paint, stroke_color, stroke_width);
+    configure_stroke_paint(paint, stroke_color, stroke_width, blend_mode);
     if (paint.getColor() != SK_ColorTRANSPARENT) {
         canvas->drawPath(path, paint);
     }
@@ -510,7 +577,7 @@ Result<void> draw_rough_line(SkCanvas* canvas, const GraphicObject& obj,
                                  const_cast<RoughStyleParams&>(params), rng, false);
     SkPath path = rough_ops_to_skpath(ops);
 
-    draw_rough_stroke_path(canvas, path, obj.stroke, obj.stroke_width);
+    draw_rough_stroke_path(canvas, path, obj.stroke, obj.stroke_width, obj.blend_mode);
     return {};
 }
 
@@ -529,7 +596,7 @@ Result<void> draw_rough_rect(SkCanvas* canvas, const GraphicObject& obj,
             auto ops = rough_linear_path(pts, true, const_cast<RoughStyleParams&>(params), rng);
             SkPath fill_path = rough_ops_to_skpath(ops);
             SkPaint paint;
-            configure_fill_paint(paint, obj.fill, obj.stroke_width, shader);
+            configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode);
             if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
                 canvas->drawPath(fill_path, paint);
             }
@@ -544,7 +611,7 @@ Result<void> draw_rough_rect(SkCanvas* canvas, const GraphicObject& obj,
     if (obj.stroke) {
         auto ops = rough_linear_path(pts, true, const_cast<RoughStyleParams&>(params), rng);
         SkPath path = rough_ops_to_skpath(ops);
-        draw_rough_stroke_path(canvas, path, obj.stroke, obj.stroke_width);
+        draw_rough_stroke_path(canvas, path, obj.stroke, obj.stroke_width, obj.blend_mode);
     }
 
     return {};
@@ -571,7 +638,7 @@ Result<void> draw_rough_ellipse(SkCanvas* canvas, const GraphicObject& obj,
             SkPath fill_path = rough_ops_to_skpath(ops);
             { SkPathBuilder b(fill_path); b.close(); fill_path = b.detach(); }
             SkPaint paint;
-            configure_fill_paint(paint, obj.fill, obj.stroke_width, shader);
+            configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode);
             if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
                 canvas->drawPath(fill_path, paint);
             }
@@ -591,7 +658,7 @@ Result<void> draw_rough_ellipse(SkCanvas* canvas, const GraphicObject& obj,
     if (obj.stroke) {
         auto ops = rough_curve(ellipse_pts, nullptr, const_cast<RoughStyleParams&>(params), rng);
         SkPath path = rough_ops_to_skpath(ops);
-        draw_rough_stroke_path(canvas, path, obj.stroke, obj.stroke_width);
+        draw_rough_stroke_path(canvas, path, obj.stroke, obj.stroke_width, obj.blend_mode);
     }
 
     return {};
@@ -617,7 +684,7 @@ Result<void> draw_rough_circle(SkCanvas* canvas, const GraphicObject& obj,
             SkPath fill_path = rough_ops_to_skpath(ops);
             { SkPathBuilder b(fill_path); b.close(); fill_path = b.detach(); }
             SkPaint paint;
-            configure_fill_paint(paint, obj.fill, obj.stroke_width, shader);
+            configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode);
             if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
                 canvas->drawPath(fill_path, paint);
             }
@@ -634,7 +701,7 @@ Result<void> draw_rough_circle(SkCanvas* canvas, const GraphicObject& obj,
     if (obj.stroke) {
         auto ops = rough_curve(ellipse_pts, nullptr, const_cast<RoughStyleParams&>(params), rng);
         SkPath path = rough_ops_to_skpath(ops);
-        draw_rough_stroke_path(canvas, path, obj.stroke, obj.stroke_width);
+        draw_rough_stroke_path(canvas, path, obj.stroke, obj.stroke_width, obj.blend_mode);
     }
 
     return {};
@@ -654,7 +721,7 @@ Result<void> draw_rough_polygon(SkCanvas* canvas, const GraphicObject& obj,
             auto ops = rough_linear_path(pts, true, const_cast<RoughStyleParams&>(params), rng);
             SkPath fill_path = rough_ops_to_skpath(ops);
             SkPaint paint;
-            configure_fill_paint(paint, obj.fill, obj.stroke_width, shader);
+            configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode);
             if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
                 canvas->drawPath(fill_path, paint);
             }
@@ -668,7 +735,7 @@ Result<void> draw_rough_polygon(SkCanvas* canvas, const GraphicObject& obj,
     if (obj.stroke) {
         auto ops = rough_linear_path(pts, true, const_cast<RoughStyleParams&>(params), rng);
         SkPath path = rough_ops_to_skpath(ops);
-        draw_rough_stroke_path(canvas, path, obj.stroke, obj.stroke_width);
+        draw_rough_stroke_path(canvas, path, obj.stroke, obj.stroke_width, obj.blend_mode);
     }
 
     return {};

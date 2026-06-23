@@ -12,6 +12,7 @@
 #include "pml/core/types.h"
 #include "pml/evaluator/builtins.h"
 #include "pml/graphics/objects.h"
+#include "pml/layer/blend_mode.h"
 #include "pml/layer/layer.h"
 
 #include <nlohmann/json.hpp>
@@ -95,7 +96,27 @@ static Result<Value> builtin_image(const std::vector<Value>& args,
         crop = it->second;
     }
 
-    return make_image_object(*resolved, x, y, w, h, crop);
+    auto result = make_image_object(*resolved, x, y, w, h, crop);
+
+    // Apply :blend-mode and :stroke-align from kwargs
+    if (auto* go = result.as_graphic_object()) {
+        if (auto it = kwargs.find("blend-mode"); it != kwargs.end()) {
+            if (auto bm_str = kw::value_to_opt_string(it->second)) {
+                if (auto bm = blend_mode_from_keyword(*bm_str)) {
+                    (*go)->blend_mode = *bm;
+                }
+            }
+        }
+        if (auto it = kwargs.find("stroke-align"); it != kwargs.end()) {
+            if (auto sa = kw::value_to_opt_string(it->second)) {
+                if (*sa == "inside" || *sa == "outside") {
+                    (*go)->stroke_align = *sa;
+                }
+            }
+        }
+    }
+
+    return result;
 }
 
 static Result<Value> builtin_load_image(const std::vector<Value>& args,

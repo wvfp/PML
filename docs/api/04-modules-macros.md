@@ -6,7 +6,7 @@
 
 ```scheme
 (import "path.pml")          ; 自动推断前缀（文件名去掉 .pml）
-(import "path.pml" :as pref) ; 自定义前缀
+(import "path.pml" as pref)  ; 自定义前缀（bare `as`，无冒号）
 (import "lib/shapes.pml")    ; 相对路径（相对于引用文件）
 ```
 
@@ -25,7 +25,7 @@
 
 ```scheme
 ; 导入后使用 prefix/symbol 语法：
-(import "my-lib.pml" :as lib)
+(import "my-lib.pml" as lib)
 (lib/my-sprite)              ; 调用模块中导出的函数
 (render lib/my-sprite "out.png")  ; 引用模块中导出的值
 ```
@@ -42,13 +42,14 @@
 
 ```scheme
 ; 文件 lib/colors.pml:
+(provide red green blue)
+
 (define red   "#e74c3c")
 (define green "#2ecc71")
 (define blue  "#3498db")
-(provide red green blue)
 
 ; 文件 main.pml:
-(import "lib/colors.pml" :as c)
+(import "lib/colors.pml" as c)
 (define banner
   (group
     (rect 0 0 100 30 :fill c/red)

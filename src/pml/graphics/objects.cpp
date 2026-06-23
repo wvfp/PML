@@ -87,6 +87,12 @@ std::ostream& operator<<(std::ostream& os, const GraphicObject& obj)
     if (obj.stroke.has_value()) {
         os << " stroke=" << *obj.stroke;
     }
+    if (obj.blend_mode.has_value()) {
+        os << " blend=" << blend_mode_to_keyword(*obj.blend_mode);
+    }
+    if (obj.stroke_align != "center") {
+        os << " stroke-align=" << obj.stroke_align;
+    }
     if (!obj.children.empty()) {
         os << " children=" << obj.children.size();
     }

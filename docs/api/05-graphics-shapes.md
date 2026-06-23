@@ -8,12 +8,12 @@
 
 | 函数 | 签名 | 说明 |
 |------|------|------|
-| `circle` | `(circle cx cy r [:fill] [:stroke] [:stroke-width])` | 圆 |
-| `rect` | `(rect x y w h [:fill] [:stroke] [:stroke-width] [:rx])` | 矩形，:rx=圆角 |
-| `ellipse` | `(ellipse cx cy rx ry [:fill] [:stroke] [:stroke-width])` | 椭圆 |
-| `line` | `(line x1 y1 x2 y2 [:stroke] [:stroke-width])` | 线段 |
-| `polygon` | `(polygon x1 y1 x2 y2 ... [:fill] [:stroke] [:stroke-width])` | 多边形 |
-| `text` | `(text str x y [:fill] [:font-size])` | 文本（仅 ASCII/Latin，CJK 可能显示为 tofu） |
+| `circle` | `(circle cx cy r [:fill] [:stroke] [:stroke-width] [:blend-mode] [:stroke-align])` | 圆 |
+| `rect` | `(rect x y w h [:fill] [:stroke] [:stroke-width] [:rx] [:blend-mode] [:stroke-align])` | 矩形，:rx=圆角 |
+| `ellipse` | `(ellipse cx cy rx ry [:fill] [:stroke] [:stroke-width] [:blend-mode] [:stroke-align])` | 椭圆 |
+| `line` | `(line x1 y1 x2 y2 [:stroke] [:stroke-width] [:blend-mode])` | 线段（:stroke-align 不适用） |
+| `polygon` | `(polygon pts [:fill] [:stroke] [:stroke-width] [:blend-mode] [:stroke-align])` | 多边形，pts = `(list (list x y) ...)` |
+| `text` | `(text str x y [:fill] [:font-size] [:blend-mode])` | 文本（:stroke-align 不适用） |
 
 ### group
 
@@ -34,6 +34,8 @@
 | `:stroke` | string | 描边颜色 |
 | `:stroke-width` | number | 描边宽度（默认 0） |
 | `:opacity` | number | 不透明度 0-1（部分形状支持） |
+| `:blend-mode` | string | 混合模式，覆盖 layer 级 blend（见 ❐ 19-混合与描边） |
+| `:stroke-align` | string | 描边对齐：`"center"`（默认）\| `"inside"` \| `"outside"` |
 
 ---
 

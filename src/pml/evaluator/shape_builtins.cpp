@@ -20,6 +20,7 @@ using pml::kwargs::value_to_opt_string;
 #include "../graphics/objects.h"
 #include "../graphics/rough.h"
 #include "../graphics/transform.h"
+#include "../layer/blend_mode.h"
 #include "../sprites/style.h"
 
 #include <algorithm>
@@ -118,6 +119,30 @@ RoughShapeResult resolve_rough_params(
     return result;
 }
 
+// ── Blend-mode + stroke-align extraction helper ──────────────────────────
+
+void apply_blend_and_stroke(
+    const std::shared_ptr<GraphicObject>& obj,
+    const std::unordered_map<std::string, Value>& kwargs)
+{
+    auto blend_it = kwargs.find("blend-mode");
+    if (blend_it != kwargs.end()) {
+        if (auto bm_str = value_to_opt_string(blend_it->second)) {
+            if (auto bm = blend_mode_from_keyword(*bm_str)) {
+                obj->blend_mode = *bm;
+            }
+        }
+    }
+    auto sa_it = kwargs.find("stroke-align");
+    if (sa_it != kwargs.end()) {
+        if (auto sa = value_to_opt_string(sa_it->second)) {
+            if (*sa == "inside" || *sa == "outside") {
+                obj->stroke_align = *sa;
+            }
+        }
+    }
+}
+
 } // anonymous namespace
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -173,6 +198,8 @@ static Result<Value> builtin_circle(const std::vector<Value>& args, Environment&
     if (rough.rough_fill) {
         obj->metadata["fill_style"] = Value(std::string(rough.params.fill_style));
     }
+
+    apply_blend_and_stroke(obj, kwargs);
 
     return Value(std::move(obj));
 }
@@ -234,6 +261,8 @@ static Result<Value> builtin_rect(const std::vector<Value>& args, Environment& /
         obj->metadata["fill_style"] = Value(std::string(rough.params.fill_style));
     }
 
+    apply_blend_and_stroke(obj, kwargs);
+
     return Value(std::move(obj));
 }
 
@@ -289,6 +318,8 @@ static Result<Value> builtin_ellipse(const std::vector<Value>& args, Environment
         obj->metadata["fill_style"] = Value(std::string(rough.params.fill_style));
     }
 
+    apply_blend_and_stroke(obj, kwargs);
+
     return Value(std::move(obj));
 }
 
@@ -335,6 +366,8 @@ static Result<Value> builtin_line(const std::vector<Value>& args, Environment& /
         obj->metadata["bowing"] = Value(rough.params.bowing);
         obj->metadata["seed"] = Value(static_cast<double>(rough.params.seed));
     }
+
+    apply_blend_and_stroke(obj, kwargs);
 
     return Value(std::move(obj));
 }
@@ -402,6 +435,8 @@ static Result<Value> builtin_polygon(const std::vector<Value>& args, Environment
         obj->metadata["fill_style"] = Value(std::string(rough.params.fill_style));
     }
 
+    apply_blend_and_stroke(obj, kwargs);
+
     return Value(std::move(obj));
 }
 
@@ -442,6 +477,7 @@ static Result<Value> builtin_text(const std::vector<Value>& args, Environment& /
                                                           : std::nullopt,
                                                std::nullopt, // text typically has no stroke
                                                1.0);
+    apply_blend_and_stroke(obj, kwargs);
     return Value(std::move(obj));
 }
 

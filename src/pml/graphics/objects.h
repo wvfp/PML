@@ -8,6 +8,7 @@
 // animation interpolation.
 // ═══════════════════════════════════════════════════════════════════════════════
 
+#include "../layer/blend_mode.h"
 #include "params.h"
 #include "transform.h"
 #include "graphics_types.h"
@@ -44,6 +45,13 @@ struct GraphicObject {
 
     /// Stroke width in pixels.
     double stroke_width{1.0};
+
+    /// Blend mode for compositing this shape (nullopt = Normal / SrcOver).
+    std::optional<BlendMode> blend_mode;
+
+    /// Stroke alignment relative to the shape boundary.
+    /// "center" (default), "inside", or "outside".
+    std::string stroke_align{"center"};
 
     /// Local affine transform applied before rendering (defined in
     /// `pml/graphics/transform.h`).

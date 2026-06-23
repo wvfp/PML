@@ -93,7 +93,8 @@ inline void configure_fill_paint(
     SkPaint& paint,
     const std::optional<std::string>& fill,
     double /*stroke_width*/,
-    sk_sp<SkShader> shader = nullptr)
+    sk_sp<SkShader> shader = nullptr,
+    std::optional<BlendMode> blend_mode = std::nullopt)
 {
     paint.setAntiAlias(true);
     paint.setStyle(SkPaint::kFill_Style);
@@ -109,12 +110,16 @@ inline void configure_fill_paint(
     } else {
         paint.setColor(SK_ColorTRANSPARENT);
     }
+    if (blend_mode.has_value()) {
+        paint.setBlendMode(to_skia_blend_mode(*blend_mode));
+    }
 }
 
 inline void configure_stroke_paint(
     SkPaint& paint,
     const std::optional<std::string>& stroke,
-    double stroke_width)
+    double stroke_width,
+    std::optional<BlendMode> blend_mode = std::nullopt)
 {
     paint.setAntiAlias(true);
     paint.setStyle(SkPaint::kStroke_Style);
@@ -127,6 +132,9 @@ inline void configure_stroke_paint(
         }
     } else {
         paint.setColor(SK_ColorTRANSPARENT);
+    }
+    if (blend_mode.has_value()) {
+        paint.setBlendMode(to_skia_blend_mode(*blend_mode));
     }
 }
 
