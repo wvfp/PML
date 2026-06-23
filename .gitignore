@@ -53,3 +53,26 @@ coverage/
 
 # VSCode Extension build artifact
 *.vsix
+
+# VSCode Extension dependencies
+pml-vscode/node_modules/
+pml-vscode/out/
+
+# PML render output
+output/
+examples/output/
+
+# Sprite sheet data (generated)
+*.spritesheet.json
+
+# IDE / Editor (project-level)
+.codebuddy/
+
+# OpenCode session working files
+.omo/notepads/pml-vscode-preview/
+.omo/plans/pml-vscode-preview.md
+.omo/run-continuation/
+
+# Test artifacts (root & tests/)
+tests/*.png
+tests/*.pml
