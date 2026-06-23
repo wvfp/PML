@@ -1,0 +1,68 @@
+{
+  "name": "pml-vscode",
+  "displayName": "PML Preview",
+  "description": "Side-by-side preview for PML (Picture Markup Language) files",
+  "version": "0.1.0",
+  "publisher": "pml",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Visualization"
+  ],
+  "keywords": ["pml", "preview", "image", "rendering"],
+  "activationEvents": [
+    "onLanguage:pml",
+    "onCustomEditor:pml.previewEditor"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "pml",
+        "extensions": [".pml"],
+        "aliases": ["PML", "pml"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "pml",
+        "scopeName": "source.pml",
+        "path": "./syntaxes/pml.tmLanguage.json"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "pml.previewEditor",
+        "displayName": "PML Preview",
+        "selector": [
+          { "filenamePattern": "*.pml" }
+        ],
+        "priority": "option"
+      }
+    ],
+    "commands": [
+      {
+        "command": "pml.previewSide",
+        "title": "Open PML Preview to the Side",
+        "category": "PML"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "tsc -p ./tsconfig.json --noEmit false",
+    "compile": "tsc -p ./tsconfig.json",
+    "watch": "tsc -watch -p ./tsconfig.json",
+    "package": "vsce package",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0",
+    "@vscode/vsce": "^2.22.0"
+  }
+}

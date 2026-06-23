@@ -50,3 +50,6 @@ compile_commands.json
 *.gcno
 *.gcov
 coverage/
+
+# VSCode Extension build artifact
+*.vsix

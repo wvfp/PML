@@ -1,0 +1,167 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "PML",
+  "scopeName": "source.pml",
+  "patterns": [
+    { "include": "#strings" },
+    { "include": "#comments" },
+    { "include": "#constants" },
+    { "include": "#definitions" },
+    { "include": "#symbols" },
+    { "include": "#keywordArgs" },
+    { "include": "#keywords" },
+    { "include": "#builtins" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+
+    "strings": {
+      "name": "string.quoted.double.pml",
+      "begin": "\"",
+      "end": "(\")(?<!\\\\)",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.string.begin.pml" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.string.end.pml" }
+      },
+      "patterns": [
+        {
+          "name": "constant.character.escape.pml",
+          "match": "\\\\."
+        }
+      ]
+    },
+
+    "comments": {
+      "patterns": [
+        {
+          "match": "^\\s*;#region\\b.*$",
+          "name": "comment.line.semicolon.documentation.pml"
+        },
+        {
+          "match": "^\\s*;#endregion\\b.*$",
+          "name": "comment.line.semicolon.documentation.pml"
+        },
+        {
+          "begin": ";",
+          "end": "$",
+          "name": "comment.line.semicolon.pml",
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.comment.pml" }
+          }
+        }
+      ]
+    },
+
+    "constants": {
+      "patterns": [
+        {
+          "match": "(?<![a-zA-Z0-9_])#t(?![a-zA-Z0-9_])|(?<![a-zA-Z0-9_])#f(?![a-zA-Z0-9_])",
+          "name": "constant.language.boolean.pml"
+        },
+        {
+          "match": "\\bnil\\b",
+          "name": "constant.language.pml"
+        },
+        {
+          "match": "#[0-9A-Fa-f]{6}(?![0-9A-Fa-f])|#[0-9A-Fa-f]{3}(?![0-9A-Fa-f])",
+          "name": "constant.language.color.pml"
+        },
+        {
+          "match": "\\b[0-9]+\\.[0-9]+(?:[eE][+-]?[0-9]+)?\\b",
+          "name": "constant.numeric.float.pml"
+        },
+        {
+          "match": "\\b[0-9]+\\b",
+          "name": "constant.numeric.integer.pml"
+        }
+      ]
+    },
+
+    "definitions": {
+      "patterns": [
+        {
+          "match": "(\\(\\s*)(define)\\s+\\(\\s*([a-zA-Z_!?+\\-*/<=>][a-zA-Z0-9_!?+\\-*/<=>]*)",
+          "captures": {
+            "1": { "name": "punctuation.section.parens.begin.pml" },
+            "2": { "name": "keyword.control.pml" },
+            "3": { "name": "entity.name.function.pml" }
+          }
+        },
+        {
+          "match": "(\\(\\s*)(define)\\s+([a-zA-Z_!?+\\-*/<=>][a-zA-Z0-9_!?+\\-*/<=>]*)(?=\\s|\\(|$)",
+          "captures": {
+            "1": { "name": "punctuation.section.parens.begin.pml" },
+            "2": { "name": "keyword.control.pml" },
+            "3": { "name": "entity.name.function.pml" }
+          }
+        },
+        {
+          "match": "(\\(\\s*)(defmacro|define-macro|define-syntax)\\s+([a-zA-Z_!?+\\-*/<=>][a-zA-Z0-9_!?+\\-*/<=>]*)(?=\\s|\\(|$)",
+          "captures": {
+            "1": { "name": "punctuation.section.parens.begin.pml" },
+            "2": { "name": "keyword.control.pml" },
+            "3": { "name": "entity.name.function.pml" }
+          }
+        },
+        {
+          "match": "(\\(\\s*)(lambda)\\s+\\(([^)]*)\\)",
+          "captures": {
+            "1": { "name": "punctuation.section.parens.begin.pml" },
+            "2": { "name": "keyword.control.pml" },
+            "3": { "name": "variable.parameter.function.pml" }
+          }
+        }
+      ]
+    },
+
+    "symbols": {
+      "match": "'[a-zA-Z_!?][a-zA-Z0-9_!?\\-]*'?",
+      "name": "constant.other.symbol.pml"
+    },
+
+    "keywordArgs": {
+      "match": ":[a-zA-Z][a-zA-Z0-9_-]*",
+      "name": "constant.other.keyword.pml"
+    },
+
+    "keywords": {
+      "patterns": [
+        {
+          "match": "(\\(\\s*)\\b(with-exception-handler|quasiquote|unquote-splicing|unquote|provide|import|gensym|assert|unless|begin|cond|quote|let\\*|let|set!|case|when|do|and|or|if)\\b(?=\\s|\\(|\\)|$|;)",
+          "captures": {
+            "1": { "name": "punctuation.section.parens.begin.pml" },
+            "2": { "name": "keyword.control.pml" }
+          }
+        }
+      ]
+    },
+
+    "builtins": {
+      "patterns": [
+        {
+          "match": "(\\(\\s*)\\b(abs|acos|add|animate|animation-state|append|apply|apply-shader!|apply-uniforms|asin|assoc|assq|asset-path\\?|atan|atan2|backend-capabilities|bevel-emboss|bind-skin|bind-textures|bitmap-layer|blur|camera|canvas|car|cdr|ceil|circle|color-adjust|compose|composition-add|composition\\?|cone3d|cons|convolution|cos|cube3d|cuboid3d|define-palette|define-style|define-tileset|defskeleton|display|drop-shadow|edge-detect|ellipse|error|even\\?|every-frame|exp|expt|filter|filter\\?|filter-chain|floor|for-each|format|gcd|graphic-object\\?|group|hash-delete!|hash-keys|hash-ref|hash-set!|hash-values|hash\\?|image|inner-glow|inner-shadow|layer\\?|layer-with|lcm|length|levels|line|list|list->string|list->vector|list-backends|list-ref|list-tail|log|make-composition|make-hash|make-layer|make-string|make-tilemap|make-uniforms|make-vector|map|matrix-apply|matrix-inverse|matrix\\?|max|member|memq|min|modulo|module-available\\?|module-exports|module-list|negative\\?|newline|noise-fractal|noise-turbulence|not|nth|number\\?|number->string|odd\\?|outer-glow|palette-ref|parallel|path|pause|play|plane3d|polygon|positive\\?|pow|print|println|procedure\\?|quantize-noise|quotient|random|range|rect|reduce|remainder|render|render-channels|render-set|render-spritesheet|render-tilemap|reverse|rotate|rotate-x|rotate-y|rotate-z|round|rounded-cuboid3d|scale|scale3d|seek|sequence|set-backend!|shader|sharpen|shear|sin|sort|sphere3d|sprite-canvas|sqrt|stop|string|string->list|string->number|string->symbol|string-append|string-copy|string-length|string-ref|string\\?|string=\\?|string<\\?|string>\\?|string<=\\?|string>=\\?|substring|symbol->string|tan|text|threshold|tilemap-set!|translate|translate3d|typeof|uniform-float|use-style|vector\\?|vector->list|vector-copy|vector-fill!|vector-length|vector-ref|vector-set!|zero\\?)\\b(?=\\s|\\(|\\)|$|;)",
+          "captures": {
+            "1": { "name": "punctuation.section.parens.begin.pml" },
+            "2": { "name": "support.function.builtin.pml" }
+          }
+        }
+      ]
+    },
+
+    "punctuation": {
+      "patterns": [
+        {
+          "match": "\\(",
+          "name": "punctuation.section.parens.begin.pml"
+        },
+        {
+          "match": "\\)",
+          "name": "punctuation.section.parens.end.pml"
+        }
+      ]
+    }
+
+  }
+}
