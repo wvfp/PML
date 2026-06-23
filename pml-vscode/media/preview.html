@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; img-src 'self' {{cspSource}} data: https:; style-src 'unsafe-inline'; script-src 'nonce-{{nonce}}';">
+  <title>PML Preview</title>
+  <style>
+    /* ── Reset & theme ─────────────────────────────────────────────── */
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 20px;
+      background: var(--vscode-editor-background, #1e1e1e);
+      color: var(--vscode-editor-foreground, #d4d4d4);
+      overflow-x: hidden;
+    }
+
+    /* ── Loading state ─────────────────────────────────────────────── */
+    #app {
+      min-height: 200px;
+    }
+    .state-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 240px;
+      text-align: center;
+      color: var(--vscode-descriptionForeground, #888);
+    }
+    .state-loading .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--vscode-widget-border, #555);
+      border-top-color: var(--vscode-textLink-foreground, #3794ff);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .state-loading .label {
+      font-size: 1.1em;
+      margin-top: 4px;
+    }
+    .state-loading .sub-label {
+      font-size: 0.85em;
+      margin-top: 4px;
+      opacity: 0.7;
+    }
+
+    /* ── Error state ───────────────────────────────────────────────── */
+    .state-error {
+      border: 1px solid var(--vscode-inputValidation-errorBorder, #e06c75);
+      background: var(--vscode-inputValidation-errorBackground, #3a1a1a);
+      padding: 16px 20px;
+      border-radius: 6px;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    .state-error .error-icon {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      line-height: 18px;
+      text-align: center;
+      border-radius: 50%;
+      background: var(--vscode-errorForeground, #e06c75);
+      color: var(--vscode-editor-background, #1e1e1e);
+      font-size: 11px;
+      font-weight: 700;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    .state-error .error-type {
+      display: inline-block;
+      vertical-align: middle;
+      margin: 0;
+      font-size: 1.1em;
+      font-weight: 600;
+      color: var(--vscode-errorForeground, #e06c75);
+    }
+    .state-error .error-message {
+      margin: 10px 0 0 0;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+    .state-error .error-location {
+      margin: 6px 0 0 0;
+      font-size: 0.9em;
+      color: var(--vscode-descriptionForeground, #888);
+    }
+    .state-error .error-hint {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--vscode-inputValidation-errorBorder, #555);
+      color: var(--vscode-testing-iconPassed, #98c379);
+      font-size: 0.92em;
+    }
+    .state-error .error-hint::before {
+      content: "\1F4A1";
+      margin-right: 6px;
+      font-size: 1em;
+    }
+
+    /* ── Render ─ main image ────────────────────────────────────────── */
+    .state-render {
+      max-width: 100%;
+    }
+    .render-main {
+      margin-bottom: 16px;
+    }
+    .render-main .render-label {
+      font-size: 0.85em;
+      color: var(--vscode-descriptionForeground, #888);
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    .render-main img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      border: 1px solid var(--vscode-widget-border, #333);
+      border-radius: 4px;
+      background: repeating-conic-gradient(
+        var(--vscode-editor-background, #1e1e1e) 0% 25%,
+        var(--vscode-widget-border, #333) 0% 50%
+      ) 0 0 / 20px 20px;
+    }
+    .render-main .img-error {
+      display: none;
+      padding: 12px 16px;
+      background: var(--vscode-inputValidation-errorBackground, #3a1a1a);
+      border: 1px solid var(--vscode-inputValidation-errorBorder, #e06c75);
+      border-radius: 4px;
+      color: var(--vscode-errorForeground, #e06c75);
+      font-size: 0.9em;
+      margin-top: 8px;
+      word-break: break-all;
+    }
+    .render-main .img-error.visible {
+      display: block;
+    }
+    .render-main .img-error .url-label {
+      opacity: 0.7;
+      font-size: 0.85em;
+    }
+
+    /* ── Thumbnail strip ─────────────────────────────────────────────— */
+    .render-thumbnails {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .render-thumbnails .thumb-item {
+      cursor: pointer;
+      border: 2px solid var(--vscode-widget-border, #333);
+      border-radius: 4px;
+      padding: 4px;
+      background: var(--vscode-editor-background, #1e1e1e);
+      transition: border-color 0.15s ease;
+      max-width: 140px;
+    }
+    .render-thumbnails .thumb-item:hover,
+    .render-thumbnails .thumb-item.active {
+      border-color: var(--vscode-textLink-foreground, #3794ff);
+    }
+    .render-thumbnails .thumb-item img {
+      display: block;
+      width: 120px;
+      height: 80px;
+      object-fit: cover;
+      border-radius: 2px;
+    }
+    .render-thumbnails .thumb-item .thumb-name {
+      font-size: 0.78em;
+      color: var(--vscode-descriptionForeground, #888);
+      margin-top: 3px;
+      text-align: center;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 120px;
+    }
+
+    /* ── Empty / no-output ─────────────────────────────────────────── */
+    .state-empty {
+      text-align: center;
+      padding: 48px 16px;
+      color: var(--vscode-descriptionForeground, #888);
+    }
+    .state-empty .empty-icon {
+      font-size: 2.5em;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+
+    /* ── Responsive tweaks ─────────────────────────────────────────── */
+    @media (max-width: 480px) {
+      body {
+        padding: 12px;
+      }
+      .render-thumbnails .thumb-item {
+        max-width: 100px;
+      }
+      .render-thumbnails .thumb-item img {
+        width: 84px;
+        height: 60px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- App root — initially shows the loading state                  -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div id="app">
+    <div class="state-loading">
+      <div class="spinner"></div>
+      <div class="label">Loading PML preview…</div>
+      <div class="sub-label">Rendering via pml.exe</div>
+    </div>
+  </div>
+
+  <script nonce="{{nonce}}">
+    (function () {
+      "use strict";
+
+      var api = acquireVsCodeApi();
+
+      // ── Restore previous state (on WebView rehydration) ──────────
+      var prevState = api.getState();
+      if (prevState && prevState.html) {
+        document.getElementById('app').innerHTML = prevState.html;
+      }
+
+      // ── Message handler ──────────────────────────────────────────
+      window.addEventListener('message', function (event) {
+        var msg = event.data;
+        var app = document.getElementById('app');
+        if (!app) {
+          return;
+        }
+
+        switch (msg.command) {
+          case 'render':
+            handleRender(app, msg);
+            break;
+          case 'error':
+            handleError(app, msg);
+            break;
+        }
+      });
+
+      // ── Render handler ───────────────────────────────────────────
+      function handleRender(app, msg) {
+        if (!msg.files || msg.files.length === 0) {
+          setContent(app, buildEmpty());
+          return;
+        }
+        setContent(app, '<div class="state-render">' + buildRenderHtml(msg.files) + '</div>');
+        attachThumbnailClickHandlers(app);
+      }
+
+      // ── Build render HTML (shared between render and error handlers) ──
+      function buildRenderHtml(files) {
+        // Separate main vs. thumbnails
+        var mainFile = null;
+        var otherFiles = [];
+        for (var i = 0; i < files.length; i++) {
+          var f = files[i];
+          if (f.isMain) {
+            mainFile = f;
+          } else {
+            otherFiles.push(f);
+          }
+        }
+        // If no explicit main, use the first file
+        if (!mainFile) {
+          mainFile = files[0];
+          var idx = otherFiles.indexOf(mainFile);
+          if (idx !== -1) {
+            otherFiles.splice(idx, 1);
+          }
+        }
+
+        var html = '';
+        // Main image
+        html += '<div class="render-main">';
+        html += '<div class="render-label">' + escapeHtml(mainFile.name) + '</div>';
+        html += '<img id="preview-main-img" src="' + encodeURI(mainFile.uri) + '" alt="' + escapeHtml(mainFile.name) + '" onerror="handleImgError(this)">';
+        html += '<div id="main-img-error" class="img-error"></div>';
+        html += '</div>';
+
+        // Thumbnail strip (only when there are additional files)
+        if (otherFiles.length > 0) {
+          html += '<div class="render-thumbnails">';
+          for (var j = 0; j < otherFiles.length; j++) {
+            var thumb = otherFiles[j];
+            html += '<div class="thumb-item" data-uri="' + encodeURI(thumb.uri) + '" data-name="' + escapeHtml(thumb.name) + '">';
+            html += '<img src="' + encodeURI(thumb.uri) + '" alt="' + escapeHtml(thumb.name) + '" loading="lazy" onerror="handleImgError(this)">';
+            html += '<div class="thumb-name">' + escapeHtml(thumb.name) + '</div>';
+            html += '</div>';
+          }
+          html += '</div>';
+        }
+        return html;
+      }
+
+      // ── Attach thumbnail click handlers ──────────────────────────
+      function attachThumbnailClickHandlers(app) {
+        var thumbItems = app.querySelectorAll('.thumb-item');
+        for (var k = 0; k < thumbItems.length; k++) {
+          thumbItems[k].addEventListener('click', function () {
+            var uri = this.getAttribute('data-uri');
+            var name = this.getAttribute('data-name');
+            if (!uri) {
+              return;
+            }
+            // Update main image
+            var mainImg = document.getElementById('preview-main-img');
+            if (mainImg) {
+              mainImg.src = uri;
+              mainImg.alt = name;
+              // Clear retry flag so onerror fires again if this URI also fails
+              mainImg.removeAttribute('data-err-attempted');
+            }
+            // Clear any previous error overlay
+            var errDiv = document.getElementById('main-img-error');
+            if (errDiv) {
+              errDiv.textContent = '';
+              errDiv.classList.remove('visible');
+            }
+            var mainLabel = document.querySelector('.render-main .render-label');
+            if (mainLabel) {
+              mainLabel.textContent = name;
+            }
+            // Mark active thumbnail
+            var allThumbs = app.querySelectorAll('.thumb-item');
+            for (var t = 0; t < allThumbs.length; t++) {
+              allThumbs[t].classList.remove('active');
+            }
+            this.classList.add('active');
+          });
+        }
+      }
+
+      // ── Error handler ─────────────────────────────────────────────
+      // Shows the error banner, and any successfully rendered files below it
+      // (for partial-failure cases where some renders succeeded before a crash).
+      function handleError(app, msg) {
+        var html = '';
+
+        // Error banner
+        html += '<div class="state-error">';
+        html += '<div>';
+        html += '<span class="error-icon">!</span>';
+        html += '<h3 class="error-type">' + escapeHtml(msg.type || 'Error') + '</h3>';
+        html += '</div>';
+        html += '<p class="error-message">' + escapeHtml(msg.message) + '</p>';
+
+        if (msg.line !== undefined && msg.line !== null) {
+          var loc = 'at line ' + msg.line;
+          if (msg.column !== undefined && msg.column !== null) {
+            loc += ', column ' + msg.column;
+          }
+          html += '<p class="error-location">' + loc + '</p>';
+        } else if (msg.column !== undefined && msg.column !== null) {
+          html += '<p class="error-location">at column ' + msg.column + '</p>';
+        }
+
+        if (msg.hint) {
+          html += '<div class="error-hint">' + escapeHtml(msg.hint) + '</div>';
+        }
+        html += '</div>';
+
+        // Render any files that were successfully produced before the error
+        if (msg.files && msg.files.length > 0) {
+          html += '<hr style="margin:16px 0;border-color:var(--vscode-widget-border,#333)">';
+          html += buildRenderHtml(msg.files);
+        }
+
+        setContent(app, html);
+      }
+
+      // ── Image load error handler ──────────────────────────────────
+      // Shows a diagnostic overlay below the broken image with the
+      // failing URL so the user can identify CSP / path issues.
+      function handleImgError(imgEl) {
+        if (!imgEl) return;
+
+        // Prevent infinite loop if the error overlay itself triggers onerror
+        if (imgEl.getAttribute('data-err-attempted')) return;
+        imgEl.setAttribute('data-err-attempted', '1');
+
+        var src = imgEl.src || '(empty)';
+        console.error('[PML Preview] Image failed to load:', src);
+
+        // Find the parent .render-main container and show error inside it
+        var container = imgEl.closest('.render-main');
+        if (container) {
+          var errDiv = container.querySelector('.img-error');
+          if (errDiv) {
+            errDiv.textContent = 'Image load failed: ' + src;
+            errDiv.classList.add('visible');
+          }
+        }
+      }
+
+      // ── Empty / no-output state ───────────────────────────────────
+      function buildEmpty() {
+        return '<div class="state-empty">' +
+          '<div class="empty-icon">&#128200;</div>' +
+          '<p>The PML file produced no output.</p>' +
+          '</div>';
+      }
+
+      // ── Helpers ───────────────────────────────────────────────────
+      function setContent(container, html) {
+        container.innerHTML = html;
+        // Persist to VSCode state so the WebView survives rehydration
+        api.setState({ html: html });
+      }
+
+      function escapeHtml(str) {
+        if (typeof str !== 'string') {
+          return String(str);
+        }
+        return str
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#x27;');
+      }
+
+      // ── Signal ready ──────────────────────────────────────────────
+      api.postMessage({ command: 'ready' });
+    })();
+  </script>
+</body>
+</html>
