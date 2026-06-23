@@ -76,3 +76,7 @@ examples/output/
 # Test artifacts (root & tests/)
 tests/*.png
 tests/*.pml
+
+# Python compiled bytecode
+*.pyc
+__pycache__/
