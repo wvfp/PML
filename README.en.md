@@ -69,30 +69,7 @@ PML combines the expressiveness of a programming language with a GPU-accelerated
 
 ## Showcase
 
-### 🎄 Christmas Avatar
-Modular character composition: hat, hair, face, clothes, and hand assembled together.
 
-```scheme
-(import "hat.pml" as hat)
-(import "hair.pml" as hair)
-(import "face.pml" as face)
-(import "clothes.pml" as clothes)
-(import "hand.pml" as hand)
-
-(canvas 1000 1000 :bg "#2B2B2B")
-(add (clothes/clothes-main))
-(add (hair/hair-main))
-(add (face/face-main))
-(add (hat/hat-main))
-(add (hand/hand-main))
-(render "avatar.png")
-```
-
-<div align="center">
-  <img src="examples/09-projects/06_christmas_avatar/06_christmas_avatar.png" width="400" alt="Christmas Avatar">
-</div>
-
----
 
 ### 🏝️ Isometric Tilemap
 Orthogonal and isometric tilemap rendering with multi-layer support and per-tile customization.
