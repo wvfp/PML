@@ -206,4 +206,38 @@ private:
     }
 };
 
+// ── Thread-local current arena (forward-declared; defined in types.h) ──
+// ArenaScope needs this to save/restore the active arena for a call.
+[[nodiscard]] Arena*& current_arena() noexcept;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ArenaScope — RAII activator for per-call arenas
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// Activates an arena so that all allocation via arena-aware code goes to it.
+// On destruction, the arena is reset (memory reclaimed) and the previous arena
+// is restored.
+
+class ArenaScope {
+  public:
+    explicit ArenaScope(Arena* arena)
+        : arena_(arena)
+        , prev_(current_arena()) {
+        current_arena() = arena;
+    }
+
+    ~ArenaScope() {
+        arena_->reset();
+        current_arena() = prev_;
+    }
+
+    ArenaScope(const ArenaScope&) = delete;
+    ArenaScope& operator=(const ArenaScope&) = delete;
+
+  private:
+    Arena* arena_;
+    Arena* prev_;
+};
+
 }  // namespace pml
+

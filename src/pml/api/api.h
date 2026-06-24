@@ -22,6 +22,17 @@
 namespace pml {
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// ValidationResult — structured result of validating PML source code.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Result of validating PML source (lex + parse + expand, no evaluation).
+struct ValidationResult {
+    bool valid{true};
+    std::vector<nlohmann::json> errors;
+    std::vector<nlohmann::json> warnings;
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // RenderResult — structured result of executing PML source code.
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -55,6 +66,13 @@ class PMLRuntime {
     /// all builtins, graphics, sprites, animation, and skeleton procedures.
     PMLRuntime();
 
+    /// Reset the runtime to a fresh state.
+    ///
+    /// Recreates the global environment and context, re-registering all
+    /// builtins.  All user definitions, canvas state, styles, palettes,
+    /// and compositions are discarded.
+    void reset();
+
     /// Execute a PML source string.
     ///
     /// The environment persists across calls — definitions from a previous
@@ -81,14 +99,31 @@ class PMLRuntime {
     /// matching the Python API's RenderResult.to_dict() exactly.
     ///
     /// @param source  PML source code.
-    /// @param options Optional map (reserved for future use).
+    /// @param options Optional map with keys like "filename".
     /// @return JSON object with "success", "value", "files", "error" keys.
     [[nodiscard]] nlohmann::json
     execute_pml(const std::string& source,
                 const nlohmann::json& options = nlohmann::json::object());
 
+    /// Validate PML source code without executing it.
+    ///
+    /// Checks lexing, parsing, and macro expansion for errors.
+    /// Does NOT evaluate — safe for untrusted or incomplete code.
+    ///
+    /// @param source   PML source code.
+    /// @param filename Optional filename for error reporting.
+    /// @return A ValidationResult with errors (if any).
+    [[nodiscard]] ValidationResult
+    validate(const std::string& source,
+             const std::string& filename = "<validate>");
+
     /// Access the underlying global environment (for advanced use/testing).
     [[nodiscard]] std::shared_ptr<Environment> env() const noexcept;
+
+    /// Access the per-runtime arena for short-lived allocations.
+    [[nodiscard]] Arena& arena() noexcept {
+        return m_arena;
+    }
 
     /// Access the runtime context (canvas, timeline, styles, palettes, compositions).
     [[nodiscard]] PMLContext& context() noexcept {

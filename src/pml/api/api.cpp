@@ -72,37 +72,6 @@
 
 namespace pml {
 
-namespace {
-
-// ═══════════════════════════════════════════════════════════════════════════
-// ArenaScope — activate an arena for the duration of an execute() call
-// ═══════════════════════════════════════════════════════════════════════════
-
-class ArenaScope {
-  public:
-    explicit ArenaScope(Arena* arena)
-        : arena_(arena)
-        , prev_(current_arena()) {
-        current_arena() = arena;
-    }
-
-    ~ArenaScope() {
-        // Reclaim all per-call AST/evaluation temporaries.  Persistent values
-        // (Procedure bodies, macros) are cloned to the heap before storage.
-        arena_->reset();
-        current_arena() = prev_;
-    }
-
-    ArenaScope(const ArenaScope&) = delete;
-    ArenaScope& operator=(const ArenaScope&) = delete;
-
-  private:
-    Arena* arena_;
-    Arena* prev_;
-};
-
-} // namespace
-
 // ═══════════════════════════════════════════════════════════════════════════
 // RenderResult
 // ═══════════════════════════════════════════════════════════════════════════
@@ -381,10 +350,20 @@ RenderResult PMLRuntime::execute(const std::string& source, const std::string& f
     // evaluation temporaries.  The arena is reset when the scope ends.
     ArenaScope arena_scope(&m_arena);
 
-    // Bind the source file path so that asset loading and imports resolve
-    // relative paths correctly for the top-level file as well as modules.
+    // Always set __source_file__ so it never carries a stale value from a
+    // prior execution (e.g., a previous execute_file() call). This is used
+    // by asset loading, import resolution, and the (source-file) builtin.
+    m_env->define("__source_file__", Value(filename.empty() ? "<stdin>" : std::string(filename)));
+
+    // Also update source_dir so that relative asset paths resolve correctly.
+    // execute_file() already sets source_dir before calling execute(), but
+    // when execute() is called directly (MCP, embedded use) the directory
+    // must be derived from the filename, or reset to the working directory
+    // for stdin/no-filename.
     if (!filename.empty() && filename != "<stdin>") {
-        m_env->define("__source_file__", Value(std::string(filename)));
+        ctx_.source_dir = std::filesystem::path(filename).parent_path().string();
+    } else {
+        ctx_.source_dir = std::filesystem::current_path().string();
     }
 
     // Lexer
@@ -488,9 +467,55 @@ RenderResult PMLRuntime::execute_file(const std::string& path) {
 }
 
 nlohmann::json PMLRuntime::execute_pml(const std::string& source,
-                                       const nlohmann::json& /*options*/) {
-    auto result = execute(source);
+                                       const nlohmann::json& options) {
+    // Extract optional "filename" from options so __source_file__ is set
+    // correctly and error locations reference the right file.
+    std::string filename = "<stdin>";
+    if (options.is_object()) {
+        auto it = options.find("filename");
+        if (it != options.end() && it->is_string()) {
+            filename = it->get<std::string>();
+        }
+    }
+    auto result = execute(source, filename);
     return result.to_json();
+}
+
+ValidationResult PMLRuntime::validate(const std::string& source,
+                                      const std::string& filename) {
+    ValidationResult result;
+
+    // Step 1: Lex
+    auto tokenResult = Lexer(source, filename).tokenize();
+    if (!tokenResult.has_value()) {
+        result.valid = false;
+        result.errors.push_back(error_to_dict(tokenResult.error()));
+        return result;
+    }
+
+    // Step 2: Parse
+    auto parseResult = Parser(std::move(*tokenResult), filename).parse();
+    if (!parseResult.has_value()) {
+        result.valid = false;
+        result.errors.push_back(error_to_dict(parseResult.error()));
+        return result;
+    }
+
+    // Step 3: Macro expansion
+    Expander expander(m_env);
+    auto expandResult = expander.expand_all(*parseResult);
+    if (!expandResult.has_value()) {
+        result.valid = false;
+        result.errors.push_back(error_to_dict(expandResult.error()));
+    }
+
+    return result;
+}
+
+void PMLRuntime::reset() {
+    m_env = std::make_shared<Environment>();
+    ctx_.reset();
+    init_global_env();
 }
 
 std::shared_ptr<Environment> PMLRuntime::env() const noexcept {
