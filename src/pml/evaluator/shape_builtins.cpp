@@ -19,6 +19,7 @@ using pml::kwargs::parse_kwargs;
 using pml::kwargs::value_to_opt_string;
 #include "../graphics/canvas.h"
 #include "../graphics/objects.h"
+#include "../graphics/path_types.h"
 #include "../graphics/rough.h"
 #include "../graphics/transform.h"
 #include "../layer/blend_mode.h"
@@ -524,6 +525,141 @@ static Result<Value> builtin_text(const std::vector<Value>& args, Environment& /
     return Value(std::move(obj));
 }
 
+// ── (path commands-list [:d svg-string] [:fill color] [:stroke color] [:stroke-width w]) → GO
+//
+// Creates a GraphicObject with SVG-compatible path commands.
+//
+// The first positional argument, if present, must be a list of path commands:
+//   (list (list 'move-to x y) (list 'line-to x y) (list 'cubic-to cx1 cy1 cx2 cy2 x y)
+//         (list 'quad-to cx cy x y) (list 'arc rx ry rot laf sf x y) (list 'close))
+//
+// Alternatively (or additionally), an SVG path string can be provided via the :d keyword:
+//   (path :d "M10 10 L100 50 C150 0 200 100 250 50 Z" :fill "red")
+//
+// When both are provided, :d SVG string is used.
+
+static Result<Value> builtin_path(const std::vector<Value>& args, Environment& /*env*/) {
+    if (args.empty()) {
+        return std::unexpected(arity_error(SourceLocation{}, 1, 0));
+    }
+
+    // Determine if first arg is a command list (positional) or we go straight to kwargs
+    const Value* commands_val = nullptr;
+    size_t positional_count = 0;
+    if (!args.empty()) {
+        const auto* list = args[0].as_list();
+        if (list && *list) {
+            commands_val = &args[0];
+            positional_count = 1;
+        }
+    }
+
+    auto kwargs = parse_kwargs(args, positional_count);
+    std::optional<std::string> fill_color;
+    std::optional<std::string> stroke_color;
+    double sw = kw_double(kwargs, "stroke-width", 1.0);
+
+    auto fill_it = kwargs.find("fill");
+    if (fill_it != kwargs.end()) {
+        fill_color = value_to_opt_string(fill_it->second);
+    }
+    auto stroke_it = kwargs.find("stroke");
+    if (stroke_it != kwargs.end()) {
+        stroke_color = value_to_opt_string(stroke_it->second);
+    }
+
+    // Check for SVG :d string (takes precedence if present)
+    std::string d_str;
+    auto d_it = kwargs.find("d");
+    if (d_it != kwargs.end()) {
+        auto opt_d = value_to_opt_string(d_it->second);
+        if (opt_d) d_str = std::move(*opt_d);
+    }
+
+    Params params;
+
+    if (!d_str.empty()) {
+        // Store SVG path string in ParamKey::d
+        params.set(ParamKey::d, Value(std::move(d_str)));
+    } else if (commands_val) {
+        // Validate and store the command list
+        const auto& elems = (*commands_val->as_list())->elements;
+        if (elems.empty()) {
+            return std::unexpected(type_error("path: command list must not be empty"));
+        }
+
+        // Validate each command has the right structure
+        for (size_t i = 0; i < elems.size(); ++i) {
+            const auto* cmd_list = elems[i].as_list();
+            if (!cmd_list || !*cmd_list || (*cmd_list)->elements.empty()) {
+                return std::unexpected(type_error(
+                    "path: each command must be a non-empty list (command-symbol arg1 arg2 ...)"));
+            }
+            const auto& cmd_elems = (*cmd_list)->elements;
+            const auto* sym = cmd_elems[0].as_symbol();
+            if (!sym) {
+                return std::unexpected(type_error(
+                    "path: first element of each command must be a symbol"));
+            }
+            // Validate command name exists
+            auto cmd_type = string_to_cmd(sym->name);
+            if (!cmd_type) {
+                return std::unexpected(type_error(
+                    "path: unknown command '" + sym->name + "'"));
+            }
+            uint8_t expected_args = kArgCounts[static_cast<uint8_t>(*cmd_type)];
+            size_t actual_args = cmd_elems.size() - 1; // exclude the command symbol
+            if (actual_args != expected_args) {
+                return std::unexpected(type_error(
+                    "path: command '" + sym->name + "' expects " +
+                    std::to_string(expected_args) + " arguments, got " +
+                    std::to_string(actual_args)));
+            }
+            // Verify all args are numeric (except Close which has 0 args)
+            if (*cmd_type != PathCmdType::Close) {
+                for (size_t j = 1; j < cmd_elems.size(); ++j) {
+                    if (!cmd_elems[j].is_double() && !cmd_elems[j].is_int()) {
+                        return std::unexpected(type_error(
+                            "path: command '" + sym->name + "' argument " +
+                            std::to_string(j) + " must be a number"));
+                    }
+                }
+            }
+        }
+
+        // Store the validated command list
+        params.set(ParamKey::path_commands, *commands_val);
+    } else {
+        return std::unexpected(type_error(
+            "path: provide either a command list as first argument, or an SVG :d string"));
+    }
+
+    // Resolve rough-style params
+    auto rough = resolve_rough_params(kwargs);
+
+    std::string shape = rough.rough_stroke ? "rough_path" : "path";
+
+    auto obj = std::make_shared<GraphicObject>(
+        shape,
+        std::move(params),
+        fill_color ? std::optional<std::string>(*fill_color) : std::nullopt,
+        stroke_color ? std::optional<std::string>(*stroke_color) : std::nullopt,
+        sw);
+
+    if (rough.rough_stroke) {
+        obj->metadata["roughness"] = Value(rough.params.roughness);
+        obj->metadata["bowing"] = Value(rough.params.bowing);
+        obj->metadata["seed"] = Value(static_cast<double>(rough.params.seed));
+    }
+    if (rough.rough_fill) {
+        obj->metadata["fill_style"] = Value(std::string(rough.params.fill_style));
+    }
+
+    apply_blend_and_stroke(obj, kwargs);
+
+    return Value(std::move(obj));
+}
+
 // ── (group object1 object2 ...) → GraphicObject ─────────────────────────────
 //
 // Create a group GraphicObject containing the given objects as children.
@@ -569,6 +705,7 @@ void register_shape_builtins(std::shared_ptr<Environment> env) {
     def(env, "line", builtin_line, true);       // accepts :stroke, :stroke-width
     def(env, "polygon", builtin_polygon, true); // accepts :fill, :stroke, :stroke-width
     def(env, "text", builtin_text, true);       // accepts :fill, :font-size
+    def(env, "path", builtin_path, true);       // accepts :fill, :stroke, :stroke-width, :d
 
     // ── Group builtin ───────────────────────────────────────────────────
     def(env, "group", builtin_group);

@@ -11,6 +11,7 @@ add_library(pml_graphics
     tileset.cpp
     perlin_noise.cpp
     polygon_perturb.cpp
+    path_types.cpp
 )
 
 target_include_directories(pml_graphics PUBLIC

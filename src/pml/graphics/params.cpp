@@ -39,8 +39,9 @@ constexpr KeyEntry k_key_table[] = {
     {"points",    ParamKey::points},
     {"shader",    ParamKey::shader},
     {"crop",      ParamKey::crop},
-    {"mesh",      ParamKey::mesh},
-    {"transform", ParamKey::transform},
+    {"mesh",           ParamKey::mesh},
+    {"transform",      ParamKey::transform},
+    {"path_commands",  ParamKey::path_commands},
 };
 
 }  // anonymous namespace
@@ -74,9 +75,10 @@ const char* param_key_to_string(ParamKey key) noexcept {
         case ParamKey::points:    return "points";
         case ParamKey::shader:    return "shader";
         case ParamKey::crop:      return "crop";
-        case ParamKey::mesh:      return "mesh";
-        case ParamKey::transform: return "transform";
-        default:                  return "";
+        case ParamKey::mesh:           return "mesh";
+        case ParamKey::transform:      return "transform";
+        case ParamKey::path_commands:  return "path_commands";
+        default:                       return "";
     }
 }
 

@@ -37,6 +37,7 @@ enum class ParamKey : uint8_t {
     crop,
     mesh,
     transform,
+    path_commands,
     count
 };
 

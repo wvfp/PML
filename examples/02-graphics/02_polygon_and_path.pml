@@ -1,12 +1,20 @@
+; ═══════════════════════════════════════════════════════════════════════════════
 ; 示例 2：多边形与路径
-; 本例用 polygon 绘制星形、心形和箭头。
-; 注意：当前 C++ 端口尚未实现 path 原语，原本想展示的贝塞尔路径（心形、箭头）
-; 这里使用 polygon / line 做近似，仍可说明复杂轮廓的构造思路。
+; ───────────────────────────────────────────────────────────────────────────────
+; 本例展示如何使用 polygon 绘制星形等几何图形，以及使用 path 绘制贝塞尔曲线。
+; path 支持两种用法：
+;   1. SVG path string (通过 :d 参数)
+;   2. PML 命令列表 (通过 list 形式的 path 命令)
+;
+; 支持的命令：move-to, line-to, hline-to, vline-to,
+;            cubic-to, smooth-cubic-to, quad-to, smooth-quad-to,
+;            arc-to, arc, close
+; ═══════════════════════════════════════════════════════════════════════════════
 
 (set-backend! "skia")
-(canvas 400 300 :bg "#FFF9DB")
+(canvas 640 320 :bg "#FFF9DB")
 
-; 五角星：list 里嵌套 (x y) 点列表
+; ── 五角星（polygon）───────────────────────────────────────────────────────
 (define star-points
   (list (list 200 50)
         (list 240 140)
@@ -24,35 +32,37 @@
               :stroke "#F08C00"
               :stroke-width 3))
 
-; 心形：用多边形近似贝塞尔曲线轮廓
-(define heart-points
-  (list (list 100 180)
-        (list 50 120)
-        (list 50 90)
-        (list 70 70)
-        (list 100 100)
-        (list 130 70)
-        (list 150 90)
-        (list 150 120)))
+; ── 心形（path + SVG d 字符串）───────────────────────────────────────────
+; 使用贝塞尔曲线绘制光滑的心形
+(add (path :d "M 90 130 C 90 90, 130 60, 160 90 C 190 60, 230 90, 230 130 C 230 180, 160 230, 160 230 C 160 230, 90 180, 90 130 Z"
+          :fill "#FF6B6B"
+          :stroke "#C92A2A"
+          :stroke-width 2))
 
-(add (polygon heart-points
-              :fill "#FF6B6B"
-              :stroke "#C92A2A"
-              :stroke-width 2))
+; ── 箭头（path + 命令列表）────────────────────────────────────────────────
+; 使用命令列表绘制箭头形状
+(add (path (list (list 'move-to 380 60)
+                 (list 'line-to 480 130)
+                 (list 'line-to 440 130)
+                 (list 'line-to 440 200)
+                 (list 'line-to 320 200)
+                 (list 'line-to 320 130)
+                 (list 'line-to 280 130)
+                 (list 'close))
+          :fill "#74C0FC"
+          :stroke "#1864AB"
+          :stroke-width 2))
 
-; 箭头：用多边形近似
-(define arrow-points
-  (list (list 260 80)
-        (list 340 150)
-        (list 300 150)
-        (list 300 230)
-        (list 220 230)
-        (list 220 150)
-        (list 180 150)))
+; ── 波浪线（path + 贝塞尔曲线）────────────────────────────────────────────
+(add (path :d "M 50 290 Q 100 260, 150 290 T 250 290 T 350 290 T 450 290 T 550 290"
+          :fill "none"
+          :stroke "#845EF7"
+          :stroke-width 3))
 
-(add (polygon arrow-points
-              :fill "#74C0FC"
-              :stroke "#1864AB"
-              :stroke-width 2))
+; ── S 形曲线（path + 立方贝塞尔）─────────────────────────────────────────
+(add (path :d "M 480 80 C 530 60, 530 120, 580 100 C 600 90, 600 140, 620 140"
+          :fill "none"
+          :stroke "#20C997"
+          :stroke-width 3))
 
 (render "02_polygon_and_path.png")

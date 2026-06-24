@@ -11,6 +11,7 @@
 #include "pml/api/context.h"
 #include "pml/asset/asset_cache.h"
 #include "pml/backend/registry.h"
+#include "pml/graphics/path_types.h"
 #include "pml/graphics/polygon_perturb.h"
 
 namespace pml {
@@ -416,19 +417,6 @@ Result<void> draw_text(SkCanvas* canvas, const GraphicObject& obj,
                            static_cast<SkScalar>(x),
                            static_cast<SkScalar>(y),
                            font, paint);
-    return {};
-}
-
-Result<void> draw_path(SkCanvas* canvas, const GraphicObject& obj,
-                       sk_sp<SkShader> /*shader*/)
-{
-    std::string d = get_string(obj.params, ParamKey::d, "");
-    if (d.empty()) return {};
-
-    // TODO: parse SVG path data into SkPath.
-    // For now, leave as a no-op so compilation and basic shapes work.
-    (void)canvas;
-    (void)obj;
     return {};
 }
 
@@ -856,6 +844,414 @@ Result<void> draw_rough_polygon(SkCanvas* canvas, const GraphicObject& obj,
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Path helpers — parse PML command lists and build SkPath from SVG commands
+// ═══════════════════════════════════════════════════════════════════════════════
+
+static std::expected<std::vector<PathCommand>, std::string>
+parse_pml_path_commands(const Value& list_val)
+{
+    const auto* list = list_val.as_list();
+    if (!list || !*list) {
+        return std::unexpected(std::string("path: expected a list of commands"));
+    }
+
+    const auto& elems = (*list)->elements;
+    std::vector<PathCommand> result;
+    result.reserve(elems.size());
+
+    for (size_t i = 0; i < elems.size(); ++i) {
+        const auto* cmd_list = elems[i].as_list();
+        if (!cmd_list || !*cmd_list || (*cmd_list)->elements.empty()) {
+            return std::unexpected(
+                "path: each command must be a non-empty list (command-symbol args...)");
+        }
+        const auto& cmd_elems = (*cmd_list)->elements;
+        const auto* sym = cmd_elems[0].as_symbol();
+        if (!sym) {
+            return std::unexpected("path: first element of each command must be a symbol");
+        }
+
+        auto cmd_type = string_to_cmd(sym->name);
+        if (!cmd_type) {
+            return std::unexpected("path: unknown command '" + sym->name + "'");
+        }
+
+        std::vector<double> args;
+        args.reserve(cmd_elems.size() - 1);
+        for (size_t j = 1; j < cmd_elems.size(); ++j) {
+            if (cmd_elems[j].is_double()) {
+                args.push_back(cmd_elems[j].double_val());
+            } else if (cmd_elems[j].is_int()) {
+                args.push_back(static_cast<double>(cmd_elems[j].int_val()));
+            } else {
+                return std::unexpected(
+                    "path: command '" + sym->name + "' argument must be numeric");
+            }
+        }
+
+        result.emplace_back(*cmd_type, std::move(args));
+    }
+
+    return result;
+}
+
+static SkPath build_skpath_from_commands(const std::vector<PathCommand>& cmds)
+{
+    SkPathBuilder builder;
+    double cx = 0.0, cy = 0.0;           // current point
+    double pcx = 0.0, pcy = 0.0;         // previous control point (for smooth curves)
+    double subpath_start_x = 0.0, subpath_start_y = 0.0;
+    bool has_prev_cp = false;
+
+    for (const auto& cmd : cmds) {
+        const auto& a = cmd.args;
+        bool rel = is_relative(cmd.type);
+
+        switch (cmd.type) {
+        case PathCmdType::MoveTo:
+        case PathCmdType::MoveToR: {
+            double x = rel ? cx + a[0] : a[0];
+            double y = rel ? cy + a[1] : a[1];
+            builder.moveTo(static_cast<SkScalar>(x), static_cast<SkScalar>(y));
+            cx = x; cy = y;
+            subpath_start_x = x; subpath_start_y = y;
+            has_prev_cp = false;
+            break;
+        }
+        case PathCmdType::LineTo:
+        case PathCmdType::LineToR: {
+            double x = rel ? cx + a[0] : a[0];
+            double y = rel ? cy + a[1] : a[1];
+            builder.lineTo(static_cast<SkScalar>(x), static_cast<SkScalar>(y));
+            cx = x; cy = y;
+            has_prev_cp = false;
+            break;
+        }
+        case PathCmdType::HLineTo:
+        case PathCmdType::HLineToR: {
+            double x = rel ? cx + a[0] : a[0];
+            builder.lineTo(static_cast<SkScalar>(x), static_cast<SkScalar>(cy));
+            cx = x;
+            has_prev_cp = false;
+            break;
+        }
+        case PathCmdType::VLineTo:
+        case PathCmdType::VLineToR: {
+            double y = rel ? cy + a[0] : a[0];
+            builder.lineTo(static_cast<SkScalar>(cx), static_cast<SkScalar>(y));
+            cy = y;
+            has_prev_cp = false;
+            break;
+        }
+        case PathCmdType::CubicTo:
+        case PathCmdType::CubicToR: {
+            double cx1 = rel ? cx + a[0] : a[0];
+            double cy1 = rel ? cy + a[1] : a[1];
+            double cx2 = rel ? cx + a[2] : a[2];
+            double cy2 = rel ? cy + a[3] : a[3];
+            double x   = rel ? cx + a[4] : a[4];
+            double y   = rel ? cy + a[5] : a[5];
+            builder.cubicTo(
+                static_cast<SkScalar>(cx1), static_cast<SkScalar>(cy1),
+                static_cast<SkScalar>(cx2), static_cast<SkScalar>(cy2),
+                static_cast<SkScalar>(x),   static_cast<SkScalar>(y));
+            pcx = cx2; pcy = cy2;
+            has_prev_cp = true;
+            cx = x; cy = y;
+            break;
+        }
+        case PathCmdType::SmoothCubicTo:
+        case PathCmdType::SmoothCubicToR: {
+            // Reflect previous control point
+            double cx1 = has_prev_cp ? 2.0 * cx - pcx : cx;
+            double cy1 = has_prev_cp ? 2.0 * cy - pcy : cy;
+            double cx2 = rel ? cx + a[0] : a[0];
+            double cy2 = rel ? cy + a[1] : a[1];
+            double x   = rel ? cx + a[2] : a[2];
+            double y   = rel ? cy + a[3] : a[3];
+            builder.cubicTo(
+                static_cast<SkScalar>(cx1), static_cast<SkScalar>(cy1),
+                static_cast<SkScalar>(cx2), static_cast<SkScalar>(cy2),
+                static_cast<SkScalar>(x),   static_cast<SkScalar>(y));
+            pcx = cx2; pcy = cy2;
+            has_prev_cp = true;
+            cx = x; cy = y;
+            break;
+        }
+        case PathCmdType::QuadTo:
+        case PathCmdType::QuadToR: {
+            double qcx = rel ? cx + a[0] : a[0];
+            double qcy = rel ? cy + a[1] : a[1];
+            double x   = rel ? cx + a[2] : a[2];
+            double y   = rel ? cy + a[3] : a[3];
+            builder.quadTo(
+                static_cast<SkScalar>(qcx), static_cast<SkScalar>(qcy),
+                static_cast<SkScalar>(x),   static_cast<SkScalar>(y));
+            pcx = qcx; pcy = qcy;
+            has_prev_cp = true;
+            cx = x; cy = y;
+            break;
+        }
+        case PathCmdType::SmoothQuadTo:
+        case PathCmdType::SmoothQuadToR: {
+            // Reflect previous control point
+            double qcx = has_prev_cp ? 2.0 * cx - pcx : cx;
+            double qcy = has_prev_cp ? 2.0 * cy - pcy : cy;
+            double x   = rel ? cx + a[0] : a[0];
+            double y   = rel ? cy + a[1] : a[1];
+            builder.quadTo(
+                static_cast<SkScalar>(qcx), static_cast<SkScalar>(qcy),
+                static_cast<SkScalar>(x),   static_cast<SkScalar>(y));
+            pcx = qcx; pcy = qcy;
+            has_prev_cp = true;
+            cx = x; cy = y;
+            break;
+        }
+        case PathCmdType::Arc:
+        case PathCmdType::ArcR: {
+            double rx  = a[0];
+            double ry  = a[1];
+            double rot = a[2];
+            int laf    = static_cast<int>(a[3]);
+            int sf     = static_cast<int>(a[4]);
+            double x   = rel ? cx + a[5] : a[5];
+            double y   = rel ? cy + a[6] : a[6];
+
+            if (rx > 0.0 && ry > 0.0) {
+                builder.arcTo(
+                    SkPoint{static_cast<SkScalar>(rx), static_cast<SkScalar>(ry)},
+                    static_cast<SkScalar>(rot),
+                    laf != 0 ? SkPathBuilder::kLarge_ArcSize : SkPathBuilder::kSmall_ArcSize,
+                    sf != 0 ? SkPathDirection::kCW : SkPathDirection::kCCW,
+                    SkPoint{static_cast<SkScalar>(x), static_cast<SkScalar>(y)});
+            } else {
+                builder.lineTo(static_cast<SkScalar>(x), static_cast<SkScalar>(y));
+            }
+            cx = x; cy = y;
+            has_prev_cp = false;
+            break;
+        }
+        case PathCmdType::Close:
+            builder.close();
+            cx = subpath_start_x; cy = subpath_start_y;
+            has_prev_cp = false;
+            break;
+        default:
+            break;
+        }
+    }
+
+    return builder.detach();
+}
+
+Result<void> draw_path(SkCanvas* canvas, const GraphicObject& obj,
+                       sk_sp<SkShader> shader)
+{
+    // Try path_commands first (from S-expression API), then fall back to :d SVG string
+    std::vector<PathCommand> cmds;
+    bool has_commands = false;
+
+    if (const Value* pc_val = obj.params.find(ParamKey::path_commands)) {
+        auto parsed = parse_pml_path_commands(*pc_val);
+        if (parsed) {
+            cmds = std::move(*parsed);
+            has_commands = true;
+        } else {
+            return std::unexpected(general_error(
+                "draw_path: " + parsed.error()));
+        }
+    }
+
+    if (!has_commands) {
+        std::string d = get_string(obj.params, ParamKey::d, "");
+        if (d.empty()) return {};
+
+        auto parsed = parse_svg_path_string(d);
+        if (!parsed) {
+            return std::unexpected(general_error(
+                "draw_path: " + parsed.error()));
+        }
+        cmds = std::move(*parsed);
+        has_commands = true;
+    }
+
+    if (!has_commands || cmds.empty()) return {};
+
+    SkPath path = build_skpath_from_commands(cmds);
+
+    if (obj.fill || shader) {
+        SkPaint paint;
+        configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode);
+        if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
+            canvas->drawPath(path, paint);
+        }
+    }
+    if (obj.stroke) {
+        SkPaint paint;
+        configure_stroke_paint(paint, obj.stroke, obj.stroke_width, obj.blend_mode);
+        if (paint.getColor() != SK_ColorTRANSPARENT) {
+            if (obj.stroke_align != "center") {
+                canvas->save();
+                apply_clip_for_stroke_align(canvas, obj, path);
+                paint.setStrokeWidth(paint.getStrokeWidth() * 2.0f);
+                canvas->drawPath(path, paint);
+                canvas->restore();
+            } else {
+                canvas->drawPath(path, paint);
+            }
+        }
+    }
+    return {};
+}
+
+// ── Rough path rendering ──────────────────────────────────────────────────────
+
+// Sample points at regular intervals along a path for rough rendering
+static std::vector<RoughPoint> sample_path_points(const SkPath& path, int samples_per_verb = 10)
+{
+    std::vector<RoughPoint> pts;
+    SkPath::Iter iter(path, false);
+
+    SkPoint path_pts[4];
+    SkPath::Verb verb;
+
+    while ((verb = iter.next(path_pts)) != SkPath::kDone_Verb) {
+        switch (verb) {
+        case SkPath::kMove_Verb: {
+            pts.push_back({path_pts[0].fX, path_pts[0].fY});
+            break;
+        }
+        case SkPath::kLine_Verb: {
+            SkScalar dx = path_pts[1].fX - path_pts[0].fX;
+            SkScalar dy = path_pts[1].fY - path_pts[0].fY;
+            for (int i = 1; i < samples_per_verb; ++i) {
+                SkScalar t = static_cast<SkScalar>(i) / samples_per_verb;
+                pts.push_back({path_pts[0].fX + dx * t, path_pts[0].fY + dy * t});
+            }
+            pts.push_back({path_pts[1].fX, path_pts[1].fY});
+            break;
+        }
+        case SkPath::kQuad_Verb: {
+            for (int i = 1; i < samples_per_verb; ++i) {
+                SkScalar t = static_cast<SkScalar>(i) / samples_per_verb;
+                SkScalar t1 = 1.0f - t;
+                SkScalar x = t1 * t1 * path_pts[0].fX + 2.0f * t1 * t * path_pts[1].fX + t * t * path_pts[2].fX;
+                SkScalar y = t1 * t1 * path_pts[0].fY + 2.0f * t1 * t * path_pts[1].fY + t * t * path_pts[2].fY;
+                pts.push_back({x, y});
+            }
+            pts.push_back({path_pts[2].fX, path_pts[2].fY});
+            break;
+        }
+        case SkPath::kCubic_Verb: {
+            for (int i = 1; i < samples_per_verb; ++i) {
+                SkScalar t = static_cast<SkScalar>(i) / samples_per_verb;
+                SkScalar t1 = 1.0f - t;
+                SkScalar x = t1 * t1 * t1 * path_pts[0].fX +
+                             3.0f * t1 * t1 * t * path_pts[1].fX +
+                             3.0f * t1 * t * t * path_pts[2].fX +
+                             t * t * t * path_pts[3].fX;
+                SkScalar y = t1 * t1 * t1 * path_pts[0].fY +
+                             3.0f * t1 * t1 * t * path_pts[1].fY +
+                             3.0f * t1 * t * t * path_pts[2].fY +
+                             t * t * t * path_pts[3].fY;
+                pts.push_back({x, y});
+            }
+            pts.push_back({path_pts[3].fX, path_pts[3].fY});
+            break;
+        }
+        case SkPath::kClose_Verb:
+            // Close: no additional points needed, the next move starts a new subpath
+            break;
+        case SkPath::kDone_Verb:
+        case SkPath::kConic_Verb:
+        default:
+            break;
+        }
+    }
+
+    return pts;
+}
+
+Result<void> draw_rough_path(SkCanvas* canvas, const GraphicObject& obj,
+                             sk_sp<SkShader> shader,
+                             const RoughStyleParams& params,
+                             RoughRandom& rng)
+{
+    // Build path commands
+    std::vector<PathCommand> cmds;
+    bool has_commands = false;
+
+    if (const Value* pc_val = obj.params.find(ParamKey::path_commands)) {
+        auto parsed = parse_pml_path_commands(*pc_val);
+        if (parsed) {
+            cmds = std::move(*parsed);
+            has_commands = true;
+        } else {
+            return std::unexpected(general_error(
+                "draw_path: " + parsed.error()));
+        }
+    }
+
+    if (!has_commands) {
+        std::string d = get_string(obj.params, ParamKey::d, "");
+        if (d.empty()) return {};
+
+        auto parsed = parse_svg_path_string(d);
+        if (!parsed) {
+            return std::unexpected(general_error(
+                "draw_path: " + parsed.error()));
+        }
+        cmds = std::move(*parsed);
+        has_commands = true;
+    }
+
+    if (!has_commands || cmds.empty()) return {};
+
+    SkPath path = build_skpath_from_commands(cmds);
+
+    // Sample path to get points for rough rendering
+    auto pts = sample_path_points(path);
+
+    // Determine if path is closed (last contour ends with kClose_Verb)
+    bool is_closed = path.isLastContourClosed();
+
+    // Fill layer
+    if (obj.fill || shader) {
+        if (params.fill_style == "solid" || params.fill_style.empty()) {
+            auto ops = rough_linear_path(pts, is_closed, const_cast<RoughStyleParams&>(params), rng);
+            SkPath fill_path = rough_ops_to_skpath(ops);
+            if (is_closed) {
+                SkPathBuilder b(fill_path); b.close();
+                fill_path = b.detach();
+            }
+            SkPaint paint;
+            configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode);
+            if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
+                canvas->drawPath(fill_path, paint);
+            }
+        } else {
+            // Pattern fill
+            std::vector<RoughPoint> poly_pts;
+            if (is_closed && !pts.empty()) {
+                // Use all sampled points for pattern fill
+                poly_pts = pts;
+            }
+            auto result = draw_rough_fill_impl(canvas, poly_pts, obj.fill, params, rng);
+            if (!result) return result;
+        }
+    }
+
+    // Stroke layer
+    if (obj.stroke) {
+        auto ops = rough_linear_path(pts, is_closed, const_cast<RoughStyleParams&>(params), rng);
+        SkPath stroke_path = rough_ops_to_skpath(ops);
+        draw_rough_stroke_path(canvas, stroke_path, obj.stroke, obj.stroke_width, obj.blend_mode);
+    }
+
+    return {};
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // draw_object — main dispatcher
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -910,6 +1306,9 @@ Result<void> draw_object(SkCanvas* canvas, const GraphicObject& obj,
         }
         if (obj.shape_type == "rough_polygon") {
             return draw_rough_polygon(canvas, obj, local_shader, params, rng);
+        }
+        if (obj.shape_type == "rough_path") {
+            return draw_rough_path(canvas, obj, local_shader, params, rng);
         }
         // Unknown rough_ prefix → fall through to exact path
     }
