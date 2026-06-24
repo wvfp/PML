@@ -10,33 +10,36 @@
 //   - Persistent environment across evaluations
 // ═══════════════════════════════════════════════════════════════════════════════
 
-#include "pml/evaluator/environment.h"
-
 #include <memory>
 #include <string>
 
 namespace pml {
 
+class PMLRuntime;
+class Environment;
+
 /// Run the interactive REPL (Read-Eval-Print Loop).
 ///
-/// Uses the provided global environment for evaluation.  The environment
-/// persists across REPL inputs — definitions from one line are visible
-/// on subsequent lines.
+/// Uses the provided PMLRuntime for evaluation.  The environment persists
+/// across REPL inputs — definitions from one line are visible on subsequent
+/// lines.
 ///
 /// The loop terminates on EOF (Ctrl-D), (exit), exit, or quit.
 ///
-/// @param env  The global PML environment (from PMLRuntime).
-void run_repl(std::shared_ptr<Environment> env);
+/// @param runtime  The PMLRuntime instance (provides env + context + arena).
+void run_repl(PMLRuntime& runtime);
 
 /// Run a single line of PML input and print the result(s) to stdout.
 ///
 /// Returns true if the line was evaluated successfully (or had a recoverable
 /// error), false if the REPL should terminate (e.g. "(exit)").
 ///
-/// @param line  The raw input line from the user.
-/// @param env   The global PML environment.
+/// @param line     The raw input line from the user.
+/// @param runtime  The PMLRuntime instance.
+/// @param env      The global PML environment (from runtime.env()).
 /// @return False to terminate REPL, true otherwise.
-bool run_repl_line(const std::string& line, std::shared_ptr<Environment> env);
+bool run_repl_line(const std::string& line, PMLRuntime& runtime,
+                   std::shared_ptr<Environment> env);
 
 /// Accumulate input for multi-line expressions.
 ///

@@ -3,10 +3,18 @@
 //
 // Ported from pml/repl.py.  Provides line-by-line interactive evaluation
 // with multi-line expression support and structured error display.
+//
+// Unlike file/JSON execution modes, the REPL evaluates each line through
+// PMLRuntime::execute() to ensure consistent context (arena, call stack,
+// canvas/timeline state) with the other modes.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 #include "repl.h"
 
+#include "pml/api/api.h"
+#include "pml/api/context.h"
+#include "pml/core/arena.h"
+#include "pml/core/call_stack.h"
 #include "pml/core/error.h"
 #include "pml/core/source_manager.h"
 #include "pml/core/types.h"
@@ -74,7 +82,8 @@ void LineAccumulator::reset()
 // REPL line evaluation
 // ═══════════════════════════════════════════════════════════════════════════════
 
-bool run_repl_line(const std::string& line, std::shared_ptr<Environment> env)
+bool run_repl_line(const std::string& line, PMLRuntime& runtime,
+                   std::shared_ptr<Environment> env)
 {
     // Cache the source so error formatters can display it.
     g_repl_source_manager.load_source("<stdin>", line);
@@ -93,8 +102,24 @@ bool run_repl_line(const std::string& line, std::shared_ptr<Environment> env)
         return false;
     }
 
-    // Set __source_file__ for error reporting
+    // ── Context setup (matching PMLRuntime::execute()) ────────────────────
+    // Reset the runtime call stack so errors from previous lines do not leak.
+    CallStack::instance().clear();
+
+    // Activate this runtime's context so canvas/timeline/styles accessors
+    // see the correct per-runtime state.
+    PMLContextScope ctx_scope(runtime.context());
+
+    // Activate the per-runtime arena for short-lived AST/eval temporaries.
+    // The arena resets when this scope ends (after printing results).
+    ArenaScope arena_scope(&runtime.arena());
+
+    // Set __source_file__ for error reporting in imported modules.
     env->define("__source_file__", Value(std::string("<stdin>")));
+
+    // ── Evaluate using low-level pipeline for per-expression control ──────
+    // Unlike PMLRuntime::execute(), this loop prints every expression's value
+    // and continues after errors — appropriate for interactive use.
 
     try {
         // Tokenize
@@ -150,8 +175,9 @@ bool run_repl_line(const std::string& line, std::shared_ptr<Environment> env)
 // Main REPL loop
 // ═══════════════════════════════════════════════════════════════════════════════
 
-void run_repl(std::shared_ptr<Environment> env)
+void run_repl(PMLRuntime& runtime)
 {
+    auto env = runtime.env();
     std::cout << "PML 0.1.0 — Type (exit) or Ctrl-D to quit." << std::endl;
 
     LineAccumulator accumulator;
@@ -182,11 +208,11 @@ void run_repl(std::shared_ptr<Environment> env)
             continue;  // need more lines
         }
 
-        // Execute the accumulated expression
+        // Execute the accumulated expression via PMLRuntime
         const auto source = accumulator.source();
         accumulator.reset();
 
-        if (!run_repl_line(source, env)) {
+        if (!run_repl_line(source, runtime, env)) {
             break;  // exit command
         }
     }

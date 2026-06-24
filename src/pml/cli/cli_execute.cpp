@@ -82,38 +82,11 @@ int run_json_mode(const CLIOptions& opts, PMLRuntime& runtime)
         runtime.context().output_dir = opts.output_dir;
     }
 
-    nlohmann::json result;
+    // PMLRuntime::execute_file returns errors via RenderResult, not exceptions.
+    auto r = runtime.execute_file(opts.file);
+    std::cout << r.to_json().dump(2) << std::endl;
 
-    try {
-        auto r = runtime.execute_file(opts.file);
-        if (r.success) {
-            result["success"] = true;
-            result["value"] = r.value;
-            result["files"] = r.files;
-            result["error"] = nullptr;
-        } else {
-            result["success"] = false;
-            result["value"] = nullptr;
-            result["files"] = nlohmann::json::array();
-            if (r.error.has_value()) {
-                result["error"] = *r.error;
-            } else {
-                result["error"] = error_to_json(0, "UnknownError", "Execution failed");
-            }
-        }
-    } catch (const std::exception& e) {
-        result["success"] = false;
-        result["value"] = nullptr;
-        result["files"] = nlohmann::json::array();
-        result["error"] = error_to_json(0, "InternalError", e.what());
-    }
-
-    std::cout << result.dump(2) << std::endl;
-
-    if (!result["success"].get<bool>()) {
-        return 1;
-    }
-    return 0;
+    return r.success ? 0 : 1;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -126,8 +99,8 @@ int run_repl_mode(PMLRuntime& runtime)
     auto env = runtime.env();
     load_embedded_stdlib(env);
 
-    // Enter interactive REPL
-    run_repl(env);
+    // Enter interactive REPL (uses PMLRuntime for consistent pipeline)
+    run_repl(runtime);
     return 0;
 }
 
