@@ -14,10 +14,9 @@
 #include "pml/api/api.h"
 #include "pml/core/error.h"
 #include "pml/core/types.h"
-#include "pml/evaluator/environment.h"
-#include "pml/frontend/expander.h"
-#include "pml/frontend/lexer.h"
-#include "pml/frontend/parser.h"
+#include "pml/sprites/registry.h"
+#include "pml/sprites/validator.h"
+// (frontend headers not needed directly — validate() delegates to PMLRuntime)
 
 #include <algorithm>
 #include <cctype>
@@ -457,11 +456,14 @@ nlohmann::json MCPServer::tool_render_sprite(const nlohmann::json& args) {
         return exec_result;
     }
 
+    // Read output files tracked by the runtime context after execution.
+    const auto& files = m_runtime->context().output_files;
+
     // Return JSON matching Python's SpriteAsset format
     nlohmann::json result;
     result["success"] = true;
-    result["file"] = "";       // The C++ PMLRuntime doesn't track output files — the
-    result["width"] = 0;       // caller's source must contain explicit (render ...) calls.
+    result["file"] = files.empty() ? "" : files.back();
+    result["width"] = 0;
     result["height"] = 0;
     result["format"] = "PNG";
     result["meta"] = nullptr;
@@ -484,46 +486,19 @@ nlohmann::json MCPServer::tool_validate(const nlohmann::json& args) {
     }
 
     std::string source = it_source->get<std::string>();
-    std::string filename = "<validate>";
+
+    // Delegate to PMLRuntime::validate() — consistent pipeline with other modes.
+    auto vr = m_runtime->validate(source);
 
     nlohmann::json errors = nlohmann::json::array();
-    nlohmann::json warnings = nlohmann::json::array();
-
-    // ── Step 1: Lex ──────────────────────────────────────────────────────
-    Lexer lexer(source, filename);
-    auto token_result = lexer.tokenize();
-    if (!token_result.has_value()) {
-        errors.push_back(error_to_dict(token_result.error()));
-        return {
-            {"valid", false},
-            {"errors", errors},
-            {"warnings", warnings},
-        };
-    }
-
-    // ── Step 2: Parse ────────────────────────────────────────────────────
-    Parser parser(std::move(*token_result), filename);
-    auto parse_result = parser.parse();
-    if (!parse_result.has_value()) {
-        errors.push_back(error_to_dict(parse_result.error()));
-        return {
-            {"valid", false},
-            {"errors", errors},
-            {"warnings", warnings},
-        };
-    }
-
-    // ── Step 3: Macro expansion ──────────────────────────────────────────
-    Expander expander(m_runtime->env());
-    auto expand_result = expander.expand_all(*parse_result);
-    if (!expand_result.has_value()) {
-        errors.push_back(error_to_dict(expand_result.error()));
+    for (const auto& e : vr.errors) {
+        errors.push_back(e);
     }
 
     return {
-        {"valid", errors.empty()},
+        {"valid", vr.valid},
         {"errors", errors},
-        {"warnings", warnings},
+        {"warnings", nlohmann::json::array()},
     };
 }
 
@@ -531,10 +506,60 @@ nlohmann::json MCPServer::tool_validate(const nlohmann::json& args) {
 // Tool: list_components (stub)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-nlohmann::json MCPServer::tool_list_components(const nlohmann::json& /*args*/) {
-    // Stub — returns empty list.
-    // Will be populated when the sprite component registry API is available.
-    return nlohmann::json::array();
+// ── Helper: convert a FieldSpec to a JSON object ────────────────────────
+
+static nlohmann::json field_spec_to_json(const std::string& name, const FieldSpec& spec) {
+    nlohmann::json j;
+    j["name"] = name;
+    switch (spec.type) {
+        case FieldSpec::Enum:    j["type"] = "enum";    break;
+        case FieldSpec::Number:  j["type"] = "number";  break;
+        case FieldSpec::Boolean: j["type"] = "boolean"; break;
+        case FieldSpec::Color:   j["type"] = "color";   break;
+        case FieldSpec::Any:     j["type"] = "any";     break;
+    }
+    if (spec.enum_values.has_value()) {
+        j["values"] = *spec.enum_values;
+    }
+    j["default"] = value_to_string(spec.default_value);
+    if (spec.type == FieldSpec::Number) {
+        j["min"] = spec.min_value;
+        j["max"] = spec.max_value;
+    }
+    return j;
+}
+
+nlohmann::json MCPServer::tool_list_components(const nlohmann::json& args) {
+    auto& registry = ComponentRegistry::instance();
+    std::string category = args.value("category", "");
+
+    std::vector<std::string> names;
+    if (category.empty()) {
+        names = registry.list_components();
+    } else {
+        names = registry.list_by_category(category);
+    }
+
+    nlohmann::json result = nlohmann::json::array();
+    for (const auto& name : names) {
+        nlohmann::json entry;
+        entry["name"] = name;
+        auto cat = registry.get_category(name);
+        entry["category"] = cat.value_or("");
+
+        // Include parameter schema
+        auto schema = registry.get_schema(name);
+        if (schema.has_value()) {
+            nlohmann::json params = nlohmann::json::array();
+            for (const auto& [field_name, spec] : schema->fields()) {
+                params.push_back(field_spec_to_json(field_name, spec));
+            }
+            entry["params"] = std::move(params);
+        }
+
+        result.push_back(std::move(entry));
+    }
+    return result;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -543,10 +568,32 @@ nlohmann::json MCPServer::tool_list_components(const nlohmann::json& /*args*/) {
 
 nlohmann::json MCPServer::tool_preview_params(const nlohmann::json& args) {
     std::string component = args.value("component", "");
-    return {
-        {"error", "Unknown component: " + component},
-        {"available", nlohmann::json::array()},
-    };
+    if (component.empty()) {
+        return {{"error", "Missing required argument: 'component'"}};
+    }
+
+    auto& registry = ComponentRegistry::instance();
+    if (!registry.has(component)) {
+        return {
+            {"error", "Unknown component: " + component},
+            {"available", registry.list_components()},
+        };
+    }
+
+    nlohmann::json result;
+    result["name"] = component;
+    result["category"] = registry.get_category(component).value_or("");
+
+    auto schema = registry.get_schema(component);
+    if (schema.has_value()) {
+        nlohmann::json params = nlohmann::json::array();
+        for (const auto& [field_name, spec] : schema->fields()) {
+            params.push_back(field_spec_to_json(field_name, spec));
+        }
+        result["params"] = std::move(params);
+    }
+
+    return result;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
