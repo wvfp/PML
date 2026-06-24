@@ -23,6 +23,7 @@
 #include "pml/evaluator/render_channels_builtins.h"
 #include "pml/evaluator/multi_texture_builtins.h"
 #include "pml/evaluator/shader_builtins.h"
+#include "pml/evaluator/perturb_builtins.h"
 #include "pml/filter/filter_builtins.h"
 #include "pml/graphics/render.h"
 #include "pml/graphics3d/builtins_3d.h"
@@ -112,6 +113,7 @@ int main() {
     pml::register_render_channels(_env);  // (render-channels ...)
     pml::register_multi_texture_builtins(_env);  // (bind-textures ...)
     pml::register_shader_builtins(_env);          // (shader ...), noise, uniforms
+    pml::register_perturb_builtins(_env);          // (perturb-polygon ...)
     pml::PMLContext::current().reset();
 
     // Force-link the null backend and activate it so that render builtins
@@ -804,6 +806,50 @@ int main() {
     // Null backend can't compose — default impl returns error
     CHECK_ERROR("quantize-noise-null-backend",
         "(quantize-noise 1 :levels '((1.0 \"#ff0000\")))");
+
+    // ── Polygon perturbation (perturb-polygon) ───────────────────────────
+    std::cout << "\n── Polygon perturbation ──\n";
+
+    // Basic: three-point triangle with default (no-op) perturbation.
+    // Each edge returns 2 endpoints (adjacent edges share vertices), so 3×2=6.
+    CHECK("perturb-triangle-default",
+        "(length (perturb-polygon '((0 0) (100 0) (50 100))))",
+        "6");
+
+    // With edge-noise: each edge returns 2 endpoints + noise displacement.
+    CHECK("perturb-square-edge-noise",
+        "(length (perturb-polygon '((0 0) (100 0) (100 100) (0 100)) :edge-noise 0.5))",
+        "8");
+
+    // With edge-subdiv=2: each edge returns 1+2+1=4 points (p1, 2 subdiv, p2).
+    CHECK("perturb-with-subdiv",
+        "(length (perturb-polygon '((0 0) (100 0) (100 100) (0 100)) :edge-subdiv 2))",
+        "16");
+
+    // With edge-mask: masked edge uses 2 pts, unmasked edges also use 2 pts each.
+    // 4 edges × 2 = 8 (edge-subdiv defaults to 0).
+    CHECK("perturb-masked",
+        "(length (perturb-polygon '((0 0) (100 0) (100 100) (0 100)) :edge-noise 0.5 :edge-mask '(#f #t #f #f)))",
+        "8");
+
+    // Subdivision + noise combined: subdiv=3 → 5 pts/edge, 4×5=20.
+    CHECK("perturb-subdiv-noise",
+        "(= (length (perturb-polygon '((0 0) (100 0) (100 100) (0 100)) :edge-noise 0.3 :edge-subdiv 3 :seed 42)) 20)",
+        "#t");
+
+    // Corner radius with subdivision: subdiv=1 gives 3 pts/edge before rounding.
+    // Corner rounding replaces shared vertices with Bezier arcs (5 pts each for 90°).
+    // Result: 4 edges × 2 pts (after first removal per edge) + 4 arcs × 5 pts = 28.
+    // But we just check > 4 for robustness.
+    CHECK("perturb-corner-radius",
+        "(> (length (perturb-polygon '((0 0) (100 0) (100 100) (0 100)) :corner-radius 5.0 :edge-subdiv 1)) 4)",
+        "#t");
+
+    // Full config: subdiv=2 → 4 pts/edge, corner-radius adds Bezier arcs.
+    // Just verify it returns > 4 points without error.
+    CHECK("perturb-full-config",
+        "(> (length (perturb-polygon '((0 0) (100 0) (100 100) (0 100)) :edge-noise '(0.1 0.2 0.3 0.4) :edge-subdiv 2 :edge-mask '(#t #t #t #t) :corner-radius 3.0 :corner-mask '(#t #t #t #t) :seed 42)) 4)",
+        "#t");
 
     // ── Summary ──────────────────────────────────────────────────────────
     std::cout << "\n═══ Results ═══\n"

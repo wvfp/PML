@@ -13,6 +13,7 @@ add_executable(pml-tests
     test_animation.cpp
     test_layer.cpp
     test_asset.cpp
+    test_polygon_perturb.cpp
 )
 
 target_include_directories(pml-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

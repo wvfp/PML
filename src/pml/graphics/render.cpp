@@ -62,6 +62,27 @@ static void ensure_parent_dir(const std::string& filepath) {
         fs::create_directories(parent, ec);
     }
 }
+
+// Resolve a render filename against the current PML source directory and
+// the CLI output directory (-o). Relative paths are first resolved relative
+// to the source file; if an output directory is set, the final basename is
+// placed inside that directory (matching Python reference behaviour).
+static std::string resolve_output_path(const std::string& filename) {
+    namespace fs = std::filesystem;
+    const PMLContext& ctx = PMLContext::current();
+    fs::path p(filename);
+
+    if (p.is_relative() && !ctx.source_dir.empty()) {
+        p = fs::path(ctx.source_dir) / p;
+    }
+
+    if (!ctx.output_dir.empty()) {
+        fs::path out_dir(ctx.output_dir);
+        p = out_dir / p.filename();
+    }
+
+    return p.string();
+}
 using pml::kwargs::value_to_opt_string;
 using pml::kwargs::value_to_string_req;
 
@@ -480,7 +501,8 @@ auto render(const std::string& filename,
     if (!canvas)
         canvas = std::make_shared<Canvas>(256, 256, "transparent");
 
-    const std::string format = detect_format(filename, fmt);
+    const std::string resolved = resolve_output_path(filename);
+    const std::string format = detect_format(resolved, fmt);
 
     // Determine whether this should be an animation render.
     bool has_animation = false;
@@ -491,7 +513,7 @@ auto render(const std::string& filename,
 
     if (fps > 0 || (has_animation && format == "GIF")) {
         int effective_fps = (fps > 0) ? fps : 30;
-        return render_animation(filename, format, canvas, effective_fps, duration_override);
+        return render_animation(resolved, format, canvas, effective_fps, duration_override);
     }
 
     RenderBackend& backend = BackendRegistry::instance().active();
@@ -506,29 +528,29 @@ auto render(const std::string& filename,
         return std::unexpected(std::move(surface_result.error()));
     auto& surface = *surface_result;
 
-    ensure_parent_dir(filename);
-    auto sr = backend.save_image(*surface, filename, format);
+    ensure_parent_dir(resolved);
+    auto sr = backend.save_image(*surface, resolved, format);
     if (!sr)
         return std::unexpected(std::move(sr.error()));
 
-    PMLContext::current().output_files.push_back(filename);
+    PMLContext::current().output_files.push_back(resolved);
 
     if (canvas->is_sprite) {
         json meta;
-        meta["file"] = filename;
+        meta["file"] = resolved;
         meta["width"] = canvas->width;
         meta["height"] = canvas->height;
         meta["anchor"] = canvas->anchor;
         meta["padding"] = canvas->padding;
         meta["format"] = format;
         meta["pml_version"] = "0.1.0";
-        auto wj = write_json_file(meta_path(filename), meta);
+        auto wj = write_json_file(meta_path(resolved), meta);
         if (!wj) { /* non-fatal — match Python behaviour */
         }
-        PMLContext::current().output_files.push_back(meta_path(filename));
+        PMLContext::current().output_files.push_back(meta_path(resolved));
     }
 
-    return filename;
+    return resolved;
 }
 
 auto render_set(const std::string& name,
@@ -539,6 +561,8 @@ auto render_set(const std::string& name,
                 const std::string& fmt) -> Result<std::vector<std::string>> {
     if (scales.empty())
         return std::vector<std::string>{};
+
+    const std::string resolved_name = resolve_output_path(name);
 
     RenderBackend& backend = BackendRegistry::instance().active();
     std::vector<std::string> results;
@@ -577,7 +601,7 @@ auto render_set(const std::string& name,
         else
             ext = "." + fmt;
 
-        std::string out_name = name + suffix + ext;
+        std::string out_name = resolved_name + suffix + ext;
         auto sr = backend.save_image(*surface, out_name, fmt);
         if (!sr)
             return std::unexpected(std::move(sr.error()));
@@ -598,6 +622,8 @@ auto render_spritesheet(const std::string& filename,
                         const std::string& bg) -> Result<std::string> {
     if (sprites.empty())
         return filename;
+
+    const std::string resolved = resolve_output_path(filename);
 
     const int rows = std::max(1, (static_cast<int>(sprites.size()) + cols - 1) / cols);
     const int total_w = cols * (cell_width + padding) + padding;
@@ -642,16 +668,16 @@ auto render_spritesheet(const std::string& filename,
         });
     }
 
-    const std::string format = detect_format(filename, "PNG");
+    const std::string format = detect_format(resolved, "PNG");
 
-    auto sr = backend.save_image(*surface, filename, format);
+    auto sr = backend.save_image(*surface, resolved, format);
     if (!sr)
         return std::unexpected(std::move(sr.error()));
 
-    PMLContext::current().output_files.push_back(filename);
+    PMLContext::current().output_files.push_back(resolved);
 
     json meta;
-    meta["file"] = filename;
+    meta["file"] = resolved;
     meta["format"] = format;
     meta["total_width"] = total_w;
     meta["total_height"] = total_h;
@@ -663,12 +689,12 @@ auto render_spritesheet(const std::string& filename,
     meta["frames"] = std::move(frames);
     meta["pml_version"] = "0.1.0";
 
-    auto wj = write_json_file(spritesheet_meta_path(filename), meta);
+    auto wj = write_json_file(spritesheet_meta_path(resolved), meta);
     if (!wj) { /* non-fatal */
     }
-    PMLContext::current().output_files.push_back(spritesheet_meta_path(filename));
+    PMLContext::current().output_files.push_back(spritesheet_meta_path(resolved));
 
-    return filename;
+    return resolved;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

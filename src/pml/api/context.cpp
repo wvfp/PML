@@ -43,6 +43,8 @@ void PMLContext::reset() {
     assets = std::make_unique<AssetCache>();
     compositions.clear();
     output_files.clear();
+    source_dir.clear();
+    output_dir.clear();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

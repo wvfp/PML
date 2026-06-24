@@ -9,6 +9,8 @@ add_library(pml_graphics
     rough_filler.cpp
     tilemap.cpp
     tileset.cpp
+    perlin_noise.cpp
+    polygon_perturb.cpp
 )
 
 target_include_directories(pml_graphics PUBLIC

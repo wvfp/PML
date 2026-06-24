@@ -11,6 +11,7 @@
 #include "pml/api/context.h"
 #include "pml/asset/asset_cache.h"
 #include "pml/backend/registry.h"
+#include "pml/graphics/polygon_perturb.h"
 
 namespace pml {
 
@@ -216,7 +217,6 @@ Result<void> draw_polygon(SkCanvas* canvas, const GraphicObject& obj,
     const auto& elems = (*list)->elements;
     if (elems.size() < 4 || elems.size() % 2 != 0) return {};
 
-    SkPathBuilder builder;
     auto to_double = [](const Value& val) -> double {
         if (val.is_int()) {
             return static_cast<double>(val.int_val());
@@ -227,13 +227,127 @@ Result<void> draw_polygon(SkCanvas* canvas, const GraphicObject& obj,
         return 0.0;
     };
 
-    builder.moveTo(static_cast<SkScalar>(to_double(elems[0])),
-                   static_cast<SkScalar>(to_double(elems[1])));
-    for (size_t i = 2; i + 1 < elems.size(); i += 2) {
-        builder.lineTo(static_cast<SkScalar>(to_double(elems[i])),
-                       static_cast<SkScalar>(to_double(elems[i + 1])));
+    // Build initial vertex list
+    std::vector<RoughPoint> vertices;
+    vertices.reserve(elems.size() / 2);
+    for (size_t i = 0; i + 1 < elems.size(); i += 2) {
+        vertices.push_back({to_double(elems[i]), to_double(elems[i + 1])});
     }
-    builder.close();
+
+    // Check for corner-radius metadata
+    bool has_corner_radius = obj.metadata.contains("corner_radius");
+    bool has_edge_params = obj.metadata.contains("edge_seed") || 
+                           obj.metadata.contains("edge_noise") ||
+                           obj.metadata.contains("edge_subdivisions");
+
+    std::vector<RoughPoint> final_points = vertices;
+
+    if (has_corner_radius || has_edge_params) {
+        // Build perturbation config from metadata
+        PerturbConfig config;
+        
+        // Parse edge_seed
+        int edge_seed = 0;
+        auto seed_it = obj.metadata.find("edge_seed");
+        if (seed_it != obj.metadata.end()) {
+            if (seed_it->second.is_int()) edge_seed = seed_it->second.int_val();
+            else if (seed_it->second.is_double()) edge_seed = static_cast<int>(seed_it->second.double_val());
+        }
+        config.seed = edge_seed;
+
+        // Parse edge_noise
+        auto noise_it = obj.metadata.find("edge_noise");
+        if (noise_it != obj.metadata.end()) {
+            if (const auto* noise_list = noise_it->second.as_list()) {
+                if (*noise_list) {
+                    for (const auto& elem : (*noise_list)->elements) {
+                        config.edge_noise.push_back(to_double(elem));
+                    }
+                }
+            } else {
+                config.edge_noise.push_back(to_double(noise_it->second));
+            }
+        } else {
+            config.edge_noise = {0.0};
+        }
+
+        // Parse edge_subdivisions
+        auto subdiv_it = obj.metadata.find("edge_subdivisions");
+        if (subdiv_it != obj.metadata.end()) {
+            if (subdiv_it->second.is_int()) {
+                config.edge_subdivisions = {static_cast<int>(subdiv_it->second.int_val())};
+            } else if (subdiv_it->second.is_double()) {
+                config.edge_subdivisions = {static_cast<int>(subdiv_it->second.double_val())};
+            }
+        } else {
+            config.edge_subdivisions = {0};
+        }
+
+        // Parse corner_radius
+        auto corner_r_it = obj.metadata.find("corner_radius");
+        if (corner_r_it != obj.metadata.end()) {
+            if (const auto* corner_list = corner_r_it->second.as_list()) {
+                if (*corner_list) {
+                    for (const auto& elem : (*corner_list)->elements) {
+                        config.corner_radius.push_back(to_double(elem));
+                    }
+                }
+            } else {
+                config.corner_radius.push_back(to_double(corner_r_it->second));
+            }
+        } else {
+            config.corner_radius = {0.0};
+        }
+
+        // Parse corner_mask (defaults to all true)
+        auto corner_m_it = obj.metadata.find("corner_mask");
+        if (corner_m_it != obj.metadata.end()) {
+            if (const auto* mask_list = corner_m_it->second.as_list()) {
+                if (*mask_list) {
+                    for (const auto& elem : (*mask_list)->elements) {
+                        config.corner_mask.push_back(elem.is_bool() ? elem.bool_val() : true);
+                    }
+                }
+            } else {
+                config.corner_mask.push_back(corner_m_it->second.is_bool() ? corner_m_it->second.bool_val() : true);
+            }
+        } else {
+            config.corner_mask = {true};
+        }
+
+        // Parse edge_mask (defaults to all true)
+        auto edge_m_it = obj.metadata.find("edge_mask");
+        if (edge_m_it != obj.metadata.end()) {
+            if (const auto* mask_list = edge_m_it->second.as_list()) {
+                if (*mask_list) {
+                    for (const auto& elem : (*mask_list)->elements) {
+                        config.edge_mask.push_back(elem.is_bool() ? elem.bool_val() : true);
+                    }
+                }
+            } else {
+                config.edge_mask.push_back(edge_m_it->second.is_bool() ? edge_m_it->second.bool_val() : true);
+            }
+        } else {
+            config.edge_mask = {true};
+        }
+
+        // Apply perturbation
+        PerlinNoise2D noise(edge_seed);
+        auto perturbed = perturb_polygon(vertices, config, noise);
+        final_points = flatten_perturb_result(perturbed);
+    }
+
+    // Build path from final points
+    SkPathBuilder builder;
+    if (!final_points.empty()) {
+        builder.moveTo(static_cast<SkScalar>(final_points[0].x),
+                       static_cast<SkScalar>(final_points[0].y));
+        for (size_t i = 1; i < final_points.size(); ++i) {
+            builder.lineTo(static_cast<SkScalar>(final_points[i].x),
+                           static_cast<SkScalar>(final_points[i].y));
+        }
+        builder.close();
+    }
     SkPath path = builder.snapshot();
 
     if (obj.fill || shader) {

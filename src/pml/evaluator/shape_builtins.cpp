@@ -13,6 +13,7 @@
 #include "types.h"
 
 using pml::kwargs::kw_double;
+using pml::kwargs::kw_int;
 using pml::kwargs::kw_string;
 using pml::kwargs::parse_kwargs;
 using pml::kwargs::value_to_opt_string;
@@ -436,6 +437,48 @@ static Result<Value> builtin_polygon(const std::vector<Value>& args, Environment
     }
 
     apply_blend_and_stroke(obj, kwargs);
+
+    // ── Edge-perturbation kwargs ─────────────────────────────────────
+    // Parse optional edge-perturbation parameters. If ANY edge-* or
+    // corner-* kwarg is present, store ALL edge parameters (including
+    // defaults) in metadata so the render backend can apply perturbation.
+
+    int edge_seed = kw_int(kwargs, "edge-seed", 0);
+    int edge_subdiv = kw_int(kwargs, "edge-subdiv", 0);
+
+    bool has_edge_noise     = kwargs.contains("edge-noise");
+    bool has_edge_mask      = kwargs.contains("edge-mask");
+    bool has_edge_seed      = kwargs.contains("edge-seed");
+    bool has_edge_subdiv    = kwargs.contains("edge-subdiv");
+    bool has_corner_radius  = kwargs.contains("corner-radius");
+    bool has_corner_mask    = kwargs.contains("corner-mask");
+
+    if (has_edge_noise || has_edge_seed || has_edge_mask ||
+        has_edge_subdiv || has_corner_radius || has_corner_mask) {
+
+        obj->metadata["edge_seed"] = Value(static_cast<double>(edge_seed));
+        obj->metadata["edge_subdivisions"] = Value(static_cast<double>(edge_subdiv));
+
+        if (has_edge_noise) {
+            obj->metadata["edge_noise"] = kwargs.at("edge-noise");
+        } else {
+            obj->metadata["edge_noise"] = Value(0.0);
+        }
+
+        if (has_edge_mask) {
+            obj->metadata["edge_mask"] = kwargs.at("edge-mask");
+        }
+
+        if (has_corner_radius) {
+            obj->metadata["corner_radius"] = kwargs.at("corner-radius");
+        } else {
+            obj->metadata["corner_radius"] = Value(0.0);
+        }
+
+        if (has_corner_mask) {
+            obj->metadata["corner_mask"] = kwargs.at("corner-mask");
+        }
+    }
 
     return Value(std::move(obj));
 }

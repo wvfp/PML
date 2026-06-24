@@ -55,6 +55,9 @@ class PMLContext {
     std::vector<std::shared_ptr<Composition>> compositions; ///< Registered compositions
     std::vector<std::string> output_files;                  ///< Paths written by this runtime
 
+    std::string source_dir; ///< Directory of the currently executing PML file (for relative paths)
+    std::string output_dir; ///< CLI -o output directory override (empty = none)
+
     // ── Lifecycle ───────────────────────────────────────────────────────
 
     /// Reset all state to a fresh runtime state (predefined styles/palettes

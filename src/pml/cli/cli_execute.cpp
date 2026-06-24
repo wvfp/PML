@@ -27,6 +27,12 @@ namespace pml {
 
 int run_file_mode(const CLIOptions& opts, PMLRuntime& runtime)
 {
+    // Propagate CLI output directory to the runtime context so that
+    // (render ...) respects the -o flag.
+    if (!opts.output_dir.empty()) {
+        runtime.context().output_dir = opts.output_dir;
+    }
+
     // Pre-load source so error messages can show source snippets.
     g_source_manager.load_file(opts.file);
 
@@ -72,6 +78,10 @@ int run_file_mode(const CLIOptions& opts, PMLRuntime& runtime)
 
 int run_json_mode(const CLIOptions& opts, PMLRuntime& runtime)
 {
+    if (!opts.output_dir.empty()) {
+        runtime.context().output_dir = opts.output_dir;
+    }
+
     nlohmann::json result;
 
     try {

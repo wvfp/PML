@@ -20,6 +20,7 @@
 #include "pml/evaluator/tilemap_builtins.h"
 #include "pml/evaluator/render_channels_builtins.h"
 #include "pml/evaluator/multi_texture_builtins.h"
+#include "pml/evaluator/perturb_builtins.h"
 
 // ── Graphics ─────────────────────────────────────────────────────────────
 #include "pml/graphics/render.h"
@@ -60,6 +61,7 @@
 #include "pml/graphics3d/builtins_3d.h"
 
 #include <algorithm>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <sstream>
@@ -356,6 +358,10 @@ void PMLRuntime::init_global_env() {
     //     (bind-textures shader-handle :textures '((slot-name graphic-obj) ...))
     register_multi_texture_builtins(m_env);
 
+    // 20. Polygon perturbation builtins
+    //     (perturb-polygon points :edge-noise N ...)
+    register_perturb_builtins(m_env);
+
     // ── Module loading is handled via the evaluator's eval_import/eval_provide
     // special forms — no separate module registration call needed.
 }
@@ -466,6 +472,16 @@ RenderResult PMLRuntime::execute_file(const std::string& path) {
         };
         return r;
     }
+
+    // Resolve the source file directory so that (render "x.png") inside
+    // this file is interpreted relative to the file's own directory.
+    namespace fs = std::filesystem;
+    fs::path p(path);
+    if (p.is_relative()) {
+        p = fs::current_path() / p;
+    }
+    ctx_.source_dir = p.parent_path().string();
+
     std::stringstream ss;
     ss << ifs.rdbuf();
     return execute(ss.str(), path);
