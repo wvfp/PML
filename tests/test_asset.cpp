@@ -10,6 +10,8 @@
 
 #include <gtest/gtest.h>
 
+#include <format>
+
 #include "pml/api/api.h"
 #include "pml/asset/asset_cache.h"
 #include "pml/asset/asset_loader.h"

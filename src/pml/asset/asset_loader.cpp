@@ -5,6 +5,7 @@
 #include "asset_loader.h"
 
 #include <filesystem>
+#include <format>
 #include <fstream>
 
 namespace pml {

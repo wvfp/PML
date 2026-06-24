@@ -35,17 +35,15 @@ foreach(_b IN LISTS _pml_optional_backends)
 endforeach()
 if(_pml_present_backends)
     target_link_libraries(pml PRIVATE ${_pml_present_backends})
-    if(MSVC)
-        foreach(_b IN LISTS _pml_present_backends)
+    foreach(_b IN LISTS _pml_present_backends)
+        if(MSVC)
             target_link_options(pml PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:${_b}>")
-        endforeach()
-    else()
-        target_link_options(pml PRIVATE
-            -Wl,--whole-archive
-            ${_pml_present_backends}
-            -Wl,--no-whole-archive
-        )
-    endif()
+        else()
+            target_link_options(pml PRIVATE
+                -Wl,--whole-archive "$<TARGET_FILE:${_b}>" -Wl,--no-whole-archive
+            )
+        endif()
+    endforeach()
 endif()
 
 # Install target

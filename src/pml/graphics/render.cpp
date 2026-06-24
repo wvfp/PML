@@ -13,6 +13,7 @@
 #include "tilemap.h"       // TilemapManager, Tilemap, tile_at
 #include "tileset.h"       // TilesetManager, Tileset, TileType
 #include "pml/graphics3d/camera3d.h"
+#include <format>
 #include "timeline.h"      // Timeline, Animation, _apply_modifications
 #include "graphics_types.h"
 #include "error.h"

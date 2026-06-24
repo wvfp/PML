@@ -4,6 +4,8 @@
 // Camera3D — 3D camera with perspective / orthographic projection
 // ═══════════════════════════════════════════════════════════════════════════════
 
+#include <cstdint>
+
 #include "mat4.h"
 #include "vec3.h"
 

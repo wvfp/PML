@@ -13,6 +13,8 @@
 #include "pml/evaluator/builtins.h"
 #include "pml/graphics/objects.h"
 #include "pml/layer/blend_mode.h"
+
+#include <format>
 #include "pml/layer/layer.h"
 
 #include <nlohmann/json.hpp>

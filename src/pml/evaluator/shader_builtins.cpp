@@ -18,6 +18,9 @@
 #include "environment.h"
 #include "error.h"
 #include "kwargs.h"
+
+#include <cstring>
+#include <format>
 #include "pml/graphics/graphic_object.h"
 #include "types.h"
 

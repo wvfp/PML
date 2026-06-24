@@ -6,6 +6,7 @@
 #include "builtins_helpers.h"
 
 #include <cstdint>
+#include <format>
 #include <string>
 
 namespace pml {

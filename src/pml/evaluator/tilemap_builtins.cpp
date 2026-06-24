@@ -16,6 +16,8 @@
 
 #include "tilemap_builtins.h"
 
+#include <format>
+
 #include "pml/graphics/tileset.h"
 #include "pml/graphics/tilemap.h"
 #include "pml/graphics/graphic_object.h"

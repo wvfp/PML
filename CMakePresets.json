@@ -20,28 +20,68 @@
         "PML_SKIA_OUT":   "${sourceDir}/third_party/skia/out/llvm.x64.debug"
       }
     },
-    {
-      "name": "release",
-      "displayName": "Release",
-      "description": "Release build. Uses pre-built Skia vendored in third_party/skia.",
-      "generator": "Visual Studio 18 2026",
-      "binaryDir": "${sourceDir}/build/release",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_CXX_STANDARD": "23",
-        "CMAKE_CXX_STANDARD_REQUIRED": "ON",
-        "CMAKE_POSITION_INDEPENDENT_CODE": "ON",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "PML_BUILD_CAIRO": "OFF",
-        "PML_BUILD_SKIA":  "ON",
-        "PML_BUILD_GIF":   "ON",
-        "PML_SKIA_DIR":   "${sourceDir}/third_party/skia",
-        "PML_SKIA_OUT":   "${sourceDir}/third_party/skia/out/llvm.x64.release"
+      {
+        "name": "release",
+        "displayName": "Release",
+        "description": "Release build. Uses pre-built Skia vendored in third_party/skia.",
+        "generator": "Visual Studio 18 2026",
+        "binaryDir": "${sourceDir}/build/release",
+        "cacheVariables": {
+          "CMAKE_BUILD_TYPE": "Release",
+          "CMAKE_CXX_STANDARD": "23",
+          "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+          "CMAKE_POSITION_INDEPENDENT_CODE": "ON",
+          "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+          "PML_BUILD_CAIRO": "OFF",
+          "PML_BUILD_SKIA":  "ON",
+          "PML_BUILD_GIF":   "ON",
+          "PML_SKIA_DIR":   "${sourceDir}/third_party/skia",
+          "PML_SKIA_OUT":   "${sourceDir}/third_party/skia/out/llvm.x64.release"
+        }
+      },
+      {
+        "name": "debug-linux",
+        "displayName": "Debug (Linux ARM64)",
+        "description": "Debug build for Linux ARM64. Uses pre-built Skia in third_party/skia.",
+        "generator": "Unix Makefiles",
+        "binaryDir": "${sourceDir}/build/debug",
+        "cacheVariables": {
+          "CMAKE_BUILD_TYPE": "Debug",
+          "CMAKE_CXX_STANDARD": "23",
+          "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+          "CMAKE_POSITION_INDEPENDENT_CODE": "ON",
+          "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+          "PML_BUILD_CAIRO": "OFF",
+          "PML_BUILD_SKIA":  "ON",
+          "PML_BUILD_GIF":   "ON",
+          "PML_SKIA_DIR":   "${sourceDir}/third_party/skia",
+          "PML_SKIA_OUT":   "${sourceDir}/third_party/skia/out/llvm.arm64.release"
+        }
+      },
+      {
+        "name": "release-linux",
+        "displayName": "Release (Linux ARM64)",
+        "description": "Release build for Linux ARM64. Uses pre-built Skia in third_party/skia.",
+        "generator": "Unix Makefiles",
+        "binaryDir": "${sourceDir}/build/release",
+        "cacheVariables": {
+          "CMAKE_BUILD_TYPE": "Release",
+          "CMAKE_CXX_STANDARD": "23",
+          "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+          "CMAKE_POSITION_INDEPENDENT_CODE": "ON",
+          "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+          "PML_BUILD_CAIRO": "OFF",
+          "PML_BUILD_SKIA":  "ON",
+          "PML_BUILD_GIF":   "ON",
+          "PML_SKIA_DIR":   "${sourceDir}/third_party/skia",
+          "PML_SKIA_OUT":   "${sourceDir}/third_party/skia/out/llvm.arm64.release"
+        }
       }
-    }
-  ],
-  "buildPresets": [
-    { "name": "debug",   "configurePreset": "debug",   "configuration": "Debug"   },
-    { "name": "release", "configurePreset": "release", "configuration": "Release" }
-  ]
+    ],
+    "buildPresets": [
+      { "name": "debug",   "configurePreset": "debug",   "configuration": "Debug"   },
+      { "name": "release", "configurePreset": "release", "configuration": "Release" },
+      { "name": "debug-linux",   "configurePreset": "debug-linux",   "configuration": "Debug"   },
+      { "name": "release-linux", "configurePreset": "release-linux", "configuration": "Release" }
+    ]
 }

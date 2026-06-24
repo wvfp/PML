@@ -1,5 +1,7 @@
 #include "compositor.h"
 
+#include <format>
+
 #include "pml/graphics/objects.h"
 #include "pml/graphics/transform.h"
 

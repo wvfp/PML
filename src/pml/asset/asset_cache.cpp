@@ -6,6 +6,7 @@
 #include "asset_loader.h"
 
 #include <shared_mutex>
+#include <mutex>
 
 namespace pml {
 

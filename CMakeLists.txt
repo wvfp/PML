@@ -25,7 +25,7 @@ option(PML_BUILD_FREETYPE  "Vendor freetype (unused for now)" OFF)
 
 # Skia: pre-built at $PML_SKIA_OUT, headers at $PML_SKIA_DIR/include
 set(PML_SKIA_DIR  "" CACHE PATH "Skia source root (headers live at <PML_SKIA_DIR>/include)")
-set(PML_SKIA_OUT  "" CACHE PATH "Skia pre-built output dir (must contain skia.lib + skcms.lib)")
+set(PML_SKIA_OUT  "" CACHE PATH "Skia pre-built output dir (must contain skia.lib/.a + skcms.lib/.a)")
 
 # 鈺愨晲鈺?Third-party: prefer local checkout, fall back to git clone 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?include(FetchContent)
 
@@ -206,8 +206,8 @@ if(PML_BUILD_SKIA)
     if(NOT EXISTS "${PML_SKIA_DIR}/include")
         message(FATAL_ERROR "PML_SKIA_DIR=${PML_SKIA_DIR} has no include/ subdir")
     endif()
-    if(NOT EXISTS "${PML_SKIA_OUT}/skia.lib")
-        message(FATAL_ERROR "PML_SKIA_OUT=${PML_SKIA_OUT} has no skia.lib")
+    if(NOT EXISTS "${PML_SKIA_OUT}/skia.lib" AND NOT EXISTS "${PML_SKIA_OUT}/libskia.a")
+        message(FATAL_ERROR "PML_SKIA_OUT=${PML_SKIA_OUT} has neither skia.lib (Windows) nor libskia.a (Linux)")
     endif()
 
     add_library(skia_headers INTERFACE)
@@ -221,6 +221,15 @@ if(PML_BUILD_SKIA)
         SK_SUPPORT_LEGACY_PNG_WRITEBUFFER=0
     )
 
+    # Pick lib prefix & extension per platform
+    if(WIN32)
+        set(_skia_lib_ext ".lib")
+        set(_skia_lib_prefix "")
+    else()
+        set(_skia_lib_ext ".a")
+        set(_skia_lib_prefix "lib")
+    endif()
+
     # Primary static libs (per user spec: skia + skcms + core auxiliaries)
     set(_skia_libs
         skia skcms
@@ -228,10 +237,10 @@ if(PML_BUILD_SKIA)
         jsonreader expat bentleyottmann
     )
     foreach(_lib IN LISTS _skia_libs)
-        if(EXISTS "${PML_SKIA_OUT}/${_lib}.lib")
+        if(EXISTS "${PML_SKIA_OUT}/${_skia_lib_prefix}${_lib}${_skia_lib_ext}")
             add_library(skia::${_lib} STATIC IMPORTED GLOBAL)
             set_target_properties(skia::${_lib} PROPERTIES
-                IMPORTED_LOCATION             "${PML_SKIA_OUT}/${_lib}.lib"
+                IMPORTED_LOCATION             "${PML_SKIA_OUT}/${_skia_lib_prefix}${_lib}${_skia_lib_ext}"
                 INTERFACE_INCLUDE_DIRECTORIES "${PML_SKIA_DIR}/include"
             )
         endif()

@@ -8,6 +8,7 @@
 #include "evaluator.h"
 
 #include <algorithm>
+#include <format>
 
 namespace pml {
 

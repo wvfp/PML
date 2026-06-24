@@ -8,6 +8,8 @@
 #include "skia_backend_internal.h"
 
 #include <filesystem>
+#include <format>
+#include "pml/core/platform.h"
 namespace fs = std::filesystem;
 
 namespace pml {
@@ -65,7 +67,7 @@ auto SkiaBackend::save_image(Surface& surface, const std::string& path,
 
     FILE* fp = nullptr;
     errno = 0;
-    if (fopen_s(&fp, path.c_str(), "wb") != 0 || !fp) {
+    if (pml_fopen(fp, path.c_str(), "wb")) {
         const int os_err = errno;
         return std::unexpected(general_error(
             "skia save_image: failed to open file: " + path

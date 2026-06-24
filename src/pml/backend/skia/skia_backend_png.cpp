@@ -8,13 +8,16 @@
 
 #include "skia_backend_internal.h"
 
+#include <format>
+#include "pml/core/platform.h"
+
 namespace pml {
 
 Result<std::unique_ptr<Surface>> load_png_with_libpng(
     const std::string& path)
 {
     FILE* fp = nullptr;
-    if (fopen_s(&fp, path.c_str(), "rb") != 0 || !fp) {
+    if (pml_fopen(fp, path.c_str(), "rb")) {
         return std::unexpected(resource_error(
             std::format("skia: cannot open image file: {}", path)));
     }
