@@ -1,18 +1,21 @@
-// ═════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════
 // PML Texture Blend (Skia backend) — Compose multiple texture layers
-// ═════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════
 
 #include "texture_blend.h"
 
-#include "texture_bake.h"  // bake_texture()
+#include "skia_backend_internal.h"  // draw_object, ShaderLookup
+#include "texture_bake.h"            // bake_texture()
 
-// Skia headers — all in the global namespace.
 #include "include/core/SkBlendMode.h"
 #include "include/core/SkImage.h"
 #include "include/core/SkRefCnt.h"
 #include "include/core/SkSamplingOptions.h"
 #include "include/core/SkShader.h"
 #include "include/core/SkTileMode.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkSurface.h"
+#include "include/core/SkImageInfo.h"
 
 #include <utility>
 
@@ -20,7 +23,7 @@ namespace pml {
 
 namespace {
 
-// ── to_sk_tile_mode ───────────────────────────────────────────────────
+// ── to_sk_tile_mode ───────────────────────────────────────────────────────
 SkTileMode to_sk_tile_mode(WrapMode w)
 {
     switch (w) {
@@ -30,7 +33,7 @@ SkTileMode to_sk_tile_mode(WrapMode w)
     }
 }
 
-// ─── to_sk_sampling ────────────────────────────────────────────────────
+// ─── to_sk_sampling ────────────────────────────────────────────────────────
 SkSamplingOptions to_sk_sampling(FilterMode f)
 {
     return SkSamplingOptions(
@@ -38,25 +41,47 @@ SkSamplingOptions to_sk_sampling(FilterMode f)
                                 : SkFilterMode::kNearest);
 }
 
-// ─── bake_layer_to_sksp ───────────────────────────────────────────────
-// Bake a TextureBox and return it as sk_sp<::SkImage>.
-sk_sp<::SkImage> bake_layer_to_sksp(const TextureBox& tex)
+// ─── bake_layer_to_sksp ───────────────────────────────────────────────────
+// Bake a TextureBox's GraphicObject to an sk_sp<SkImage> via offscreen
+// surface.  This avoids the shared_ptr<SkImage> vs sk_sp<SkImage> confusion
+// by using Skia's native ref-counting directly.
+sk_sp<SkImage> bake_layer_to_sksp(const TextureBox& tex)
 {
-    // baketexture returns std::shared_ptrr<::SkImage>.
-    auto shared_img = bake_texture(
-        std::make_shared<TextureBox>(tex), tex.width, tex.height);
-    if (!shared_img)
+    int w = tex.width;
+    int h = tex.height;
+    if (w <= 0 || h <= 0)
         return nullptr;
 
-    // Adopt the ::SkImage* into sk_sp (add a ref).
-    return sk_sp<::SkImage>(shared_img.get());
+    // Create offscreen surface with transparent background.
+    SkImageInfo info = SkImageInfo::MakeN32Premul(w, h);
+    sk_sp<SkSurface> surface = SkSurfaces::Raster(info);
+    if (!surface)
+        return nullptr;
+
+    SkCanvas* canvas = surface->getCanvas();
+    if (!canvas)
+        return nullptr;
+
+    canvas->clear(SK_ColorTRANSPARENT);
+
+    // Draw the GraphicObject.  draw_object is declared in
+    // skia_backend_internal.h and implemented in skia_backend_draw.cpp.
+    auto result = draw_object(canvas, *tex.go, nullptr,
+        [](int64_t) -> sk_sp<SkShader> { return nullptr; });
+
+    if (!result) {
+        return nullptr;
+    }
+
+    // Snapshot to SkImage (returns sk_sp<SkImage>).
+    return surface->makeImageSnapshot();
 }
 
-// ─── make_layer_shader ─────────────────────────────────────────────────
+// ─── make_layer_shader ─────────────────────────────────────────────────────
 // Create a SkShader for one texture layer.
 sk_sp<SkShader> make_layer_shader(const TextureBox& layer)
 {
-    sk_sp<::SkImage> img = bake_layer_to_sksp(layer);
+    sk_sp<SkImage> img = bake_layer_to_sksp(layer);
     if (!img)
         return nullptr;
 
@@ -69,7 +94,7 @@ sk_sp<SkShader> make_layer_shader(const TextureBox& layer)
 
 }  // anonymous namespace
 
-// ─── compose_texture_layers ───────────────────────────────────────────
+// ─── compose_texture_layers ───────────────────────────────────────────────
 // Given a list of texture layers, return a single SkShader that blends them.
 //
 // Strategy:

@@ -20,7 +20,7 @@ add_library(pml_backend_skia
     skia_backend_png.cpp
     skia_backend_filter.cpp
     textured_draw.cpp
-    # texture_blend.cpp  # 暂时禁用：SkImage 类型在 pml:: 命名空间解析有问题
+    texture_blend.cpp
 )
 
 target_include_directories(pml_backend_skia PUBLIC
