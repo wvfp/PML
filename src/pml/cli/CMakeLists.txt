@@ -4,11 +4,6 @@ add_executable(pml
     cli_errors.cpp
     cli_watch.cpp
     cli_execute.cpp
-    # Directly compile texture/triangulation sources into pml.exe
-    # to avoid MSVC static library incremental archiving issues.
-    ${CMAKE_SOURCE_DIR}/src/pml/graphics/triangulation.cpp
-    ${CMAKE_SOURCE_DIR}/src/pml/graphics/uv_solver.cpp
-    ${CMAKE_SOURCE_DIR}/src/pml/backend/skia/textured_draw.cpp
 )
 
 target_include_directories(pml PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -27,7 +22,6 @@ target_link_libraries(pml PRIVATE
     pml_module
 )
 
-# poly2tri for triangulation
 if(TARGET poly2tri)
     target_link_libraries(pml PRIVATE poly2tri)
 endif()
@@ -56,5 +50,4 @@ if(_pml_present_backends)
     endforeach()
 endif()
 
-# Install target
 install(TARGETS pml DESTINATION bin)

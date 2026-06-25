@@ -6,6 +6,8 @@
 // Declared in skia_backend_internal.h, implemented here.
 // ═══════════════════════════════════════════════════════════════════════════════
 
+#include "pml/core/types.h"
+
 #include "skia_backend_internal.h"
 
 #include "pml/api/context.h"
