@@ -27,7 +27,7 @@ namespace pml {
 // Forward declarations
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class GraphicObject;  ///< Defined in pml/graphics/graphic_object.h (Task 10)
+struct GraphicObject;  ///< Defined in pml/graphics/graphic_object.h (Task 10)
 enum class BlendMode : uint8_t; ///< Defined in pml/layer/blend_mode.h
 
 // ═══════════════════════════════════════════════════════════════════════════════

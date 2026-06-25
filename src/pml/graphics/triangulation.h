@@ -13,7 +13,7 @@
 
 namespace pml {
 
-class GraphicObject;
+struct GraphicObject;
 
 /// Result of triangulating a 2D polygon contour.
 struct TriangulatedMesh {

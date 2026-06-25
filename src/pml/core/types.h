@@ -33,7 +33,7 @@ namespace pml {
 
 class Environment;           // pml/evaluator/environment.h
 class Module;                // pml/module/module_loader.h
-class GraphicObject;         // pml/graphics/graphic_object.h
+struct GraphicObject;         // pml/graphics/graphic_object.h
 class Canvas;                // pml/graphics/canvas.h
 struct Animation;            // pml/animation/animation.h
 struct SkeletonTemplate;     // pml/skeleton/skeleton.h

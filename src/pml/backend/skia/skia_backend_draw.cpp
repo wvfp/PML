@@ -16,6 +16,7 @@
 #include "pml/graphics/path_types.h"
 #include "pml/graphics/polygon_perturb.h"
 #include "pml/core/texture.h"
+#include "textured_draw.h"
 
 namespace pml {
 
@@ -24,6 +25,8 @@ namespace pml {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 namespace {
+
+#include "textured_draw.h"
 
 // ── Stroke alignment helper ─────────────────────────────────────────────
 // Clip-based: draw at 2x stroke width, clip to keep only the inner or
@@ -1280,6 +1283,11 @@ Result<void> draw_object(SkCanvas* canvas, const GraphicObject& obj,
         if (handle > 0) {
             local_shader = lookup(handle);
         }
+    }
+
+    // If the object has texture-map params, route to textured draw.
+    if (obj.params.find(ParamKey::uv)) {
+        return draw_textured_object(canvas, obj);
     }
 
     if (obj.shape_type == "group") {

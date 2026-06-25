@@ -14,7 +14,7 @@ class SkImage;
 
 namespace pml {
 
-class GraphicObject;
+struct GraphicObject;
 
 // ─── bake_graphic_object_to_skimage ─────────────────────────────────────
 std::shared_ptr<::SkImage> bake_graphic_object_to_skimage(
