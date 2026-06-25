@@ -32,6 +32,7 @@ class StyleRegistry;
 class PaletteManager;
 class TilemapManager;
 class TilesetManager;
+class TextureCache;
 
 /// Runtime context that holds all per-instance mutable global state.
 class PMLContext {
@@ -51,6 +52,7 @@ class PMLContext {
     std::unique_ptr<TilemapManager> tilemaps; ///< Named tilemap registry
     std::unique_ptr<TilesetManager> tilesets; ///< Named tileset registry
     std::unique_ptr<AssetCache> assets;       ///< Loaded image asset cache
+    std::unique_ptr<class TextureCache> texture_cache; ///< Baked texture LRU cache
 
     std::vector<std::shared_ptr<Composition>> compositions; ///< Registered compositions
     std::vector<std::string> output_files;                  ///< Paths written by this runtime

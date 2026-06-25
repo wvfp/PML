@@ -13,6 +13,7 @@
 #include "pml/backend/registry.h"
 #include "pml/graphics/path_types.h"
 #include "pml/graphics/polygon_perturb.h"
+#include "pml/core/texture.h"
 
 namespace pml {
 
@@ -1329,7 +1330,9 @@ exact_path:
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+
 // 3D mesh rendering
+
 // ═══════════════════════════════════════════════════════════════════════════════
 
 namespace {

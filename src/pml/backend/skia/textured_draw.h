@@ -1,12 +1,15 @@
 #pragma once
 
-// ══════════════════════════════════════════════════════════════════════
-// PML Textured Draw (Skia backend) — Rasterise GraphicObject → SkImage
-// ══════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
+// PML Textured Draw (Skia backend) — bake + UV-mapped shape rendering
+// ═══════════════════════════════════════════════════════════════════════════════
 
 #include <memory>
 
-// SkImage lives in the global namespace (see include/core/SkImage.h).
+#include "pml/core/error.h"  // Result<void>
+
+// SkImage and SkCanvas live in the global namespace (see include/core/*.h).
+class SkCanvas;
 class SkImage;
 
 namespace pml {
@@ -14,13 +17,11 @@ namespace pml {
 class GraphicObject;
 
 // ─── bake_graphic_object_to_skimage ─────────────────────────────────────
-// Rasterise a GraphicObject into an SkImage at the given dimensions.
-// Implemented in textured_draw.cpp (Skia backend only).
-// Returns nullptr on failure or when Skia is not available.
-//
-// Returns std::shared_ptr<::SkImage> (global namespace), NOT pml::SkImage.
-// ───────────────────────────────────────────────────────────────────────────
 std::shared_ptr<::SkImage> bake_graphic_object_to_skimage(
     const GraphicObject& go, int width, int height);
+
+// ─── draw_textured_object ──────────────────────────────────────────────
+Result<void> draw_textured_object(
+    SkCanvas* canvas, const GraphicObject& obj);
 
 }  // namespace pml

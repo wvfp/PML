@@ -12,6 +12,8 @@ add_library(pml_graphics
     perlin_noise.cpp
     polygon_perturb.cpp
     path_types.cpp
+    triangulation.cpp
+    uv_solver.cpp
 )
 
 target_include_directories(pml_graphics PUBLIC
@@ -32,6 +34,14 @@ target_link_libraries(pml_graphics PUBLIC
 # library access to the Skia include directory when Skia is enabled.
 if(PML_USE_SKIA AND TARGET skia_headers)
     target_link_libraries(pml_graphics PUBLIC skia_headers)
+endif()
+
+# poly2tri include path for triangulation
+if(EXISTS "${CMAKE_SOURCE_DIR}/third_party/poly2tri/poly2tri/poly2tri.h")
+    target_include_directories(pml_graphics PRIVATE "${CMAKE_SOURCE_DIR}/third_party/poly2tri")
+    if(TARGET poly2tri)
+        target_link_libraries(pml_graphics PRIVATE poly2tri)
+    endif()
 endif()
 
 # Optional backends: each target brings its own transitive deps (giflib,

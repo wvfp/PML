@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "pml/core/types.h"
+#include "pml/graphics/graphics_types.h"
 
 namespace pml {
 

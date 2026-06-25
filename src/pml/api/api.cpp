@@ -23,6 +23,8 @@
 #include "pml/evaluator/perturb_builtins.h"
 #include "pml/evaluator/builtins_threading.h"
 #include "pml/evaluator/builtins_polymorphic.h"
+#include "pml/evaluator/texture_builtins.h"
+#include "pml/evaluator/texture_map_builtins.h"
 
 // ── Graphics ─────────────────────────────────────────────────────────────
 #include "pml/graphics/render.h"
@@ -338,6 +340,12 @@ void PMLRuntime::init_global_env() {
 
     // 22. Polymorphic access builtins (get, set!)
     register_polymorphic_builtins(m_env);
+
+    // 23. Texture builtins (define-texture, texture?, texture-width, ...)
+    register_texture_builtins(m_env);
+
+    // 24. Texture-map builtin (texture-map shape :source tex ...)
+    register_texture_map_builtins(m_env);
 
     // ── Module loading is handled via the evaluator's eval_import/eval_provide
     // special forms — no separate module registration call needed.

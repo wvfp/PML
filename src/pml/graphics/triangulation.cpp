@@ -38,8 +38,8 @@ std::vector<Vec2> collect_contour(const GraphicObject& obj) {
                                 double x = 0.0, y = 0.0;
                                 const auto& a = (*pair)->elements[0];
                                 const auto& b = (*pair)->elements[1];
-                                if (a.is_number()) x = a.as_double();
-                                if (b.is_number()) y = b.as_double();
+                                if (a.is_number()) x = a.double_val();
+                                if (b.is_number()) y = b.double_val();
                                 result.push_back({x, y});
                             }
                         }
@@ -67,15 +67,15 @@ std::vector<Vec2> collect_contour(const GraphicObject& obj) {
                     else continue;
                     if (op_str == "M" || op_str == "m") {
                         if ((*cmd_lst)->elements.size() >= 3) {
-                            current = {(*cmd_lst)->elements[1].as_double(),
-                                       (*cmd_lst)->elements[2].as_double()};
+                            current = {(*cmd_lst)->elements[1].double_val(),
+                                       (*cmd_lst)->elements[2].double_val()};
                             start = current;
                             result.push_back(current);
                         }
                     } else if (op_str == "L" || op_str == "l") {
                         if ((*cmd_lst)->elements.size() >= 3) {
-                            current = {(*cmd_lst)->elements[1].as_double(),
-                                       (*cmd_lst)->elements[2].as_double()};
+                            current = {(*cmd_lst)->elements[1].double_val(),
+                                       (*cmd_lst)->elements[2].double_val()};
                             result.push_back(current);
                         }
                     } else if (op_str == "Z" || op_str == "z") {
@@ -83,12 +83,12 @@ std::vector<Vec2> collect_contour(const GraphicObject& obj) {
                     } else if (op_str == "C" || op_str == "c") {
                         if ((*cmd_lst)->elements.size() >= 7) {
                             Vec2 c0 = current;
-                            Vec2 c1{(*cmd_lst)->elements[1].as_double(),
-                                    (*cmd_lst)->elements[2].as_double()};
-                            Vec2 c2{(*cmd_lst)->elements[3].as_double(),
-                                    (*cmd_lst)->elements[4].as_double()};
-                            Vec2 c3{(*cmd_lst)->elements[5].as_double(),
-                                    (*cmd_lst)->elements[6].as_double()};
+                            Vec2 c1{(*cmd_lst)->elements[1].double_val(),
+                                    (*cmd_lst)->elements[2].double_val()};
+                            Vec2 c2{(*cmd_lst)->elements[3].double_val(),
+                                    (*cmd_lst)->elements[4].double_val()};
+                            Vec2 c3{(*cmd_lst)->elements[5].double_val(),
+                                    (*cmd_lst)->elements[6].double_val()};
                             constexpr int N = 8;
                             for (int i = 1; i <= N; ++i) {
                                 double t = static_cast<double>(i) / N;
@@ -104,10 +104,10 @@ std::vector<Vec2> collect_contour(const GraphicObject& obj) {
                     } else if (op_str == "Q" || op_str == "q") {
                         if ((*cmd_lst)->elements.size() >= 5) {
                             Vec2 c0 = current;
-                            Vec2 c1{(*cmd_lst)->elements[1].as_double(),
-                                    (*cmd_lst)->elements[2].as_double()};
-                            Vec2 c2{(*cmd_lst)->elements[3].as_double(),
-                                    (*cmd_lst)->elements[4].as_double()};
+                            Vec2 c1{(*cmd_lst)->elements[1].double_val(),
+                                    (*cmd_lst)->elements[2].double_val()};
+                            Vec2 c2{(*cmd_lst)->elements[3].double_val(),
+                                    (*cmd_lst)->elements[4].double_val()};
                             constexpr int N = 8;
                             for (int i = 1; i <= N; ++i) {
                                 double t = static_cast<double>(i) / N;

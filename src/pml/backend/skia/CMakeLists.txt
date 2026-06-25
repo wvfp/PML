@@ -19,7 +19,6 @@ add_library(pml_backend_skia
     skia_backend_draw.cpp
     skia_backend_png.cpp
     skia_backend_filter.cpp
-    textured_draw.cpp
     texture_blend.cpp
 )
 

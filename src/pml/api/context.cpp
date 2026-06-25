@@ -11,6 +11,7 @@
 #include "pml/sprites/palette.h"
 #include "pml/graphics/tilemap.h"
 #include "pml/graphics/tileset.h"
+#include "pml/core/texture_cache.h"
 
 namespace pml {
 
@@ -41,6 +42,7 @@ void PMLContext::reset() {
     tilemaps = std::make_unique<TilemapManager>();
     tilesets = std::make_unique<TilesetManager>();
     assets = std::make_unique<AssetCache>();
+    texture_cache.reset();
     compositions.clear();
     output_files.clear();
     source_dir.clear();

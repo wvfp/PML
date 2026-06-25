@@ -1,4 +1,5 @@
 ﻿cmake_minimum_required(VERSION 3.28)
+include(FetchContent)
 project(pml-cpp
     VERSION 0.1.0
     DESCRIPTION "PML C++23 鈥?Lisp-style DSL for code-to-image generation"
@@ -13,6 +14,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # Suppress warnings inside third-party targets
 if(MSVC)
     add_compile_options(/W0)  # honour each third-party's own warning policy
+
 endif()
 
 # 鈺愨晲鈺?Build options 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
@@ -28,6 +30,18 @@ set(PML_SKIA_DIR  "" CACHE PATH "Skia source root (headers live at <PML_SKIA_DIR
 set(PML_SKIA_OUT  "" CACHE PATH "Skia pre-built output dir (must contain skia.lib/.a + skcms.lib/.a)")
 
 # 鈺愨晲鈺?Third-party: prefer local checkout, fall back to git clone 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?include(FetchContent)
+
+# poly2tri - header-only CDT for UV texture mapping
+if(NOT EXISTS "${CMAKE_SOURCE_DIR}/third_party/poly2tri/common/shapes.h")
+    message(STATUS "pml: git clone poly2tri into third_party/poly2tri")
+    FetchContent_Declare(poly2tri
+        GIT_REPOSITORY https://github.com/jhasse/poly2tri.git
+        GIT_TAG        bf2be13216445181452bf3937410973a6dbb122f
+        GIT_SHALLOW    TRUE
+        SOURCE_DIR     "${CMAKE_SOURCE_DIR}/third_party/poly2tri"
+    )
+    FetchContent_MakeAvailable(poly2tri)
+endif()
 
 # Helper: use local third_party/<name> if present, otherwise git-clone via
 # FetchContent_Declare (HTTPS so it works without SSH keys / vcpkg).
