@@ -19,6 +19,8 @@ add_library(pml_evaluator
     render_channels_builtins.cpp
     multi_texture_builtins.cpp
     perturb_builtins.cpp
+    texture_builtins.cpp
+    texture_map_builtins.cpp
     macro_expansion.cpp
 )
 

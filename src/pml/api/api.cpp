@@ -21,6 +21,8 @@
 #include "pml/evaluator/render_channels_builtins.h"
 #include "pml/evaluator/multi_texture_builtins.h"
 #include "pml/evaluator/perturb_builtins.h"
+#include "pml/evaluator/texture_builtins.h"
+#include "pml/evaluator/texture_map_builtins.h"
 
 // ── Graphics ─────────────────────────────────────────────────────────────
 #include "pml/graphics/render.h"
@@ -330,6 +332,14 @@ void PMLRuntime::init_global_env() {
     // 20. Polygon perturbation builtins
     //     (perturb-polygon points :edge-noise N ...)
     register_perturb_builtins(m_env);
+
+    // 21. Texture builtins
+    //     (define-texture, texture?, texture-width, texture-height, texture-id)
+    register_texture_builtins(m_env);
+
+    // 22. Texture-map builtin
+    //     (texture-map shape :source tex [:mode :planar|:harmonic|:explicit] ...)
+    register_texture_map_builtins(m_env);
 
     // ── Module loading is handled via the evaluator's eval_import/eval_provide
     // special forms — no separate module registration call needed.

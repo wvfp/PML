@@ -27,6 +27,7 @@
 #include "pml/core/texture.h"
 #include "pml/core/types.h"
 #include "pml/evaluator/environment.h"
+#include "pml/graphics/graphics_types.h"
 #include "pml/graphics/objects.h"
 #include "pml/graphics/params.h"
 

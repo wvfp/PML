@@ -47,6 +47,7 @@ struct Transform3D;          // pml/graphics3d/transform3d.h
 class Layer;                 // pml/layer/layer.h
 class Composition;           // pml/layer/composition.h
 class ImageFilter;           // pml/filter/image_filter.h
+struct TextureBox;            // pml/core/texture.h
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Symbol — interned / frozen identifier
@@ -338,7 +339,8 @@ struct Box {
         SkeletonTemplate, SkeletonInstance,
         Style, Palette, Timeline,
         Layer, Composition,
-        ImageFilter
+        ImageFilter,
+        Texture
     };
 
     Kind kind;
@@ -364,7 +366,8 @@ struct Box {
         std::shared_ptr<Timeline>,
         std::shared_ptr<Layer>,
         std::shared_ptr<Composition>,
-        std::shared_ptr<ImageFilter>
+        std::shared_ptr<ImageFilter>,
+        std::shared_ptr<TextureBox>
     > data;
 };
 
@@ -412,6 +415,7 @@ public:
     Value(std::shared_ptr<Layer> v);
     Value(std::shared_ptr<Composition> v);
     Value(std::shared_ptr<ImageFilter> v);
+    Value(std::shared_ptr<TextureBox> v);
 
     // ── Tag / predicates ──────────────────────────────────────────────
     [[nodiscard]] Tag tag() const noexcept { return tag_; }
@@ -445,6 +449,8 @@ public:
     [[nodiscard]] bool is_layer() const noexcept;
     [[nodiscard]] bool is_composition() const noexcept;
     [[nodiscard]] bool is_image_filter() const noexcept;
+
+    [[nodiscard]] bool is_texture() const noexcept;
 
     // ── Object kind (valid only when tag() == Tag::Object) ──────────────
     [[nodiscard]] Box::Kind object_kind() const noexcept { return box_kind(); }
@@ -480,6 +486,8 @@ public:
     [[nodiscard]] const std::shared_ptr<Composition>* as_composition() const noexcept;
     [[nodiscard]] const std::shared_ptr<ImageFilter>* as_image_filter() const noexcept;
 
+    [[nodiscard]] const std::shared_ptr<TextureBox>* as_texture() const noexcept;
+
     // ── Equality (structural for scalars, reference for boxed objects) ─
     bool operator==(const Value& other) const noexcept;
     bool operator!=(const Value& other) const noexcept;
@@ -513,6 +521,9 @@ private:
 [[nodiscard]] inline bool is_procedure(const Value& v) noexcept { return v.is_procedure(); }
 [[nodiscard]] inline bool is_builtin(const Value& v) noexcept { return v.is_builtin(); }
 [[nodiscard]] inline bool is_macro(const Value& v) noexcept { return v.is_macro(); }
+
+[[nodiscard]] inline bool is_texture(const Value& v) noexcept { return v.is_texture(); }
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ValueList / ValueHashMap / ValueVector — reference-counted containers

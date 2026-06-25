@@ -4,6 +4,11 @@
 
 namespace pml {
 
+struct Vec2 {
+    double x = 0.0;
+    double y = 0.0;
+};
+
 struct Size2D {
     int width = 0;
     int height = 0;

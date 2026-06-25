@@ -8,6 +8,8 @@
 #include <format>
 #include <type_traits>
 
+#include "texture.h"  // for TextureBox
+
 namespace pml {
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -337,6 +339,10 @@ Value::Value(std::shared_ptr<ImageFilter> v)
     : tag_(Tag::Object)
     , box_(std::make_shared<Box>(Box{Box::Kind::ImageFilter, std::move(v)})) {}
 
+Value::Value(std::shared_ptr<TextureBox> v)
+    : tag_(Tag::Object)
+    , box_(std::make_shared<Box>(Box{Box::Kind::Texture, std::move(v)})) {}
+
 // ── Kind helpers ──────────────────────────────────────────────────────────────
 
 Box::Kind Value::box_kind() const noexcept {
@@ -416,6 +422,10 @@ bool Value::is_composition() const noexcept {
 }
 bool Value::is_image_filter() const noexcept {
     return tag_ == Tag::Object && box_kind() == Box::Kind::ImageFilter;
+}
+
+bool Value::is_texture() const noexcept {
+    return tag_ == Tag::Object && box_kind() == Box::Kind::Texture;
 }
 
 // ── Object accessors ──────────────────────────────────────────────────────────
@@ -515,6 +525,11 @@ const std::shared_ptr<Composition>* Value::as_composition() const noexcept {
 const std::shared_ptr<ImageFilter>* Value::as_image_filter() const noexcept {
     if (!is_image_filter()) return nullptr;
     return std::get_if<std::shared_ptr<ImageFilter>>(&box_->data);
+}
+
+const std::shared_ptr<TextureBox>* Value::as_texture() const noexcept {
+    if (!is_texture()) return nullptr;
+    return std::get_if<std::shared_ptr<TextureBox>>(&box_->data);
 }
 
 // ── Equality ──────────────────────────────────────────────────────────────────

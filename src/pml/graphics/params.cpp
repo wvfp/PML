@@ -42,6 +42,14 @@ constexpr KeyEntry k_key_table[] = {
     {"mesh",           ParamKey::mesh},
     {"transform",      ParamKey::transform},
     {"path_commands",  ParamKey::path_commands},
+    // Texture-mapping keys
+    {"uv",             ParamKey::uv},
+    {"uv-mode",        ParamKey::uv_mode},
+    {"wrap-x",         ParamKey::wrap_x},
+    {"wrap-y",         ParamKey::wrap_y},
+    {"filter",         ParamKey::filter},
+    {"edge-blend",     ParamKey::edge_blend},
+    {"uv-vertices",    ParamKey::uv_vertices},
 };
 
 }  // anonymous namespace
@@ -78,6 +86,13 @@ const char* param_key_to_string(ParamKey key) noexcept {
         case ParamKey::mesh:           return "mesh";
         case ParamKey::transform:      return "transform";
         case ParamKey::path_commands:  return "path_commands";
+        case ParamKey::uv:             return "uv";
+        case ParamKey::uv_mode:        return "uv-mode";
+        case ParamKey::wrap_x:         return "wrap-x";
+        case ParamKey::wrap_y:         return "wrap-y";
+        case ParamKey::filter:         return "filter";
+        case ParamKey::edge_blend:     return "edge-blend";
+        case ParamKey::uv_vertices:    return "uv-vertices";
         default:                       return "";
     }
 }

@@ -38,6 +38,14 @@ enum class ParamKey : uint8_t {
     mesh,
     transform,
     path_commands,
+    // Texture-mapping keys
+    uv,           ///< texture source (TextureBox value)
+    uv_mode,      ///< UV projection mode (0=planar, 1=harmonic, 2=explicit)
+    wrap_x,       ///< wrap mode X (int → WrapMode)
+    wrap_y,       ///< wrap mode Y (int → WrapMode)
+    filter,       ///< filter mode (int → FilterMode)
+    edge_blend,   ///< edge blend radius in pixels
+    uv_vertices,  ///< explicit UV vertices (list of x,y pairs)
     count
 };
 

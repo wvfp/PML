@@ -21,6 +21,7 @@
 #include <string>
 
 #include "pml/core/error.h"
+#include "pml/core/kwargs.h"
 #include "pml/core/texture.h"
 #include "pml/core/types.h"
 #include "pml/evaluator/environment.h"
@@ -147,6 +148,80 @@ Result<Value> builtin_texture_id(const std::vector<Value>& args,
     return Value(static_cast<double>((*t)->stable_id));
 }
 
+// ── texture-wrap! ──────────────────────────────────────────────────────────
+//   (texture-wrap! <texture> [:x :clamp|:repeat|:mirror]
+//                          [:y :clamp|:repeat|:mirror])
+// Mutates the texture's wrap modes in-place (TextureBox fields are mutable).
+// Returns the texture.
+
+static WrapMode parse_wrap_mode(const std::string& s) {
+    if (s == "repeat")  return WrapMode::Repeat;
+    if (s == "mirror")  return WrapMode::Mirror;
+    return WrapMode::Clamp;
+}
+
+Result<Value> builtin_texture_wrap_set(const std::vector<Value>& args,
+                                        Environment& /*env*/) {
+    if (args.size() < 1) {
+        return std::unexpected(arity_error(
+            SourceLocation{}, 1, static_cast<int>(args.size())));
+    }
+    const auto* t = args[0].as_texture();
+    if (!t || !*t) {
+        return std::unexpected(type_error(
+            "texture-wrap!: argument must be a texture"));
+    }
+
+    // Parse keyword arguments (offset 1).
+    auto kwargs = pml::kwargs::parse_kwargs(args, 1);
+
+    auto tex = *t;  // shared_ptr<TextureBox>
+
+    std::string wx = pml::kwargs::kw_string(kwargs, "x", "");
+    if (!wx.empty()) {
+        tex->wrap_x = parse_wrap_mode(wx);
+    }
+    std::string wy = pml::kwargs::kw_string(kwargs, "y", "");
+    if (!wy.empty()) {
+        tex->wrap_y = parse_wrap_mode(wy);
+    }
+
+    return Value(tex);
+}
+
+// ── texture-filter! ───────────────────────────────────────────────────────
+//   (texture-filter! <texture> :mode :linear|:nearest)
+// Mutates the texture's filter mode in-place. Returns the texture.
+
+static FilterMode parse_filter_mode(const std::string& s) {
+    if (s == "nearest") return FilterMode::Nearest;
+    return FilterMode::Linear;
+}
+
+Result<Value> builtin_texture_filter_set(const std::vector<Value>& args,
+                                         Environment& /*env*/) {
+    if (args.size() < 1) {
+        return std::unexpected(arity_error(
+            SourceLocation{}, 1, static_cast<int>(args.size())));
+    }
+    const auto* t = args[0].as_texture();
+    if (!t || !*t) {
+        return std::unexpected(type_error(
+            "texture-filter!: argument must be a texture"));
+    }
+
+    auto kwargs = pml::kwargs::parse_kwargs(args, 1);
+
+    auto tex = *t;
+
+    std::string mode = pml::kwargs::kw_string(kwargs, "mode", "");
+    if (!mode.empty()) {
+        tex->filter = parse_filter_mode(mode);
+    }
+
+    return Value(tex);
+}
+
 } // anonymous namespace
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -169,6 +244,12 @@ void register_texture_builtins(std::shared_ptr<Environment> env) {
     env->define("texture-id",
                 Value(std::make_shared<BuiltinProcedure>(
                     "texture-id", builtin_texture_id, false)));
+    env->define("texture-wrap!",
+                Value(std::make_shared<BuiltinProcedure>(
+                    "texture-wrap!", builtin_texture_wrap_set, true)));
+    env->define("texture-filter!",
+                Value(std::make_shared<BuiltinProcedure>(
+                    "texture-filter!", builtin_texture_filter_set, true)));
 }
 
 } // namespace pml
