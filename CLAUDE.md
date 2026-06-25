@@ -26,6 +26,11 @@ ctest --preset debug
 # Add a new test: add source to tests/CMakeLists.txt with add_executable + gtest_discover_tests
 ```
 
+- **pml.exe 输出路径**（Windows MSVC 多配置生成器）：
+  ```
+  ./build/debug/src/pml/cli/Debug/pml.exe
+  ```
+  PML源文件路径相对于CWD传入。`.pml`中的`render`输出路径相对于源文件所在目录。
 - CMake options: `PML_BUILD_TESTS`, `PML_BUILD_CLI`, `PML_BUILD_MCP`, `PML_BUILD_GIF`, `PML_BUILD_SKIA`
 - Skia is **pre-built** at `third_party/skia/out/` — see `CMakePresets.json` for paths
 - Third-party (googletest, nlohmann_json, zlib, libpng, giflib) vendored in `third_party/`, CMake prefers local checkout over git clone
