@@ -192,7 +192,16 @@ auto Lexer::read_atom() -> Result<Token> {
 
     // Keyword (starts with ':')
     if (text[0] == ':') {
-        return Token{TokenType::KEYWORD, text.substr(1), atom_line, atom_col};
+        std::string kw = text.substr(1);
+        // Keyword alias map (short → full)
+        if (kw == "f") kw = "fill";
+        else if (kw == "s") kw = "stroke";
+        else if (kw == "sw") kw = "stroke-width";
+        else if (kw == "op") kw = "opacity";
+        else if (kw == "bg") kw = "background";
+        else if (kw == "fn") kw = "font-name";
+        else if (kw == "fs") kw = "font-size";
+        return Token{TokenType::KEYWORD, kw, atom_line, atom_col};
     }
 
     // Number: try integer then float

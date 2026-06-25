@@ -334,6 +334,63 @@ void register_container_builtins(std::shared_ptr<Environment> env) {
                                    (*vec)->elements.begin() + end);
         return Value(std::make_shared<ValueVector>(std::move(copied)));
     });
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // enumerate
+    // ═══════════════════════════════════════════════════════════════════════
+
+    def("enumerate", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 1) {
+            return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        const auto* lst = args[0].as_list();
+        if (!lst || !*lst) {
+            return std::unexpected(type_error("enumerate: expected a list"));
+        }
+        std::vector<Value> result;
+        const auto& elems = (*lst)->elements;
+        result.reserve(elems.size());
+        for (size_t i = 0; i < elems.size(); ++i) {
+            result.push_back(make_list_value({Value(static_cast<int64_t>(i)), elems[i]}));
+        }
+        return Value(std::make_shared<ValueList>(std::move(result)));
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // zip
+    // ═══════════════════════════════════════════════════════════════════════
+
+    def("zip", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() < 1) {
+            return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        // Validate all args are lists and find the shortest length
+        std::vector<const ValueList*> lists;
+        lists.reserve(args.size());
+        size_t min_len = SIZE_MAX;
+        for (const auto& arg : args) {
+            const auto* lst = arg.as_list();
+            if (!lst || !*lst) {
+                return std::unexpected(type_error("zip: each argument must be a list"));
+            }
+            lists.push_back(lst->get());
+            if (lst->get()->elements.size() < min_len) {
+                min_len = lst->get()->elements.size();
+            }
+        }
+        // Build zipped result: ((a1 b1 ...) (a2 b2 ...))
+        std::vector<Value> result;
+        result.reserve(min_len);
+        for (size_t i = 0; i < min_len; ++i) {
+            std::vector<Value> tuple;
+            tuple.reserve(lists.size());
+            for (const auto* list : lists) {
+                tuple.push_back(list->elements[i]);
+            }
+            result.push_back(make_list_value(std::move(tuple)));
+        }
+        return Value(std::make_shared<ValueList>(std::move(result)));
+    });
 }
 
 }  // namespace pml

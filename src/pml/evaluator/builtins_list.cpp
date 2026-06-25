@@ -265,17 +265,32 @@ void register_list_builtins(std::shared_ptr<Environment> env) {
     });
 
     def("range", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
-        if (args.size() < 2 || args.size() > 3) {
+        if (args.size() < 1 || args.size() > 3) {
             return std::unexpected(
-                type_error("range: expects 2 or 3 arguments (start end [step])"));
+                type_error("range: expects 1, 2, or 3 arguments (end [start [step]])"));
         }
-        int64_t start = to_int64(args[0]);
-        int64_t end = to_int64(args[1]);
-        int64_t step = (args.size() == 3) ? to_int64(args[2]) : 1;
+        int64_t start, end, step;
+        if (args.size() == 1) {
+            // (range end) → (range 0 end 1)
+            start = 0;
+            end = to_int64(args[0]);
+            step = 1;
+        } else {
+            start = to_int64(args[0]);
+            end = to_int64(args[1]);
+            step = (args.size() == 3) ? to_int64(args[2]) : 1;
+        }
 
         if (step == 0) {
             return std::unexpected(
                 general_error("range: step cannot be zero"));
+        }
+
+        if (step > 0 && end <= start) {
+            return make_list_value(std::vector<Value>{});
+        }
+        if (step < 0 && end >= start) {
+            return make_list_value(std::vector<Value>{});
         }
 
         std::vector<Value> result;

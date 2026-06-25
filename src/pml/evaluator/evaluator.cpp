@@ -1065,7 +1065,7 @@ Result<EvalResult> eval_lambda(
 
 // ── let: (let ((name expr) ...) <body>...) — parallel bindings ─────────────
 
-Result<EvalResult> eval_let(
+Result<EvalResult> eval_let_par(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
     if (expr.size() < 3) {
         return std::unexpected(
@@ -1700,8 +1700,9 @@ std::unordered_map<std::string, SpecialForm>& get_mutable_special_forms() {
         {"cond", eval_cond},
         {"define", eval_define},
         {"lambda", eval_lambda},
-        {"let", eval_let},
-        {"let*", eval_let_star},
+        {"let", eval_let_star}, // sequential (was parallel before Wave 3)
+        {"let*", eval_let_star}, // sequential (alias for let)
+        {"let-par", eval_let_par}, // parallel (was let before Wave 3)
         {"letrec", eval_letrec},
         {"begin", eval_begin},
         {"set!", eval_set},

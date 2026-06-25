@@ -145,12 +145,15 @@ using SpecialForm = std::function<Result<EvalResult>(
 [[nodiscard]] Result<EvalResult> eval_lambda(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
 
-/// (let ((name expr) ...) <body>...) — parallel bindings.
-[[nodiscard]] Result<EvalResult> eval_let(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+/// (let ((name expr) ...) <body>...) — sequential bindings
+/// (delegated to eval_let_star, declared below).
 
 /// (let* ((name expr) ...) <body>...) — sequential bindings.
 [[nodiscard]] Result<EvalResult> eval_let_star(
+    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+
+/// (let-par ((name expr) ...) <body>...) — parallel bindings (was let before Wave 3).
+[[nodiscard]] Result<EvalResult> eval_let_par(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
 
 /// (letrec ((name expr) ...) <body>...) — recursive bindings.
