@@ -263,6 +263,16 @@ int main() {
     CHECK("range-step",   "(range 0 10 3)",       "(0 3 6 9)");
     CHECK("range-empty",  "(range 5 5)",          "()");
 
+    CHECK("first-basic",  "(first '(10 20 30))",  "10");
+    CHECK("second-basic", "(second '(10 20 30))", "20");
+    CHECK("third-basic",  "(third '(10 20 30))",  "30");
+    CHECK("rest-basic",   "(rest '(10 20 30))",   "(20 30)");
+    CHECK("first-single", "(first '(42))",        "42");
+    CHECK("rest-single",  "(rest '(42))",         "()");
+    CHECK_ERROR("first-empty",  "(first '())");
+    CHECK_ERROR("second-short", "(second '(1))");
+    CHECK_ERROR("third-short",  "(third '(1 2))");
+
     // ---- String operations --------------------------------------------------------------------------------------------
     std::cout << "\n---- String Operations ----\n";
 

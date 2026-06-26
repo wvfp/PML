@@ -12,38 +12,65 @@
 
 namespace pml {
 
+// ---- car implementation --------------------------------------------------------
+static Result<Value> car_impl(const std::vector<Value>& args, Environment&) {
+    if (args.size() != 1) {
+        return std::unexpected(
+            arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+    }
+    const auto* lst = args[0].as_list();
+    if (!lst || !*lst || (*lst)->elements.empty()) {
+        return std::unexpected(
+            type_error("car: expected non-empty list"));
+    }
+    return (*lst)->elements[0];
+}
+
+// ---- cdr implementation --------------------------------------------------------
+static Result<Value> cdr_impl(const std::vector<Value>& args, Environment&) {
+    if (args.size() != 1) {
+        return std::unexpected(
+            arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+    }
+    const auto* lst = args[0].as_list();
+    if (!lst || !*lst || (*lst)->elements.empty()) {
+        return std::unexpected(
+            type_error("cdr: expected non-empty list"));
+    }
+    std::vector<Value> rest((*lst)->elements.begin() + 1,
+                            (*lst)->elements.end());
+    return make_list_value(std::move(rest));
+}
+
 void register_list_builtins(std::shared_ptr<Environment> env) {
     auto def = [&](const std::string& name, BuiltinProcedure::BuiltinFn fn) {
         auto proc = std::make_shared<BuiltinProcedure>(name, std::move(fn));
         env->define(name, Value(proc));
     };
 
-    def("car", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
-        if (args.size() != 1) {
+    def("car", car_impl);
+    def("cdr", cdr_impl);
+    def("first", car_impl);
+    def("rest", cdr_impl);
+
+    def("second", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
+        if (a.size() != 1)
             return std::unexpected(
-                arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
-        }
-        const auto* lst = args[0].as_list();
-        if (!lst || !*lst || (*lst)->elements.empty()) {
-            return std::unexpected(
-                type_error("car: expected non-empty list"));
-        }
-        return (*lst)->elements[0];
+                arity_error(SourceLocation{}, 1, static_cast<int>(a.size())));
+        const auto* lst = a[0].as_list();
+        if (!lst || !*lst || (*lst)->elements.size() < 2)
+            return std::unexpected(type_error("second: list too short"));
+        return (*lst)->elements[1];
     });
 
-    def("cdr", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
-        if (args.size() != 1) {
+    def("third", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
+        if (a.size() != 1)
             return std::unexpected(
-                arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
-        }
-        const auto* lst = args[0].as_list();
-        if (!lst || !*lst || (*lst)->elements.empty()) {
-            return std::unexpected(
-                type_error("cdr: expected non-empty list"));
-        }
-        std::vector<Value> rest((*lst)->elements.begin() + 1,
-                                (*lst)->elements.end());
-        return make_list_value(std::move(rest));
+                arity_error(SourceLocation{}, 1, static_cast<int>(a.size())));
+        const auto* lst = a[0].as_list();
+        if (!lst || !*lst || (*lst)->elements.size() < 3)
+            return std::unexpected(type_error("third: list too short"));
+        return (*lst)->elements[2];
     });
 
     // cadr = car of cdr — second element
