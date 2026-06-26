@@ -71,58 +71,74 @@ std::shared_ptr<::SkImage> bake_graphic_object(
     return bake_graphic_object_to_skimage(go, width, height);
 }
 
-// ── draw_textured_object ──────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// Pipeline stages (internal, for testability)
+// ═══════════════════════════════════════════════════════════════════════════════
 
-Result<void> draw_textured_object(SkCanvas* canvas, const GraphicObject& obj)
-{
+namespace {
+
+/// Stage 1: extract texture and UV-mode params from the GraphicObject.
+struct UVParams {
+    std::shared_ptr<TextureBox> texture;
+    int uv_mode{1};               // 0=planar, 1=harmonic, 2=explicit
+    SkTileMode tile_x{SkTileMode::kClamp};
+    SkTileMode tile_y{SkTileMode::kClamp};
+    SkSamplingOptions sampling{SkFilterMode::kLinear};
+};
+
+UVParams stage_extract(const GraphicObject& obj) {
+    UVParams p;
     const Value* uv_val = obj.params.find(ParamKey::uv);
-    if (!uv_val) return {};
+    if (!uv_val) return p;
     const auto* tex_ptr = uv_val->as_texture();
-    if (!tex_ptr || !*tex_ptr) return {};
-    auto tex = *tex_ptr;
+    if (!tex_ptr || !*tex_ptr) return p;
+    p.texture = *tex_ptr;
 
-    int uv_mode = 1;
     if (const Value* mode_val = obj.params.find(ParamKey::uv_mode)) {
         if (mode_val->is_number()) {
-            uv_mode = mode_val->is_int() ? static_cast<int>(mode_val->int_val())
-                                        : static_cast<int>(mode_val->double_val());
+            p.uv_mode = mode_val->is_int()
+                ? static_cast<int>(mode_val->int_val())
+                : static_cast<int>(mode_val->double_val());
         }
     }
 
-    auto value_to_int = [](const Value* v, int default_val) -> int {
-        if (!v || !v->is_number()) return default_val;
+    auto val_to_int = [](const Value* v, int def) -> int {
+        if (!v || !v->is_number()) return def;
         return v->is_int() ? static_cast<int>(v->int_val())
                            : static_cast<int>(v->double_val());
     };
 
-    WrapMode wrap_x = tex->wrap_x;
-    WrapMode wrap_y = tex->wrap_y;
-    FilterMode filter_mode = tex->filter;
-    if (const Value* wx = obj.params.find(ParamKey::wrap_x))
-        wrap_x = static_cast<WrapMode>(value_to_int(wx, static_cast<int>(wrap_x)));
-    if (const Value* wy = obj.params.find(ParamKey::wrap_y))
-        wrap_y = static_cast<WrapMode>(value_to_int(wy, static_cast<int>(wrap_y)));
-    if (const Value* flt = obj.params.find(ParamKey::filter))
-        filter_mode = static_cast<FilterMode>(value_to_int(flt, static_cast<int>(filter_mode)));
+    WrapMode wx = p.texture->wrap_x;
+    WrapMode wy = p.texture->wrap_y;
+    FilterMode fm = p.texture->filter;
+    if (const Value* v = obj.params.find(ParamKey::wrap_x))
+        wx = static_cast<WrapMode>(val_to_int(v, static_cast<int>(wx)));
+    if (const Value* v = obj.params.find(ParamKey::wrap_y))
+        wy = static_cast<WrapMode>(val_to_int(v, static_cast<int>(wy)));
+    if (const Value* v = obj.params.find(ParamKey::filter))
+        fm = static_cast<FilterMode>(val_to_int(v, static_cast<int>(fm)));
 
-    SkTileMode tile_x = (wrap_x == WrapMode::Repeat)  ? SkTileMode::kRepeat
-                      : (wrap_x == WrapMode::Mirror)  ? SkTileMode::kMirror : SkTileMode::kClamp;
-    SkTileMode tile_y = (wrap_y == WrapMode::Repeat)  ? SkTileMode::kRepeat
-                      : (wrap_y == WrapMode::Mirror)  ? SkTileMode::kMirror : SkTileMode::kClamp;
-    SkSamplingOptions sampling = (filter_mode == FilterMode::Nearest)
+    p.tile_x = (wx == WrapMode::Repeat)  ? SkTileMode::kRepeat
+              : (wx == WrapMode::Mirror)  ? SkTileMode::kMirror : SkTileMode::kClamp;
+    p.tile_y = (wy == WrapMode::Repeat)  ? SkTileMode::kRepeat
+              : (wy == WrapMode::Mirror)  ? SkTileMode::kMirror : SkTileMode::kClamp;
+    p.sampling = (fm == FilterMode::Nearest)
         ? SkSamplingOptions(SkFilterMode::kNearest)
         : SkSamplingOptions(SkFilterMode::kLinear);
+    return p;
+}
 
-    auto mesh_result = triangulate_shape(obj);
-    if (!mesh_result) return {};
-    const auto& mesh = *mesh_result;
-    if (mesh.vertices.empty() || mesh.indices.size() < 3) return {};
+/// Stage 2: triangulate shape → mesh.
+Result<TriangulatedMesh> stage_triangulate(const GraphicObject& obj) {
+    return triangulate_shape(obj);
+}
 
-    UVResult uv_result;
+/// Stage 3: solve UV coordinates from mesh.
+UVResult stage_solve_uv(const TriangulatedMesh& mesh, int uv_mode,
+                        const GraphicObject& obj) {
     switch (uv_mode) {
         case 0:
-            uv_result = solve_planar_uv(mesh.vertices);
-            break;
+            return solve_planar_uv(mesh.vertices);
         case 2: {
             std::vector<Vec2> explicit_uvs;
             if (const Value* uvs_val = obj.params.find(ParamKey::uv_vertices)) {
@@ -138,20 +154,22 @@ Result<void> draw_textured_object(SkCanvas* canvas, const GraphicObject& obj)
                     }
                 }
             }
-            uv_result = apply_explicit_uv(explicit_uvs, mesh.vertices);
-            break;
+            return apply_explicit_uv(explicit_uvs, mesh.vertices);
         }
         default:
-            uv_result = solve_harmonic_uv(mesh.vertices, mesh.indices, mesh.contour_map);
-            break;
+            return solve_harmonic_uv(mesh.vertices, mesh.indices, mesh.contour_map);
     }
-    if (!uv_result.valid || uv_result.uvs.size() != mesh.vertices.size()) return {};
+}
 
-    auto img = bake_texture(tex);
-    if (!img) return {};
-    auto shader = img->makeShader(tile_x, tile_y, sampling);
-    if (!shader) return {};
+/// Stage 4: bake texture → SkImage.
+std::shared_ptr<::SkImage> stage_bake(const std::shared_ptr<TextureBox>& tex) {
+    return bake_texture(tex);
+}
 
+/// Stage 5: build SkVertices from positions + UVs.
+sk_sp<SkVertices> stage_build_vertices(const TriangulatedMesh& mesh,
+                                        const UVResult& uv_result,
+                                        const SkImage* img) {
     const size_t n_tri = mesh.indices.size() / 3;
     std::vector<SkPoint> tri_pos; tri_pos.reserve(n_tri * 3);
     std::vector<SkPoint> tri_uv;  tri_uv.reserve(n_tri * 3);
@@ -167,15 +185,52 @@ Result<void> draw_textured_object(SkCanvas* canvas, const GraphicObject& obj)
             tri_uv.push_back({static_cast<SkScalar>(u), static_cast<SkScalar>(v)});
         }
     }
-    auto vertices = SkVertices::MakeCopy(SkVertices::kTriangles_VertexMode,
+    return SkVertices::MakeCopy(SkVertices::kTriangles_VertexMode,
         static_cast<int>(tri_pos.size()), tri_pos.data(), tri_uv.data(), nullptr);
-    if (!vertices) return {};
+}
 
+/// Stage 6: draw SkVertices with texture shader.
+Result<void> stage_draw(SkCanvas* canvas, const sk_sp<SkVertices>& verts,
+                         const sk_sp<SkShader>& shader) {
+    if (!verts || !shader) return {};
     SkPaint paint;
-    paint.setShader(std::move(shader));
+    paint.setShader(shader);
     paint.setBlendMode(SkBlendMode::kSrcOver);
-    canvas->drawVertices(vertices.get(), SkBlendMode::kSrcOver, paint);
+    canvas->drawVertices(verts.get(), SkBlendMode::kSrcOver, paint);
     return {};
+}
+
+} // anonymous namespace
+
+// ── draw_textured_object — stage orchestrator ────────────────────────────
+
+Result<void> draw_textured_object(SkCanvas* canvas, const GraphicObject& obj)
+{
+    // Stage 1: extract params
+    auto uv = stage_extract(obj);
+    if (!uv.texture) return {};
+
+    // Stage 2: triangulate
+    auto mesh = stage_triangulate(obj);
+    if (!mesh || mesh->vertices.empty() || mesh->indices.size() < 3) return {};
+
+    // Stage 3: solve UVs
+    auto uv_result = stage_solve_uv(*mesh, uv.uv_mode, obj);
+    if (!uv_result.valid || uv_result.uvs.size() != mesh->vertices.size()) return {};
+
+    // Stage 4: bake texture
+    auto img = stage_bake(uv.texture);
+    if (!img) return {};
+
+    // Stage 5: build vertices
+    auto verts = stage_build_vertices(*mesh, uv_result, img.get());
+    if (!verts) return {};
+
+    // Stage 6: create shader and draw
+    auto shader = img->makeShader(uv.tile_x, uv.tile_y, uv.sampling);
+    if (!shader) return {};
+
+    return stage_draw(canvas, verts, shader);
 }
 
 }  // namespace pml

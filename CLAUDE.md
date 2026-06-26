@@ -74,7 +74,7 @@ pml_core → pml_frontend → pml_evaluator → pml_graphics → pml_api
 
 ## Language Quirks
 
-- `let` = parallel bindings (use `let*` for sequential)
+- `let` = sequential bindings (use `let-par` for parallel)
 - No `while`/`for` — use recursion or `map`/`for-each`
 - `add` order = z-order (later = above)
 - `set-backend!` must precede `canvas`
