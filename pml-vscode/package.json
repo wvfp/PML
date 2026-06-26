@@ -12,7 +12,12 @@
     "Programming Languages",
     "Visualization"
   ],
-  "keywords": ["pml", "preview", "image", "rendering"],
+  "keywords": [
+    "pml",
+    "preview",
+    "image",
+    "rendering"
+  ],
   "activationEvents": [
     "onLanguage:pml",
     "onCustomEditor:pml.previewEditor"
@@ -22,8 +27,13 @@
     "languages": [
       {
         "id": "pml",
-        "extensions": [".pml"],
-        "aliases": ["PML", "pml"],
+        "extensions": [
+          ".pml"
+        ],
+        "aliases": [
+          "PML",
+          "pml"
+        ],
         "configuration": "./language-configuration.json"
       }
     ],
@@ -39,7 +49,9 @@
         "viewType": "pml.previewEditor",
         "displayName": "PML Preview",
         "selector": [
-          { "filenamePattern": "*.pml" }
+          {
+            "filenamePattern": "*.pml"
+          }
         ],
         "priority": "option"
       }
@@ -53,11 +65,11 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "tsc -p ./tsconfig.json",
     "compile": "tsc -p ./tsconfig.json",
     "watch": "tsc -watch -p ./tsconfig.json",
     "package": "vsce package",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "vscode:prepublish": "echo skip"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
