@@ -5,6 +5,7 @@
 #include "builtins.h"
 #include "builtins_helpers.h"
 
+#include <cctype>
 #include <format>
 #include <string>
 
@@ -368,6 +369,36 @@ void register_string_builtins(std::shared_ptr<Environment> env) {
             }
             return Value(true);
         });
+
+    // ---- string-upcase, string-downcase, string-trim ------------------------------------------------------------
+
+    def("string-upcase", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
+        if (a.size() != 1) return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(a.size())));
+        const auto* s = a[0].as_string();
+        if (!s) return std::unexpected(type_error("string-upcase: argument must be a string"));
+        std::string r = *s;
+        for (auto& c : r) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+        return Value(std::move(r));
+    });
+
+    def("string-downcase", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
+        if (a.size() != 1) return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(a.size())));
+        const auto* s = a[0].as_string();
+        if (!s) return std::unexpected(type_error("string-downcase: argument must be a string"));
+        std::string r = *s;
+        for (auto& c : r) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        return Value(std::move(r));
+    });
+
+    def("string-trim", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
+        if (a.size() != 1) return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(a.size())));
+        const auto* s = a[0].as_string();
+        if (!s) return std::unexpected(type_error("string-trim: argument must be a string"));
+        auto start = (*s).find_first_not_of(" \t\n\r");
+        if (start == std::string::npos) return Value(std::string{});
+        auto end = (*s).find_last_not_of(" \t\n\r");
+        return Value((*s).substr(start, end - start + 1));
+    });
 }
 
 }  // namespace pml

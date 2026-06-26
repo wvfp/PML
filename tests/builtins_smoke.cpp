@@ -290,6 +290,10 @@ int main() {
     CHECK_ERROR("str->num-space", "(string->number \"   \")");
     CHECK("format",       "(format \"~a + ~a = ~a\" 1 2 3)", "1 + 2 = 3");
 
+    CHECK("string-upcase",   "(string-upcase \"hello\")",   "HELLO");
+    CHECK("string-downcase", "(string-downcase \"HELLO\")", "hello");
+    CHECK("string-trim",     "(string-trim \"  hi  \")",    "hi");
+
     // ---- IO ----------------------------------------------------------------------------------------------------------------------------─
     std::cout << "\n---- IO ----\n";
 
