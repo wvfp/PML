@@ -7,6 +7,8 @@
 
 #include "evaluator.h"
 
+#include "pml/evaluator/builtins_helpers.h"
+
 #include <atomic>
 #include <format>
 #include <optional>
@@ -22,48 +24,6 @@ namespace pml {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 namespace {
-
-// ── deep_equal: Recursively compare two Values for equality ─────────
-
-bool deep_equal(const Value& a, const Value& b) {
-    if (a.tag() != b.tag()) return false;
-    if (a.is_hash()) {
-        const auto* ha = a.as_hash();
-        const auto* hb = b.as_hash();
-        if (!ha || !hb || !*ha || !*hb) return false;
-        const auto& da = (*ha)->data;
-        const auto& db = (*hb)->data;
-        if (da.size() != db.size()) return false;
-        for (const auto& [k, v] : da) {
-            auto it = db.find(k);
-            if (it == db.end() || !deep_equal(v, it->second)) return false;
-        }
-        return true;
-    }
-    if (a.is_vector()) {
-        const auto* va = a.as_vector();
-        const auto* vb = b.as_vector();
-        if (!va || !vb || !*va || !*vb) return false;
-        const auto& ea = (*va)->elements;
-        const auto& eb = (*vb)->elements;
-        if (ea.size() != eb.size()) return false;
-        for (size_t i = 0; i < ea.size(); ++i) {
-            if (!deep_equal(ea[i], eb[i])) return false;
-        }
-        return true;
-    }
-    if (!a.is_list()) return a == b;
-
-    const auto* la = a.as_list();
-    const auto* lb = b.as_list();
-    if (!la || !lb) return false;
-    if (!*la || !*lb) return !*la && !*lb;
-    if ((*la)->elements.size() != (*lb)->elements.size()) return false;
-    for (size_t i = 0; i < (*la)->elements.size(); ++i) {
-        if (!deep_equal((*la)->elements[i], (*lb)->elements[i])) return false;
-    }
-    return true;
-}
 
 // ── expr_to_value: Convert an AST Expr to a runtime Value ────────────
 

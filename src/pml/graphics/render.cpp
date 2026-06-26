@@ -420,14 +420,12 @@ static void apply_skin_bindings_to_canvas(Canvas& canvas) {
     timeline->play();
 
     double total_duration = timeline->get_total_duration();
-    fprintf(stderr, "[render] total_duration from timeline=%.2f, override=%.2f\n", total_duration, duration_override);
     if (duration_override > 0.0)
         total_duration = duration_override;
     if (total_duration <= 0.0)
         total_duration = 1.0;
 
     int num_frames = std::max(1, static_cast<int>(std::ceil(total_duration * fps)));
-    fprintf(stderr, "[render] final total_duration=%.2f, num_frames=%d\n", total_duration, num_frames);
 
     RenderBackend& backend = BackendRegistry::instance().active();
 

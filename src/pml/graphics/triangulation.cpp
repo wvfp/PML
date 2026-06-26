@@ -187,16 +187,33 @@ std::vector<Vec2> collect_contour(const GraphicObject& obj) {
     return {};
 }
 
-// ── Helper: convert Vec2 to p2t::Point* (caller owns memory) ─────────────
+// ── RAII wrapper for poly2tri point vectors ────────────────────────────
+// poly2tri's API requires raw p2t::Point* pointers, but we want automatic
+// cleanup on scope exit (exception-safe).
 
-std::vector<p2t::Point*> to_p2t_points(const std::vector<Vec2>& pts) {
-    std::vector<p2t::Point*> result;
-    result.reserve(pts.size());
-    for (const auto& p : pts) {
-        result.push_back(new p2t::Point(p.x, p.y));
+struct P2tPointVec {
+    std::vector<p2t::Point*> points;
+
+    explicit P2tPointVec(const std::vector<Vec2>& pts) {
+        points.reserve(pts.size());
+        for (const auto& p : pts) {
+            points.push_back(new p2t::Point(p.x, p.y));
+        }
     }
-    return result;
-}
+
+    ~P2tPointVec() {
+        for (auto* p : points) delete p;
+    }
+    // Non-copyable, movable.
+    P2tPointVec(const P2tPointVec&) = delete;
+    P2tPointVec& operator=(const P2tPointVec&) = delete;
+    P2tPointVec(P2tPointVec&&) = default;
+    P2tPointVec& operator=(P2tPointVec&&) = default;
+
+    auto begin() const { return points.begin(); }
+    auto end() const { return points.end(); }
+    size_t size() const { return points.size(); }
+};
 
 } // anonymous namespace
 
@@ -217,18 +234,18 @@ Result<TriangulatedMesh> triangulate_polygon(
         );
     }
 
-    // Convert outer contour to poly2tri points.
-    std::vector<p2t::Point*> outer_pts = to_p2t_points(outer_contour);
+    // Convert outer contour to poly2tri points (RAII-managed).
+    P2tPointVec outer_pts(outer_contour);
 
     // Create CDT with outer contour.
-    p2t::CDT cdt(outer_pts);
+    p2t::CDT cdt(outer_pts.points);
 
     // Add holes.
-    std::vector<std::vector<p2t::Point*>> hole_ptrs;
+    std::vector<P2tPointVec> hole_vecs;
     for (const auto& hole : holes) {
         if (hole.size() >= 3) {
-            hole_ptrs.push_back(to_p2t_points(hole));
-            cdt.AddHole(hole_ptrs.back());
+            hole_vecs.emplace_back(hole);
+            cdt.AddHole(hole_vecs.back().points);
         }
     }
 
@@ -239,11 +256,6 @@ Result<TriangulatedMesh> triangulate_polygon(
     std::vector<p2t::Triangle*> triangles = cdt.GetTriangles();
 
     if (triangles.empty()) {
-        // Cleanup
-        for (auto* p : outer_pts) delete p;
-        for (const auto& hole : hole_ptrs) {
-            for (auto* p : hole) delete p;
-        }
         return std::unexpected(
             pml::type_error("triangulate_polygon: poly2tri produced no triangles")
         );
@@ -285,12 +297,6 @@ Result<TriangulatedMesh> triangulate_polygon(
             uint32_t idx = get_or_add_vertex(p, original_idx);
             indices.push_back(idx);
         }
-    }
-
-    // Cleanup poly2tri points.
-    for (auto* p : outer_pts) delete p;
-    for (const auto& hole : hole_ptrs) {
-        for (auto* p : hole) delete p;
     }
 
     TriangulatedMesh mesh;

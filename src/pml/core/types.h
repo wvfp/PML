@@ -460,6 +460,13 @@ public:
     [[nodiscard]] double double_val() const noexcept { return double_val_; }
     [[nodiscard]] bool bool_val() const noexcept { return bool_val_; }
 
+    /// Convert to double regardless of Int/Double tag. Asserts is_number().
+    [[nodiscard]] double to_double() const noexcept {
+        if (is_int()) return static_cast<double>(int_val_);
+        if (is_double()) return double_val_;
+        return 0.0;
+    }
+
     // ── Object accessors (return nullptr if not the requested kind) ───
     [[nodiscard]] const std::string* as_string() const noexcept;
     [[nodiscard]] const Symbol* as_symbol() const noexcept;

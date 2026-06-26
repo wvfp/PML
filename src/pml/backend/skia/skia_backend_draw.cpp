@@ -26,8 +26,6 @@ namespace pml {
 
 namespace {
 
-#include "textured_draw.h"
-
 // ── Stroke alignment helper ─────────────────────────────────────────────
 // Clip-based: draw at 2x stroke width, clip to keep only the inner or
 // outer half of the stroke.  Caller must save/restore canvas when used.
