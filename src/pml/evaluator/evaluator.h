@@ -28,10 +28,8 @@ namespace pml {
 // Macro expansion depth tracking
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/// Module-level macro expansion depth counter.
-/// Incremented when entering a macro expansion, decremented on exit.
-/// Matches Python's _macro_depth module-level variable.
-inline int g_macro_depth = 0;
+/// Module-level macro expansion depth counter (thread-local for safety).
+inline thread_local int g_macro_depth = 0;
 
 /// Maximum allowed macro expansion nesting depth.
 inline constexpr int MAX_MACRO_DEPTH = 256;

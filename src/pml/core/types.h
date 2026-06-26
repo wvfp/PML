@@ -14,6 +14,8 @@
 #include "arena.h"
 #include "error.h"
 
+#include <cassert>
+
 #include <cstdint>
 #include <functional>
 #include <initializer_list>
@@ -456,8 +458,16 @@ public:
     [[nodiscard]] Box::Kind object_kind() const noexcept { return box_kind(); }
 
     // ── Inline scalar accessors ───────────────────────────────────────
-    [[nodiscard]] int64_t int_val() const noexcept { return int_val_; }
-    [[nodiscard]] double double_val() const noexcept { return double_val_; }
+    /// Access stored Int value. Call only if is_int() is true.
+    [[nodiscard]] int64_t int_val() const noexcept {
+        assert(tag_ == Tag::Int);
+        return int_val_;
+    }
+    /// Access stored Double value. Call only if is_double() is true.
+    [[nodiscard]] double double_val() const noexcept {
+        assert(tag_ == Tag::Double);
+        return double_val_;
+    }
     [[nodiscard]] bool bool_val() const noexcept { return bool_val_; }
 
     /// Convert to double regardless of Int/Double tag. Asserts is_number().
