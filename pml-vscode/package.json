@@ -53,7 +53,7 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "tsc -p ./tsconfig.json --noEmit false",
+    "vscode:prepublish": "tsc -p ./tsconfig.json",
     "compile": "tsc -p ./tsconfig.json",
     "watch": "tsc -watch -p ./tsconfig.json",
     "package": "vsce package",

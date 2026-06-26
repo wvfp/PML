@@ -93,9 +93,8 @@ export function getTempDir(): string {
 /**
  * Selects the "main" output file from a list of rendered files.
  *
- * Heuristic: returns the **last** file in the array (typically the final
- * render output produced by the CLI). If the array is empty, returns null.
- * For a single-element array the element is returned directly.
+ * Heuristic: prefers the file without `@2x` or `@4x` suffix (i.e. the
+ * non-scaled output from render-set). Falls back to the last file.
  *
  * @param files - Array of output file paths (relative or absolute).
  * @returns The selected file path, or `null` if the array is empty.
@@ -104,21 +103,28 @@ export function selectMainFile(files: string[]): string | null {
   if (files.length === 0) {
     return null;
   }
-  // The last file is typically the final render output.
+  // Prefer first file without @2x/@4x scaling suffix.
+  for (const f of files) {
+    const basename = path.basename(f);
+    if (!/@[2-9]x/.test(basename)) {
+      return f;
+    }
+  }
   return files[files.length - 1];
 }
 
 /**
- * Resolves the absolute path to the bundled `pml.exe` binary using the
- * VSCode extension context.
+ * Resolves the absolute path to the bundled `pml.exe` (Windows) or `pml`
+ * (Linux/macOS) binary using the VSCode extension context.
  *
- * The binary is expected at `pml-bin/pml.exe` relative to the extension root.
+ * The binary is expected at `pml-bin/pml(.exe)` relative to the extension root.
  *
  * @param context - The VSCode extension context (provides `asAbsolutePath`).
- * @returns The absolute path to `pml.exe`.
+ * @returns The absolute path to the PML binary.
  */
 export function resolveBinaryPath(context: vscode.ExtensionContext): string {
-  return context.asAbsolutePath(path.join('pml-bin', 'pml.exe'));
+  const binaryName = process.platform === 'win32' ? 'pml.exe' : 'pml';
+  return context.asAbsolutePath(path.join('pml-bin', binaryName));
 }
 
 /**
