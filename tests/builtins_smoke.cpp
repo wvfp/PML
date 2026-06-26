@@ -530,6 +530,14 @@ int main() {
     CHECK("apply",         "(apply + '(1 2 3))",      "6");
     CHECK("apply-args",    "(apply + 1 2 '(3 4))",    "10");
 
+    // ---- Sequence functions (find/position/count) -----------------------------------------------------------
+    std::cout << "\n---- Sequence functions ----\n";
+
+    CHECK("find-basic",    "(find 30 '(10 20 30 40))",     "30");
+    CHECK("find-missing",  "(find 99 '(10 20))",           "nil");
+    CHECK("position-basic","(position 30 '(10 20 30 40))", "2");
+    CHECK("count-basic",   "(count 30 '(10 20 30 30 40))", "2");
+
     // ---- String extensions ------------------------------------------------------------------------------------------------
     std::cout << "\n---- String Extensions ----\n";
 

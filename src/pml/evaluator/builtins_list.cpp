@@ -439,6 +439,34 @@ void register_list_builtins(std::shared_ptr<Environment> env) {
         return trampoline(apply_function(args[0], call_args, {}, env.shared_from_this()));
     });
 
+    // ---- Sequence functions (find/position/count) -----------------------------------------------------------------------
+
+    def("find", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
+        if (a.size() < 2) return std::unexpected(arity_error(SourceLocation{}, 2, static_cast<int>(a.size())));
+        const auto* lst = a[1].as_list();
+        if (!lst || !*lst) return std::unexpected(type_error("find: second argument must be a list"));
+        for (const auto& e : (*lst)->elements) if (deep_equal(a[0], e)) return e;
+        return Value(nullptr);
+    });
+
+    def("position", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
+        if (a.size() < 2) return std::unexpected(arity_error(SourceLocation{}, 2, static_cast<int>(a.size())));
+        const auto* lst = a[1].as_list();
+        if (!lst || !*lst) return std::unexpected(type_error("position: second argument must be a list"));
+        for (size_t i = 0; i < (*lst)->elements.size(); ++i)
+            if (deep_equal(a[0], (*lst)->elements[i])) return Value(static_cast<int64_t>(i));
+        return Value(nullptr);
+    });
+
+    def("count", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
+        if (a.size() < 2) return std::unexpected(arity_error(SourceLocation{}, 2, static_cast<int>(a.size())));
+        const auto* lst = a[1].as_list();
+        if (!lst || !*lst) return std::unexpected(type_error("count: second argument must be a list"));
+        int64_t n = 0;
+        for (const auto& e : (*lst)->elements) if (deep_equal(a[0], e)) ++n;
+        return Value(n);
+    });
+
     def("null?", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
         if (args.size() != 1) {
             return std::unexpected(
