@@ -2,6 +2,7 @@
 add_library(pml_api
     api.cpp
     context.cpp
+    texture_cache.cpp
 )
 
 target_include_directories(pml_api PUBLIC
@@ -27,3 +28,8 @@ target_link_libraries(pml_api PRIVATE
     pml_skeleton       # SkeletonTemplate, SkeletonInstance, IK
     pml_module         # ModuleLoader, Module
 )
+
+# texture_cache.cpp needs Skia headers.
+if(PML_USE_SKIA AND TARGET skia_headers)
+    target_link_libraries(pml_api PRIVATE skia_headers)
+endif()
