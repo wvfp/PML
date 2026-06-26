@@ -21,7 +21,6 @@ target_include_directories(pml_graphics PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/../backend   # src/pml/backend/ (registry.h, backend.h)
     ${CMAKE_CURRENT_SOURCE_DIR}/../..        # src/pml/ (for pml/core/error.h via backend.h)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../..     # src/ (for pml/api/context.h style paths)
-    ${CMAKE_CURRENT_SOURCE_DIR}/../evaluator # src/pml/evaluator/ (environment.h)
     ${CMAKE_CURRENT_SOURCE_DIR}/../animation # src/pml/animation/ (timeline.h)
 )
 target_link_libraries(pml_graphics PUBLIC
@@ -51,4 +50,9 @@ if(TARGET GIF::GIF)
 endif()
 if(TARGET PNG::PNG)
     target_link_libraries(pml_graphics PUBLIC PNG::PNG)
+endif()
+
+# render.cpp calls merge_skin_bindings() from pml_skeleton at link time.
+if(TARGET pml_skeleton)
+    target_link_libraries(pml_graphics PRIVATE pml_skeleton)
 endif()

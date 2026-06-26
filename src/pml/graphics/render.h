@@ -15,6 +15,9 @@
 #include <string>
 #include <vector>
 
+// Forward-declare to avoid pulling in evaluator headers.
+namespace pml { class Environment; }
+
 namespace pml {
 
 // ═══════════════════════════════════════════════════════════════════════════════
