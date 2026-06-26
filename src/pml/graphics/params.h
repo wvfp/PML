@@ -46,6 +46,7 @@ enum class ParamKey : uint8_t {
     filter,       ///< filter mode (int → FilterMode)
     edge_blend,   ///< edge blend radius in pixels
     uv_vertices,  ///< explicit UV vertices (list of x,y pairs)
+    align,        ///< text alignment (left/center/right)
     count
 };
 

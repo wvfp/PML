@@ -60,7 +60,7 @@ static Result<Value> builtin_canvas(const std::vector<Value>& args, Environment&
     int h = value_to_int(args[1]);
 
     auto kwargs = parse_kwargs(args, 2);
-    std::string bg = kw_string(kwargs, "bg", "#FFFFFF");
+    std::string bg = kw_string(kwargs, "background", "#FFFFFF");
 
     auto canvas = std::make_shared<Canvas>(w, h, std::move(bg));
     current_canvas_ref() = canvas;
@@ -95,7 +95,7 @@ static Result<Value> builtin_sprite_canvas(const std::vector<Value>& args, Envir
     int h = value_to_int(args[1]);
 
     auto kwargs = parse_kwargs(args, 2);
-    std::string bg = kw_string(kwargs, "bg", "transparent");
+    std::string bg = kw_string(kwargs, "background", "transparent");
     std::string anchor = kw_string(kwargs, "anchor", "center-bottom");
     int padding = static_cast<int>(kw_double(kwargs, "padding", 0.0));
 

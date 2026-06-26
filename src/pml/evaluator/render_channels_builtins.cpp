@@ -218,8 +218,8 @@ void register_render_channels(std::shared_ptr<Environment> env) {
         if (width < 1) width = 1;
         if (height < 1) height = 1;
 
-        // :bg (optional, default "transparent")
-        std::string bg = kw_string(kwargs, "bg", "transparent");
+        // :bg / :background (optional, default "transparent")
+        std::string bg = kw_string(kwargs, "background", "transparent");
         uint32_t bg_color = parse_color(bg).value_or(0x00000000);
 
         // ---- Render each channel ------------------------------------------------------------------------------------

@@ -509,11 +509,25 @@ static Result<Value> builtin_text(const std::vector<Value>& args, Environment& /
         fill_color = value_to_opt_string(fill_it->second);
     }
 
+    std::optional<std::string> align;
+    auto align_it = kwargs.find("align");
+    if (align_it != kwargs.end()) {
+        align = value_to_opt_string(align_it->second);
+        if (!align) {
+            if (const auto* sym = align_it->second.as_symbol()) {
+                align = sym->name;
+            }
+        }
+    }
+
     Params params;
     params.set(ParamKey::x, Value(x));
     params.set(ParamKey::y, Value(y));
     params.set(ParamKey::text, Value(std::move(*content)));
     params.set(ParamKey::font_size, Value(font_size));
+    if (align) {
+        params.set(ParamKey::align, Value(std::move(*align)));
+    }
 
     auto obj = std::make_shared<GraphicObject>("text",
                                                std::move(params),

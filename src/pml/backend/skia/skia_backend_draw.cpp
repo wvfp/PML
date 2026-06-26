@@ -422,9 +422,26 @@ Result<void> draw_text(SkCanvas* canvas, const GraphicObject& obj,
 
     SkFont font(typeface, static_cast<SkScalar>(font_size));
     font.setEdging(SkFont::Edging::kAntiAlias);
+
+    SkScalar draw_x = static_cast<SkScalar>(x);
+    if (const Value* align_val = obj.params.find(ParamKey::align)) {
+        std::string align_str;
+        if (align_val->is_string()) {
+            if (const auto* s = align_val->as_string()) align_str = *s;
+        } else if (const auto* sym = align_val->as_symbol()) {
+            align_str = sym->name;
+        }
+        if (align_str == "center" || align_str == "right") {
+            SkScalar width = font.measureText(text.c_str(), text.size(),
+                                              SkTextEncoding::kUTF8);
+            if (align_str == "center") draw_x -= width / 2;
+            else draw_x -= width;
+        }
+    }
+
     canvas->drawSimpleText(text.c_str(), text.size(),
                            SkTextEncoding::kUTF8,
-                           static_cast<SkScalar>(x),
+                           draw_x,
                            static_cast<SkScalar>(y),
                            font, paint);
     return {};
