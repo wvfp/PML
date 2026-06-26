@@ -201,6 +201,13 @@ inline void configure_stroke_paint(
 
 using ShaderLookup = std::function<sk_sp<SkShader>(int64_t)>;
 
+/// Draw function signature for the shape registry.
+using DrawFn = std::function<Result<void>(SkCanvas*, const GraphicObject&,
+                                          sk_sp<SkShader>, const ShaderLookup&)>;
+
+/// Register a draw function for a shape type.
+void register_draw_fn(const std::string& shape_type, DrawFn fn);
+
 Result<void> draw_object(SkCanvas* canvas, const GraphicObject& obj,
                          sk_sp<SkShader> parent_shader,
                          const ShaderLookup& lookup);

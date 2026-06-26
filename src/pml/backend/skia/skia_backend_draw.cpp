@@ -1258,6 +1258,27 @@ Result<void> draw_rough_path(SkCanvas* canvas, const GraphicObject& obj,
 // ═══════════════════════════════════════════════════════════════════════════════
 // draw_object — main dispatcher
 // ═══════════════════════════════════════════════════════════════════════════════
+// Shape draw function registry
+// ═══════════════════════════════════════════════════════════════════════════════
+
+namespace {
+
+using DrawMap = std::unordered_map<std::string, DrawFn>;
+
+DrawMap& draw_registry() {
+    static DrawMap reg;
+    return reg;
+}
+
+} // anonymous namespace
+
+void register_draw_fn(const std::string& shape_type, DrawFn fn) {
+    draw_registry()[shape_type] = std::move(fn);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// draw_object — registry-based dispatcher
+// ═══════════════════════════════════════════════════════════════════════════════
 
 Result<void> draw_object(SkCanvas* canvas, const GraphicObject& obj,
                          sk_sp<SkShader> parent_shader,
@@ -1283,55 +1304,41 @@ Result<void> draw_object(SkCanvas* canvas, const GraphicObject& obj,
         }
     }
 
-    // If the object has texture-map params, route to textured draw.
+    // Texture-mapped objects are handled separately.
     if (obj.params.find(ParamKey::uv)) {
         return draw_textured_object(canvas, obj);
     }
 
+    // Groups iterate children recursively.
     if (obj.shape_type == "group") {
         return draw_group(canvas, obj, local_shader, lookup);
     }
 
-    // ── Rough-style dispatch ──────────────────────────────────────────────
-    // shape_type starting with "rough_" triggers the hand-drawn rendering path.
+    // Rough-style shapes: try the rough dispatch first.
     if (obj.shape_type.rfind("rough_", 0) == 0) {
         RoughStyleParams params;
         RoughRandom rng;
-        if (!extract_rough_params(obj, params, rng)) {
-            // roughness = 0 and solid fill → fall through to exact path below
-            goto exact_path;
+        if (extract_rough_params(obj, params, rng)) {
+            auto it = draw_registry().find(obj.shape_type);
+            if (it != draw_registry().end()) {
+                return it->second(canvas, obj, local_shader, lookup);
+            }
         }
-        if (obj.shape_type == "rough_circle") {
-            return draw_rough_circle(canvas, obj, local_shader, params, rng);
+        // If roughness is 0 or unknown rough_ prefix, strip "rough_" and
+        // try the exact shape name.
+        std::string exact = obj.shape_type.substr(6); // len("rough_")
+        auto it = draw_registry().find(exact);
+        if (it != draw_registry().end()) {
+            return it->second(canvas, obj, local_shader, lookup);
         }
-        if (obj.shape_type == "rough_rect") {
-            return draw_rough_rect(canvas, obj, local_shader, params, rng);
-        }
-        if (obj.shape_type == "rough_ellipse") {
-            return draw_rough_ellipse(canvas, obj, local_shader, params, rng);
-        }
-        if (obj.shape_type == "rough_line") {
-            return draw_rough_line(canvas, obj, params, rng);
-        }
-        if (obj.shape_type == "rough_polygon") {
-            return draw_rough_polygon(canvas, obj, local_shader, params, rng);
-        }
-        if (obj.shape_type == "rough_path") {
-            return draw_rough_path(canvas, obj, local_shader, params, rng);
-        }
-        // Unknown rough_ prefix → fall through to exact path
+        return {};
     }
 
-exact_path:
-    if (obj.shape_type == "circle")  return draw_circle(canvas, obj, local_shader);
-    if (obj.shape_type == "rect")    return draw_rect(canvas, obj, local_shader);
-    if (obj.shape_type == "ellipse") return draw_ellipse(canvas, obj, local_shader);
-    if (obj.shape_type == "line")    return draw_line(canvas, obj, local_shader);
-    if (obj.shape_type == "polygon") return draw_polygon(canvas, obj, local_shader);
-    if (obj.shape_type == "text")    return draw_text(canvas, obj, local_shader);
-    if (obj.shape_type == "path")    return draw_path(canvas, obj, local_shader);
-    if (obj.shape_type == "image")   return draw_image(canvas, obj, local_shader);
-    if (obj.shape_type == "mesh3d")  return draw_mesh3d(canvas, obj, lookup);
+    // Standard shape dispatch via registry.
+    auto it = draw_registry().find(obj.shape_type);
+    if (it != draw_registry().end()) {
+        return it->second(canvas, obj, local_shader, lookup);
+    }
 
     // Unknown shape type is non-fatal (matching Python's tolerant behaviour).
     return {};
@@ -1491,4 +1498,55 @@ Result<void> draw_mesh3d(SkCanvas* canvas, const GraphicObject& obj,
     return draw_mesh3d_impl(canvas, obj, lookup);
 }
 
+// ── Static registration of all shape draw functions ────────────────────
+
+namespace {
+
+[[maybe_unused]] bool registered_shapes = []() {
+    // Exact shapes (shader-only, no lookup)
+    register_draw_fn("circle",  [](SkCanvas* c, const GraphicObject& o, sk_sp<SkShader> s, const ShaderLookup&) { return draw_circle(c, o, s); });
+    register_draw_fn("rect",    [](SkCanvas* c, const GraphicObject& o, sk_sp<SkShader> s, const ShaderLookup&) { return draw_rect(c, o, s); });
+    register_draw_fn("ellipse", [](SkCanvas* c, const GraphicObject& o, sk_sp<SkShader> s, const ShaderLookup&) { return draw_ellipse(c, o, s); });
+    register_draw_fn("line",    [](SkCanvas* c, const GraphicObject& o, sk_sp<SkShader> s, const ShaderLookup&) { return draw_line(c, o, s); });
+    register_draw_fn("polygon", [](SkCanvas* c, const GraphicObject& o, sk_sp<SkShader> s, const ShaderLookup&) { return draw_polygon(c, o, s); });
+    register_draw_fn("text",    [](SkCanvas* c, const GraphicObject& o, sk_sp<SkShader> s, const ShaderLookup&) { return draw_text(c, o, s); });
+    register_draw_fn("path",    [](SkCanvas* c, const GraphicObject& o, sk_sp<SkShader> s, const ShaderLookup&) { return draw_path(c, o, s); });
+    register_draw_fn("image",   [](SkCanvas* c, const GraphicObject& o, sk_sp<SkShader> s, const ShaderLookup&) { return draw_image(c, o, s); });
+    register_draw_fn("mesh3d",  [](SkCanvas* c, const GraphicObject& o, sk_sp<SkShader> s, const ShaderLookup& l) { return draw_mesh3d(c, o, l); });
+
+    // Rough shapes: extract rough params inside the lambda before dispatching.
+    register_draw_fn("rough_circle",  [](SkCanvas* c, const GraphicObject& o, sk_sp<SkShader> s, const ShaderLookup&) {
+        RoughStyleParams p; RoughRandom r;
+        if (!extract_rough_params(o, p, r)) return Result<void>{};
+        return draw_rough_circle(c, o, s, p, r);
+    });
+    register_draw_fn("rough_rect",    [](SkCanvas* c, const GraphicObject& o, sk_sp<SkShader> s, const ShaderLookup&) {
+        RoughStyleParams p; RoughRandom r;
+        if (!extract_rough_params(o, p, r)) return Result<void>{};
+        return draw_rough_rect(c, o, s, p, r);
+    });
+    register_draw_fn("rough_ellipse", [](SkCanvas* c, const GraphicObject& o, sk_sp<SkShader> s, const ShaderLookup&) {
+        RoughStyleParams p; RoughRandom r;
+        if (!extract_rough_params(o, p, r)) return Result<void>{};
+        return draw_rough_ellipse(c, o, s, p, r);
+    });
+    register_draw_fn("rough_line",    [](SkCanvas* c, const GraphicObject& o, sk_sp<SkShader> s, const ShaderLookup&) {
+        RoughStyleParams p; RoughRandom r;
+        if (!extract_rough_params(o, p, r)) return Result<void>{};
+        return draw_rough_line(c, o, p, r);
+    });
+    register_draw_fn("rough_polygon", [](SkCanvas* c, const GraphicObject& o, sk_sp<SkShader> s, const ShaderLookup&) {
+        RoughStyleParams p; RoughRandom r;
+        if (!extract_rough_params(o, p, r)) return Result<void>{};
+        return draw_rough_polygon(c, o, s, p, r);
+    });
+    register_draw_fn("rough_path",    [](SkCanvas* c, const GraphicObject& o, sk_sp<SkShader> s, const ShaderLookup&) {
+        RoughStyleParams p; RoughRandom r;
+        if (!extract_rough_params(o, p, r)) return Result<void>{};
+        return draw_rough_path(c, o, s, p, r);
+    });
+    return true;
+}();
+
+} // namespace
 }  // namespace pml
