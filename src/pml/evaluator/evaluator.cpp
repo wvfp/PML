@@ -265,6 +265,86 @@ Result<EvaluatedArguments> evaluate_arguments(
     return result;
 }
 
+// ---- apply_with_param_info: ParamInfo-based argument matching (&optional/&key/&rest) ---------─
+
+/// Apply a Procedure that has ParamInfo (&optional/&key/&rest support).
+static Result<EvalResult> apply_with_param_info(
+    const Procedure& proc,
+    const std::vector<Value>& args,
+    const std::unordered_map<std::string, Value>& kwargs,
+    Environment& env) {
+
+    const auto& info = *proc.param_info;
+    size_t arg_pos = 0;
+    std::vector<std::string> bind_names;
+    std::vector<Value> bind_values;
+
+    // 1. Required parameters
+    for (size_t i = 0; i < info.required_count; ++i, ++arg_pos) {
+        if (arg_pos >= args.size()) {
+            return std::unexpected(arity_error(
+                SourceLocation{}, static_cast<int>(info.required_count),
+                static_cast<int>(args.size())));
+        }
+        bind_names.push_back(info.names[i]);
+        bind_values.push_back(args[arg_pos]);
+    }
+
+    // 2. Optional parameters (from positional args or defaults)
+    for (size_t i = 0; i < info.optional_count; ++i) {
+        size_t idx = info.required_count + i;
+        bind_names.push_back(info.names[idx]);
+        if (arg_pos < args.size()) {
+            bind_values.push_back(args[arg_pos++]);
+        } else {
+            // Use default (nil if not provided)
+            if (i < info.defaults.size()) {
+                bind_values.push_back(info.defaults[i]);
+            } else {
+                bind_values.push_back(Value(nullptr));
+            }
+        }
+    }
+
+    // 3. Keyword parameters
+    size_t key_start = info.required_count + info.optional_count;
+    // Iterate key param names (excluding rest)
+    for (size_t i = key_start; i < info.names.size(); ++i) {
+        if (info.has_rest && i == info.rest_index) continue;
+        const std::string& key_name = info.names[i];
+        bind_names.push_back(key_name);
+        auto it = kwargs.find(key_name);
+        if (it != kwargs.end()) {
+            bind_values.push_back(it->second);
+        } else {
+            // Use default if available
+            size_t def_idx = info.optional_count + (i - key_start);
+            if (def_idx < info.defaults.size()) {
+                bind_values.push_back(info.defaults[def_idx]);
+            } else {
+                bind_values.push_back(Value(nullptr)); // default nil
+            }
+        }
+    }
+
+    // 4. &rest parameter
+    if (info.has_rest) {
+        std::vector<Value> rest_values;
+        while (arg_pos < args.size()) {
+            rest_values.push_back(args[arg_pos++]);
+        }
+        bind_names.push_back(info.names[info.rest_index]);
+        bind_values.push_back(make_list_value(std::move(rest_values)));
+    } else if (arg_pos < args.size()) {
+        return std::unexpected(arity_error(
+            SourceLocation{}, static_cast<int>(info.required_count + info.optional_count),
+            static_cast<int>(args.size())));
+    }
+
+    auto call_env = proc.closure_env->extend(bind_names, bind_values);
+    return TailCall{proc.body, call_env};
+}
+
 // ==========================================================================================================================================================================================================================================═
 // apply_function
 // ==========================================================================================================================================================================================================================================═
@@ -281,6 +361,11 @@ Result<EvalResult> apply_function(
         if (!arg) {
             return std::unexpected(
                 type_error("Cannot apply null procedure"));
+        }
+
+        // ParamInfo-based matching (&optional/&key/&rest)
+        if (arg->param_info.has_value()) {
+            return apply_with_param_info(*arg, args, kwargs, *env);
         }
 
         const auto& params = arg->params;
@@ -978,35 +1063,111 @@ Result<EvalResult> eval_lambda(
             type_error("lambda: parameters must be a list"));
     }
 
-    // Parse parameters, supporting rest param via '.' pattern
+    // Parse parameters, supporting:
+    //   - simple: (lambda (x y) ...)
+    //   - rest via '.': (lambda (x . rest) ...)
+    //   - &optional: (lambda (x &optional y (z 10)) ...)
+    //   - &key: (lambda (&key x (y 0)) ...)
+    //   - &rest: (lambda (x &rest rest) ...)
     std::vector<std::string> params;
     bool saw_dot = false;
-    std::string rest_param;
+    std::string dot_rest_name;
+    bool saw_ampersand = false;
+
+    enum class ParamSection { Required, Optional, Key, Rest };
+    ParamSection section = ParamSection::Required;
+
+    ParamInfo pinfo;
 
     for (const auto& p : *params_list) {
         auto name_opt = extract_symbol_name(p);
-        if (!name_opt) {
-            return std::unexpected(
-                type_error("lambda: parameter must be symbol"));
-        }
-
-        if (*name_opt == ".") {
-            saw_dot = true;
+        if (name_opt) {
+            const std::string& n = *name_opt;
+            if (n == ".") { saw_dot = true; continue; }
+            if (n == "&optional") {
+                section = ParamSection::Optional;
+                saw_ampersand = true;
+                continue;
+            }
+            if (n == "&key") {
+                section = ParamSection::Key;
+                pinfo.has_keys = true;
+                saw_ampersand = true;
+                continue;
+            }
+            if (n == "&rest") {
+                section = ParamSection::Rest;
+                saw_ampersand = true;
+                continue;
+            }
+            if (saw_dot) {
+                dot_rest_name = n;
+                continue;
+            }
+            if (section == ParamSection::Rest) {
+                pinfo.has_rest = true;
+                pinfo.rest_index = params.size();
+                params.push_back(n);
+                pinfo.names.push_back(n);
+                continue;
+            }
+            // Simple symbol param
+            params.push_back(n);
+            pinfo.names.push_back(n);
+            if (section == ParamSection::Optional) {
+                pinfo.optional_count++;
+                pinfo.defaults.push_back(Value(nullptr));
+            } else if (section == ParamSection::Key) {
+                pinfo.key_indices[n] = pinfo.names.size() - 1;
+                pinfo.defaults.push_back(Value(nullptr));
+            }
             continue;
         }
 
-        if (saw_dot) {
-            rest_param = *name_opt;
-        } else {
-            params.push_back(*name_opt);
+        // (name default) form for &optional or &key
+        const auto* sub = get_list(p);
+        if (sub && sub->size() >= 2) {
+            auto sub_name = extract_symbol_name((*sub)[0]);
+            if (!sub_name) {
+                return std::unexpected(type_error("lambda: parameter must be symbol"));
+            }
+            if (section != ParamSection::Optional && section != ParamSection::Key) {
+                return std::unexpected(type_error(
+                    "lambda: parameter list form only allowed after &optional or &key"));
+            }
+
+            params.push_back(*sub_name);
+            pinfo.names.push_back(*sub_name);
+
+            auto default_val = eval_to_value((*sub)[1], env);
+            if (!default_val) return std::unexpected(default_val.error());
+
+            if (section == ParamSection::Optional) {
+                pinfo.optional_count++;
+            }
+            pinfo.defaults.push_back(*default_val);
+            if (section == ParamSection::Key) {
+                pinfo.key_indices[*sub_name] = pinfo.names.size() - 1;
+            }
+            continue;
         }
+
+        return std::unexpected(type_error("lambda: parameter must be symbol"));
     }
 
-    // If we have a rest parameter, append "." and the rest param name
-    // to the params list so that apply_function can detect them.
-    if (saw_dot && !rest_param.empty()) {
+    // For traditional ". rest" syntax, append "." and rest param name
+    // so that apply_function can detect them via the existing code path.
+    if (saw_dot && !dot_rest_name.empty()) {
         params.push_back(".");
-        params.push_back(rest_param);
+        params.push_back(dot_rest_name);
+    }
+
+    std::optional<ParamInfo> param_info_opt;
+    if (saw_ampersand) {
+        pinfo.required_count = pinfo.names.size() - pinfo.optional_count
+                             - pinfo.key_indices.size()
+                             - (pinfo.has_rest ? 1 : 0);
+        param_info_opt = std::move(pinfo);
     }
 
     // Body expressions start at index 2
@@ -1019,7 +1180,9 @@ Result<EvalResult> eval_lambda(
     auto proc = std::make_shared<Procedure>(
         params,
         make_body_from_vector(body_exprs),
-        env);
+        env,
+        std::nullopt,          // name
+        std::move(param_info_opt));
 
     return Value(std::move(proc));
 }

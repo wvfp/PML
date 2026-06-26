@@ -889,6 +889,16 @@ int main() {
     CHECK("listp-true",  "(listp '(1 2))",  "#t");
     CHECK("listp-nil",   "(listp ())",      "#t");
 
+    // ---- &optional/&key/&rest parameter syntax ----------------------------------------------------
+    std::cout << "\n---- &optional/&key/&rest params ----\n";
+
+    CHECK("opt-basic",     "((lambda (x &optional y) (list x y)) 1)",       "(1 nil)");
+    CHECK("opt-default",   "((lambda (x &optional (y 10)) (list x y)) 1)",  "(1 10)");
+    CHECK("opt-supplied",  "((lambda (x &optional y) (list x y)) 1 2)",     "(1 2)");
+    CHECK("rest-simple",   "((lambda (x &rest r) r) 1 2 3)",                "(2 3)");
+    CHECK("key-basic",     "((lambda (&key x y) (list x y)) :x 10 :y 20)",  "(10 20)");
+    CHECK("key-default",   "((lambda (&key (x 0)) (list x)) :y 1)",         "(0)");
+
     // ---- Summary --------------------------------------------------------------------------------------------------------------------
     std::cout << "\n======═ Results ======═\n"
               << "Passed: " << g_passed << " / "
