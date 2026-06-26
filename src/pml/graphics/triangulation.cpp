@@ -1,9 +1,9 @@
-// ═══════════════════════════════════════════════════════════════════════
+// ==================================================================================================================================================================================================================═
 // PML Triangulation — poly2tri-based Constrained Delaunay Triangulation
-// ═══════════════════════════════════════════════════════════════════════
+// ==================================================================================================================================================================================================================═
 // Uses poly2tri (https://github.com/jhasse/poly2tri) for robust CDT.
 // Handles simple polygons with optional holes (supports Steiner points).
-// ═══════════════════════════════════════════════════════════════════════
+// ==================================================================================================================================================================================================================═
 
 #include "pml/graphics/triangulation.h"
 
@@ -23,7 +23,7 @@
 namespace pml {
 namespace {
 
-// ── Helper: convert a numeric Value to double (handles int and double) ─────
+// ---- Helper: convert a numeric Value to double (handles int and double) --------─
 
 [[nodiscard]] double as_double(const Value& v) {
     if (v.is_int()) return static_cast<double>(v.int_val());
@@ -31,7 +31,7 @@ namespace {
     return 0.0;
 }
 
-// ── Helper: collect contour points from a GraphicObject ────────────────────
+// ---- Helper: collect contour points from a GraphicObject ----------------------------------------
 
 std::vector<Vec2> collect_contour(const GraphicObject& obj) {
     const std::string& st = obj.shape_type;
@@ -201,7 +201,7 @@ std::vector<Vec2> collect_contour(const GraphicObject& obj) {
     return {};
 }
 
-// ── RAII wrapper for poly2tri point vectors ────────────────────────────
+// ---- RAII wrapper for poly2tri point vectors --------------------------------------------------------
 // poly2tri's API requires raw p2t::Point* pointers, but we want automatic
 // cleanup on scope exit (exception-safe).
 
@@ -231,7 +231,7 @@ struct P2tPointVec {
 
 } // anonymous namespace
 
-// ── triangulate_polygon ────────────────────────────────────────────────────
+// ---- triangulate_polygon --------------------------------------------------------------------------------------------------------
 //
 //  Uses poly2tri to perform Constrained Delaunay Triangulation.
 //  Supports outer contour + holes.
@@ -320,7 +320,7 @@ Result<TriangulatedMesh> triangulate_polygon(
     return mesh;
 }
 
-// ── triangulate_shape ──────────────────────────────────────────────────────
+// ---- triangulate_shape ------------------------------------------------------------------------------------------------------------
 
 Result<TriangulatedMesh> triangulate_shape(const GraphicObject& obj) {
     auto contour = collect_contour(obj);

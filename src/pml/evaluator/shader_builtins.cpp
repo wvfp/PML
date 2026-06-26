@@ -1,6 +1,6 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML Shader Builtins — runtime shader handle management
-// ─────────────────═════════════════════════════════════════════════════════════
+// --------------------------------─====================================================================================================================================================================================═
 // Shader compilation is delegated to the active render backend. The returned
 // opaque handle is stored as an int64_t Value and can be attached to a
 // GraphicObject via apply-shader!. Backends that support Shaders (e.g. skia)
@@ -8,7 +8,7 @@
 //
 // Noise builtins create Perlin noise shaders (fractal or turbulence) that
 // can be used for procedural texture generation, including seamless tiling.
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "shader_builtins.h"
 
@@ -50,7 +50,7 @@ void register_shader_builtins(std::shared_ptr<Environment> env) {
         env->define(name, Value(proc));
     };
 
-    // ── (shader "...sksl...") ────────────────────────────────────────────────
+    // ---- (shader "...sksl...") ------------------------------------------------------------------------------------------------
     // Compile a SkSL/GLSL-like shader source string and return a shader handle.
     def("shader", [](const std::vector<Value>& args,
                      Environment& /*env*/) -> Result<Value> {
@@ -72,7 +72,7 @@ void register_shader_builtins(std::shared_ptr<Environment> env) {
         return Value(static_cast<int64_t>(*handle));
     });
 
-    // ── (apply-shader! graphic-object shader-handle) ─────────────────────────
+    // ---- (apply-shader! graphic-object shader-handle) ------------------------------------------------─
     // Return a new GraphicObject with the shader handle attached.
     def("apply-shader!", [](const std::vector<Value>& args,
                             Environment& /*env*/) -> Result<Value> {
@@ -101,7 +101,7 @@ void register_shader_builtins(std::shared_ptr<Environment> env) {
         return Value(std::make_shared<GraphicObject>(std::move(modified)));
     });
 
-    // ── Helper: parse noise kwargs and create noise shader ─────────────
+    // ---- Helper: parse noise kwargs and create noise shader ------------------------─
     auto make_noise_builtin = [&](RenderBackend::NoiseType type) {
         return [type](const std::vector<Value>& args,
                        Environment& /*env*/) -> Result<Value> {
@@ -154,7 +154,7 @@ void register_shader_builtins(std::shared_ptr<Environment> env) {
         };
     };
 
-    // ── (noise-fractal [:freq-x 0.02] [:freq-y 0.02] [:octaves 4] [:seed 0] [:tile-width 0] [:tile-height 0] [:lacunarity 2.0] [:persistence 0.5]) ──
+    // ---- (noise-fractal [:freq-x 0.02] [:freq-y 0.02] [:octaves 4] [:seed 0] [:tile-width 0] [:tile-height 0] [:lacunarity 2.0] [:persistence 0.5]) ----
     // Create a Perlin fractal noise shader.
     // Returns a shader handle that can be used with apply-shader!.
     // Set :tile-width and :tile-height to non-zero values for seamless tiling.
@@ -162,7 +162,7 @@ void register_shader_builtins(std::shared_ptr<Environment> env) {
     // :persistence controls amplitude scaling per octave (default 0.5).
     def_kw("noise-fractal", make_noise_builtin(RenderBackend::NoiseType::Fractal));
 
-    // ── (noise-turbulence [:freq-x 0.02] [:freq-y 0.02] [:octaves 4] [:seed 0] [:tile-width 0] [:tile-height 0] [:lacunarity 2.0] [:persistence 0.5]) ──
+    // ---- (noise-turbulence [:freq-x 0.02] [:freq-y 0.02] [:octaves 4] [:seed 0] [:tile-width 0] [:tile-height 0] [:lacunarity 2.0] [:persistence 0.5]) ----
     // Create a Perlin turbulence noise shader.
     // Returns a shader handle that can be used with apply-shader!.
     // Set :tile-width and :tile-height to non-zero values for seamless tiling.
@@ -170,7 +170,7 @@ void register_shader_builtins(std::shared_ptr<Environment> env) {
     // :persistence controls amplitude scaling per octave (default 0.5).
     def_kw("noise-turbulence", make_noise_builtin(RenderBackend::NoiseType::Turbulence));
 
-    // ── (noise-voronoi [:cell-size 32] [:seed 0] [:jitter 0.5]) ────────────
+    // ---- (noise-voronoi [:cell-size 32] [:seed 0] [:jitter 0.5]) ------------------------
     // Create a Voronoi / cellular noise shader.
     // :cell-size controls feature point spacing (in pixels).
     // :jitter (0.0–1.0) controls randomness of feature point positions.
@@ -253,7 +253,7 @@ void register_shader_builtins(std::shared_ptr<Environment> env) {
         return Value(static_cast<int64_t>(*preshader));
     });
 
-    // ── (noise-warp base-handle warp-handle [:amount 30.0] [:freq 0.01]) ──
+    // ---- (noise-warp base-handle warp-handle [:amount 30.0] [:freq 0.01]) ----
     // Domain warp: use warp-handle noise to distort the sampling coordinates
     // of base-handle noise, creating flowing/fractured organic textures.
     // :amount controls distortion strength in pixels.
@@ -316,7 +316,7 @@ void register_shader_builtins(std::shared_ptr<Environment> env) {
         return Value(static_cast<int64_t>(*result));
     });
 
-    // ── (noise-blend noise-a noise-b [:mode 'gradient] [:direction 'vertical] [:weight 0.5]) ──
+    // ---- (noise-blend noise-a noise-b [:mode 'gradient] [:direction 'vertical] [:weight 0.5]) ----
     // Blend two noise shaders with a transition.
     // :mode controls transition type:
     //   'gradient  — linear gradient from noise A to noise B
@@ -393,7 +393,7 @@ void register_shader_builtins(std::shared_ptr<Environment> env) {
         return Value(static_cast<int64_t>(*result));
     });
 
-    // ── (make-uniforms float1 float2 ...) ────────────────────────
+    // ---- (make-uniforms float1 float2 ...) ------------------------------------------------
     // Create a raw byte vector from floating-point values for SkSL uniforms.
     // SkSL uniforms are laid out as 4-byte aligned floats.
     // Example: (make-uniforms 0.5 1.0) creates 8 bytes of uniform data.
@@ -427,7 +427,7 @@ void register_shader_builtins(std::shared_ptr<Environment> env) {
         return Value(data_str);
     });
 
-    // ── (apply-uniforms shader-handle uniform-data-string) ───────────
+    // ---- (apply-uniforms shader-handle uniform-data-string) --------------------─
     // Create a new shader handle with uniform data bound.
     // uniform-data-string is a raw byte string from make-uniforms.
     def("apply-uniforms", [](const std::vector<Value>& args,
@@ -463,7 +463,7 @@ void register_shader_builtins(std::shared_ptr<Environment> env) {
         return Value(static_cast<int64_t>(*new_handle));
     });
 
-    // ── (uniform-float shader-handle name value) ───────────────────
+    // ---- (uniform-float shader-handle name value) ------------------------------------─
     // Convenience: set a single float uniform on a shader.
     // Returns a new shader handle with the uniform bound.
     // This is a simplified interface that recreates the shader with new uniforms.
@@ -507,7 +507,7 @@ void register_shader_builtins(std::shared_ptr<Environment> env) {
         return Value(static_cast<int64_t>(*new_handle));
     });
 
-    // ── (quantize-noise noise-handle :levels '((threshold "color") ...)) ────
+    // ---- (quantize-noise noise-handle :levels '((threshold "color") ...)) --------
     // Quantize a continuous noise shader into discrete color bands.
     //
     // Arguments:

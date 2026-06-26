@@ -1,6 +1,6 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Convolution filters — blur, sharpen, edge detection, emboss, custom kernel
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "convolution.h"
 
@@ -128,7 +128,7 @@ ConvolutionKernel make_emboss_kernel(float /*direction*/) {
 
 } // anonymous namespace
 
-// ── BlurFilter ────────────────────────────────────────────────────────────────
+// ---- BlurFilter --------------------------------------------------------------------------------------------------------------------------------
 
 BlurFilter::BlurFilter(float radius, BlurFilterType type, float angle)
     : m_radius(std::max(radius, 0.0f)), m_type(type), m_angle(angle) {}
@@ -149,7 +149,7 @@ std::string BlurFilter::name() const {
     return "blur";
 }
 
-// ── SharpenFilter ─────────────────────────────────────────────────────────────
+// ---- SharpenFilter ------------------------------------------------------------------------------------------------------------------------─
 
 SharpenFilter::SharpenFilter(float amount, float /*radius*/)
     : m_amount(std::max(amount, 0.0f)) {}
@@ -162,7 +162,7 @@ std::string SharpenFilter::name() const {
     return "sharpen";
 }
 
-// ── EdgeDetectFilter ──────────────────────────────────────────────────────────
+// ---- EdgeDetectFilter --------------------------------------------------------------------------------------------------------------------
 
 EdgeDetectFilter::EdgeDetectFilter(EdgeDetectType type) : m_type(type) {}
 
@@ -180,7 +180,7 @@ std::string EdgeDetectFilter::name() const {
     return "edge-detect";
 }
 
-// ── EmbossFilter ──────────────────────────────────────────────────────────────
+// ---- EmbossFilter ----------------------------------------------------------------------------------------------------------------------------
 
 EmbossFilter::EmbossFilter(float direction) : m_direction(direction) {}
 
@@ -192,7 +192,7 @@ std::string EmbossFilter::name() const {
     return "emboss";
 }
 
-// ── ConvolutionFilter ─────────────────────────────────────────────────────────
+// ---- ConvolutionFilter ----------------------------------------------------------------------------------------------------------------─
 
 ConvolutionFilter::ConvolutionFilter(int w, int h, std::vector<float> values,
                                      float offset, float divisor)

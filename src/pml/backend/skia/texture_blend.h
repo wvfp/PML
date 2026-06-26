@@ -1,8 +1,8 @@
 #pragma once
 
-// ═══════════════════════════════════════════════════════════════════════
+// ==================================================================================================================================================================================================================═
 // PML Texture Blend (Skia backend) — Compose multiple texture layers
-// ═══════════════════════════════════════════════════════════════════════
+// ==================================================================================================================================================================================================================═
 
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkRefCnt.h>
@@ -14,9 +14,9 @@ class SkShader;
 
 namespace pml {
 
-// ─── TextureLayer ─────────────────────────────────────────────────────────
+// ----─ TextureLayer ----------------------------------------------------------------------------------------------------------------─
 // Represents one texture layer with its placement and blend mode.
-// ───────────────────────────────────────────────────────────────────────────
+// ----------------------------------------------------------------------------------------------------------------------------------------------------─
 struct TextureLayer {
     TextureBox texture;          // texture content + offset
     double    x = 0, y = 0;    // placement offset within shape (shape coords)
@@ -25,7 +25,7 @@ struct TextureLayer {
     SkBlendMode blend_mode = SkBlendMode::kSrcOver;  // how this layer blends with the one below
 };
 
-// ─── compose_texture_layers ───────────────────────────────────────────────
+// ----─ compose_texture_layers --------------------------------------------------------------------------------------------─
 // Given a list of texture layers, return a single SkShader that samples
 // all layers and blends them using their blend modes.
 //
@@ -36,7 +36,7 @@ struct TextureLayer {
 //
 // The caller must ensure the returned shader is used with a local matrix
 // that maps shape UV [0,1] to the correct texture coords.
-// ───────────────────────────────────────────────────────────────────────────
+// ----------------------------------------------------------------------------------------------------------------------------------------------------─
 sk_sp<SkShader> compose_texture_layers(const std::vector<TextureLayer>& layers);
 
 }  // namespace pml

@@ -1,6 +1,6 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML GIF Exporter — giflib implementation
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "gif_exporter.h"
 
@@ -24,7 +24,7 @@ namespace pml::backend::gif {
 
 namespace {
 
-// ── RAII wrapper for GifFileType ────────────────────────────────────────────
+// ---- RAII wrapper for GifFileType ----------------------------------------------------------------------------------------
 
 /// Calls EGifCloseFile on destruction (ignoring close errors during unwind).
 struct GifCloser {
@@ -39,7 +39,7 @@ struct GifCloser {
 
 using GifHandle = std::unique_ptr<GifFileType, GifCloser>;
 
-// ── Throw helpers ───────────────────────────────────────────────────────────
+// ---- Throw helpers --------------------------------------------------------------------------------------------------------------------─
 
 [[noreturn]] void throw_gif_error(const std::string& context, int giflib_error)
 {
@@ -56,16 +56,16 @@ using GifHandle = std::unique_ptr<GifFileType, GifCloser>;
 
 } // anonymous namespace
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // export_gif
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 void export_gif(const std::vector<std::vector<uint8_t>>& frames,
                 int width, int height,
                 const std::string& path,
                 double fps)
 {
-    // ── Preconditions ────────────────────────────────────────────────────
+    // ---- Preconditions --------------------------------------------------------------------------------------------------------
     if (frames.empty()) {
         throw std::runtime_error("GIF export: no frames provided");
     }
@@ -81,7 +81,7 @@ void export_gif(const std::vector<std::vector<uint8_t>>& frames,
         }
     }
 
-    // ── Open output file ─────────────────────────────────────────────────
+    // ---- Open output file ------------------------------------------------------------------------------------------------─
     int open_err = 0;
     GifFileType* raw_gif = EGifOpenFileName(path.c_str(), false, &open_err);
     if (!raw_gif) {
@@ -89,19 +89,19 @@ void export_gif(const std::vector<std::vector<uint8_t>>& frames,
     }
     GifHandle gif(raw_gif);
 
-    // ── GIF89a header (required for animation + GCE) ─────────────────────
+    // ---- GIF89a header (required for animation + GCE) ----------------------------------------─
     EGifSetGifVersion(gif.get(), true);
 
-    // ── Logical screen descriptor ────────────────────────────────────────
+    // ---- Logical screen descriptor --------------------------------------------------------------------------------
     // No global color map; each frame provides its own local color map.
     if (EGifPutScreenDesc(gif.get(), width, height, 8, 0, nullptr) == GIF_ERROR) {
         throw_gif_error("failed to write screen descriptor", gif.get());
     }
 
-    // ── Frame delay in centiseconds (giflib units) ───────────────────────
+    // ---- Frame delay in centiseconds (giflib units) --------------------------------------------─
     const int delay_cs = std::max(1, static_cast<int>(std::round(100.0 / fps)));
 
-    // ── Reusable buffers ─────────────────────────────────────────────────
+    // ---- Reusable buffers ------------------------------------------------------------------------------------------------─
     const size_t pixel_count = static_cast<size_t>(width)
                                * static_cast<size_t>(height);
     std::vector<GifByteType> red_plane(pixel_count);
@@ -110,7 +110,7 @@ void export_gif(const std::vector<std::vector<uint8_t>>& frames,
     std::vector<GifPixelType> quantized(pixel_count);
     std::vector<GifColorType> palette_storage(256);
 
-    // ── Frame loop ───────────────────────────────────────────────────────
+    // ---- Frame loop ------------------------------------------------------------------------------------------------------------─
     for (const auto& frame : frames) {
         // 1. Composite RGBA onto white background & separate RGB planes
         //
@@ -198,7 +198,7 @@ void export_gif(const std::vector<std::vector<uint8_t>>& frames,
         GifFreeMapObject(local_map);
     }
 
-    // ── Close file (writes GIF trailer) ──────────────────────────────────
+    // ---- Close file (writes GIF trailer) --------------------------------------------------------------------
     // GifHandle destructor calls EGifCloseFile automatically.
     // On normal exit, release the handle to close explicitly and check errors.
     int close_err = 0;

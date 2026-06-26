@@ -5,7 +5,7 @@
 (set-backend! "skia")
 (canvas 512 512 :bg "#1a1a2e")
 
-;; ── Voronoi 对比排列（2×2 网格） ─────────────────────────
+;; ---- Voronoi 对比排列（2×2 网格） ------------------------------------------------─
 
 ;; 左上：小细胞、低 jitter
 (define v-top-left (noise-voronoi :cell-size 16 :seed 0 :jitter 0.2))

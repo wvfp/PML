@@ -1,6 +1,6 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML Lexer Tests — Google Test suite for pml::Lexer
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include <gtest/gtest.h>
 #include "pml/frontend/lexer.h"
@@ -19,7 +19,7 @@ std::vector<Token> tokenize_ok(const std::string& source) {
     return std::move(*result);
 }
 
-// ─── Integer tokens ──────────────────────────────────────────────────────────
+// ----─ Integer tokens --------------------------------------------------------------------------------------------------------------------
 
 TEST(Lexer, IntegerLiteral) {
     auto tokens = tokenize_ok("42");
@@ -35,7 +35,7 @@ TEST(Lexer, NegativeInteger) {
     EXPECT_EQ(tokens[0].value, "-5");
 }
 
-// ─── Float tokens ────────────────────────────────────────────────────────────
+// ----─ Float tokens ------------------------------------------------------------------------------------------------------------------------
 
 TEST(Lexer, FloatLiteral) {
     auto tokens = tokenize_ok("3.14");
@@ -44,7 +44,7 @@ TEST(Lexer, FloatLiteral) {
     EXPECT_EQ(tokens[0].value, "3.14");
 }
 
-// ─── String tokens ───────────────────────────────────────────────────────────
+// ----─ String tokens --------------------------------------------------------------------------------------------------------------------─
 
 TEST(Lexer, StringLiteral) {
     auto tokens = tokenize_ok("\"hello\"");
@@ -60,7 +60,7 @@ TEST(Lexer, StringEscapeNewline) {
     EXPECT_EQ(tokens[0].value, "hello\nworld");
 }
 
-// ─── Symbol tokens ───────────────────────────────────────────────────────────
+// ----─ Symbol tokens --------------------------------------------------------------------------------------------------------------------─
 
 TEST(Lexer, SymbolWithDash) {
     auto tokens = tokenize_ok("foo-bar");
@@ -69,7 +69,7 @@ TEST(Lexer, SymbolWithDash) {
     EXPECT_EQ(tokens[0].value, "foo-bar");
 }
 
-// ─── Boolean tokens ──────────────────────────────────────────────────────────
+// ----─ Boolean tokens --------------------------------------------------------------------------------------------------------------------
 
 TEST(Lexer, BooleanTrue) {
     auto tokens = tokenize_ok("#t");
@@ -85,7 +85,7 @@ TEST(Lexer, BooleanFalse) {
     EXPECT_EQ(tokens[0].value, "#f");
 }
 
-// ─── Keyword tokens ──────────────────────────────────────────────────────────
+// ----─ Keyword tokens --------------------------------------------------------------------------------------------------------------------
 
 TEST(Lexer, Keyword) {
     auto tokens = tokenize_ok(":key");
@@ -94,7 +94,7 @@ TEST(Lexer, Keyword) {
     EXPECT_EQ(tokens[0].value, "key");  // stored without leading ':'
 }
 
-// ─── Parenthesized expression ────────────────────────────────────────────────
+// ----─ Parenthesized expression ------------------------------------------------------------------------------------------------
 
 TEST(Lexer, ParenthesizedExpression) {
     auto tokens = tokenize_ok("(+ 1 2)");
@@ -111,7 +111,7 @@ TEST(Lexer, ParenthesizedExpression) {
     EXPECT_EQ(tokens[5].type, TokenType::END_OF_FILE);
 }
 
-// ─── Comments ────────────────────────────────────────────────────────────────
+// ----─ Comments --------------------------------------------------------------------------------------------------------------------------------
 
 TEST(Lexer, LineComment) {
     auto tokens = tokenize_ok("; comment\n42");
@@ -120,7 +120,7 @@ TEST(Lexer, LineComment) {
     EXPECT_EQ(tokens[0].value, "42");
 }
 
-// ─── Quote sugar ─────────────────────────────────────────────────────────────
+// ----─ Quote sugar ------------------------------------------------------------------------------------------------------------------------─
 
 TEST(Lexer, QuoteSugar) {
     auto tokens = tokenize_ok("'x");
@@ -130,7 +130,7 @@ TEST(Lexer, QuoteSugar) {
     EXPECT_EQ(tokens[1].value, "x");
 }
 
-// ─── Quasiquote / unquote ───────────────────────────────────────────────────
+// ----─ Quasiquote / unquote ----------------------------------------------------------------------------------------------------─
 
 TEST(Lexer, QuasiquoteAndUnquote) {
     auto tokens = tokenize_ok("`(1 ,x)");
@@ -147,7 +147,7 @@ TEST(Lexer, QuasiquoteAndUnquote) {
     EXPECT_EQ(tokens[6].type, TokenType::END_OF_FILE);
 }
 
-// ─── Empty input ─────────────────────────────────────────────────────────────
+// ----─ Empty input ------------------------------------------------------------------------------------------------------------------------─
 
 TEST(Lexer, EmptyInput) {
     auto tokens = tokenize_ok("");
@@ -155,7 +155,7 @@ TEST(Lexer, EmptyInput) {
     EXPECT_EQ(tokens[0].type, TokenType::END_OF_FILE);
 }
 
-// ─── Unterminated string ─────────────────────────────────────────────────────
+// ----─ Unterminated string --------------------------------------------------------------------------------------------------------─
 
 TEST(Lexer, UnterminatedString) {
     auto result = Lexer("\"hello", "<test>").tokenize();
@@ -163,7 +163,7 @@ TEST(Lexer, UnterminatedString) {
     EXPECT_EQ(result.error().code, ErrorCode::PMLSyntaxError);
 }
 
-// ─── Line tracking ───────────────────────────────────────────────────────────
+// ----─ Line tracking --------------------------------------------------------------------------------------------------------------------─
 
 TEST(Lexer, LineTracking) {
     // "(a\nb)" — '(' on line 1, 'a' on line 1, 'b' on line 2, ')' on line 2

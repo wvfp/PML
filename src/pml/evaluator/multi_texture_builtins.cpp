@@ -1,6 +1,6 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML Multi-Texture Shader Builtins — bind SkImages to `uniform shader` slots
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 //
 // (bind-textures shader-handle :textures '((slot-name graphic-obj) ...))
 //   - Renders each GraphicObject to an SkImage and binds it as a child shader
@@ -8,7 +8,7 @@
 //   - Returns a new shader handle with children bound
 //
 // Requires an active backend that supports bind_textures_to_shader (e.g. Skia).
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "multi_texture_builtins.h"
 
@@ -41,7 +41,7 @@ void register_multi_texture_builtins(std::shared_ptr<Environment> env) {
         env->define(name, Value(proc));
     };
 
-    // ── (bind-textures shader-handle :textures '((slot-name graphic-obj) ...)) ──
+    // ---- (bind-textures shader-handle :textures '((slot-name graphic-obj) ...)) ----
     //
     // Bind texture GraphicObjects to a compiled shader's `uniform shader` slots.
     //

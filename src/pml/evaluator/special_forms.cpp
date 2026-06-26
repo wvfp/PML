@@ -1,9 +1,9 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML Evaluator — Special Forms Implementation
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 //
 // All evaluation special forms extracted from evaluator.cpp for maintainability.
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "evaluator.h"
 
@@ -19,13 +19,13 @@
 
 namespace pml {
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Internal helpers
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 namespace {
 
-// ── expr_to_value: Convert an AST Expr to a runtime Value ────────────
+// ---- expr_to_value: Convert an AST Expr to a runtime Value ------------------------
 
 Value expr_to_value(const Expr& expr) {
     return std::visit(
@@ -61,7 +61,7 @@ Value expr_to_value(const Expr& expr) {
         expr);
 }
 
-// ── make_body: Wrap body expression list into a single Expr ──────────
+// ---- make_body: Wrap body expression list into a single Expr --------------------
 
 Expr make_body_from_vector(const std::vector<Expr>& body_exprs) {
     if (body_exprs.empty()) {
@@ -77,7 +77,7 @@ Expr make_body_from_vector(const std::vector<Expr>& body_exprs) {
     return make_list(std::move(begin_form));
 }
 
-// ── extract_symbol_name: Get param name from Expr for lambda/defmacro ─
+// ---- extract_symbol_name: Get param name from Expr for lambda/defmacro ─
 
 std::optional<std::string> extract_symbol_name(const Expr& expr) {
     if (const auto* sym = std::get_if<Symbol>(&expr)) {
@@ -86,7 +86,7 @@ std::optional<std::string> extract_symbol_name(const Expr& expr) {
     return std::nullopt;
 }
 
-// ── Arity checking helpers ───────────────────────────────────────────
+// ---- Arity checking helpers ------------------------------------------------------------------------------------─
 
 Result<void> check_arity(int expected, int got, std::string_view form_name) {
     if (expected != got) {
@@ -117,11 +117,11 @@ Result<void> check_arity_range(int min_expected, int max_expected, int got,
 
 }  // anonymous namespace
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Special forms
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
-// ── quote: (quote <expr>) → return expr unevaluated ─────────────────────────
+// ---- quote: (quote <expr>) → return expr unevaluated ------------------------------------------------─
 
 Result<EvalResult> eval_quote(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> /*env*/) {
@@ -134,7 +134,7 @@ Result<EvalResult> eval_quote(
     return expr_to_value(expr[1]);
 }
 
-// ── if: (if <cond> <then> [<else>]) ─────────────────────────────────────────
+// ---- if: (if <cond> <then> [<else>]) --------------------------------------------------------------------------------─
 
 Result<EvalResult> eval_if(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
@@ -157,7 +157,7 @@ Result<EvalResult> eval_if(
     return Value(nullptr);  // no else clause → nil
 }
 
-// ── cond: (cond (<test> <expr>...) ... (else <default>...)) ─────────────────
+// ---- cond: (cond (<test> <expr>...) ... (else <default>...)) --------------------------------─
 
 Result<EvalResult> eval_cond(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
@@ -207,7 +207,7 @@ Result<EvalResult> eval_cond(
     return Value(nullptr);  // no clause matched → nil
 }
 
-// ── when: (when <condition> <body>...) ─────────────────────────────────────
+// ---- when: (when <condition> <body>...) ------------------------------------------------------------------------─
 
 Result<EvalResult> eval_when(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
@@ -234,7 +234,7 @@ Result<EvalResult> eval_when(
     return Value(nullptr);  // condition false → nil
 }
 
-// ── unless: (unless <condition> <body>...) ───────────────────────────────
+// ---- unless: (unless <condition> <body>...) ------------------------------------------------------------─
 
 Result<EvalResult> eval_unless(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
@@ -261,7 +261,7 @@ Result<EvalResult> eval_unless(
     return Value(nullptr);  // condition true → nil
 }
 
-// ── case: (case <key> (<value> <expr>...) ... (else <expr>...)) ─────────
+// ---- case: (case <key> (<value> <expr>...) ... (else <expr>...)) ----------------─
 
 Result<EvalResult> eval_case(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
@@ -336,7 +336,7 @@ Result<EvalResult> eval_case(
     return Value(nullptr);  // no clause matched → nil
 }
 
-// ── define: (define <name> <expr>) or (define (<name> <params>) <body>...) ──
+// ---- define: (define <name> <expr>) or (define (<name> <params>) <body>...) ----
 
 Result<EvalResult> eval_define(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
@@ -419,7 +419,7 @@ Result<EvalResult> eval_define(
     return Value(nullptr);
 }
 
-// ── lambda: (lambda (<params>) <body>...) ───────────────────────────────────
+// ---- lambda: (lambda (<params>) <body>...) --------------------------------------------------------------------─
 
 Result<EvalResult> eval_lambda(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
@@ -478,7 +478,7 @@ Result<EvalResult> eval_lambda(
     return Value(std::move(proc));
 }
 
-// ── let: (let ((name expr) ...) <body>...) — parallel bindings ─────────────
+// ---- let: (let ((name expr) ...) <body>...) — parallel bindings ------------------------─
 
 Result<EvalResult> eval_let(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
@@ -532,7 +532,7 @@ Result<EvalResult> eval_let(
     return Value(nullptr);
 }
 
-// ── let*: (let* ((name expr) ...) <body>...) — sequential bindings ─────────
+// ---- let*: (let* ((name expr) ...) <body>...) — sequential bindings ----------------─
 
 Result<EvalResult> eval_let_star(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
@@ -580,7 +580,7 @@ Result<EvalResult> eval_let_star(
     return Value(nullptr);
 }
 
-// ── letrec: (letrec ((name expr) ...) <body>...) — recursive bindings ──────
+// ---- letrec: (letrec ((name expr) ...) <body>...) — recursive bindings ------------
 
 Result<EvalResult> eval_letrec(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
@@ -637,7 +637,7 @@ Result<EvalResult> eval_letrec(
     return Value(nullptr);
 }
 
-// ── begin: (begin <expr> ...) — evaluate sequentially, return last ─────────
+// ---- begin: (begin <expr> ...) — evaluate sequentially, return last ----------------─
 
 Result<EvalResult> eval_begin(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
@@ -651,7 +651,7 @@ Result<EvalResult> eval_begin(
     return Value(nullptr);
 }
 
-// ── set!: (set! <name> <expr>) ──────────────────────────────────────────────
+// ---- set!: (set! <name> <expr>) --------------------------------------------------------------------------------------------
 
 Result<EvalResult> eval_set(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
@@ -680,7 +680,7 @@ Result<EvalResult> eval_set(
     return Value(nullptr);
 }
 
-// ── and: (and <expr> ...) — short-circuit, return last truthy or first falsy ─
+// ---- and: (and <expr> ...) — short-circuit, return last truthy or first falsy ─
 
 Result<EvalResult> eval_and(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
@@ -699,7 +699,7 @@ Result<EvalResult> eval_and(
     return result;
 }
 
-// ── or: (or <expr> ...) — short-circuit, return first truthy ────────────────
+// ---- or: (or <expr> ...) — short-circuit, return first truthy --------------------------------
 
 Result<EvalResult> eval_or(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
@@ -715,7 +715,7 @@ Result<EvalResult> eval_or(
     return Value(false);
 }
 
-// ── do: (do ((var init step) ...) (test result...) <body>...) ──────────────
+// ---- do: (do ((var init step) ...) (test result...) <body>...) ----------------------------
 
 Result<EvalResult> eval_do(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
@@ -808,7 +808,7 @@ Result<EvalResult> eval_do(
     }
 }
 
-// ── quasiquote: (quasiquote <expr>) — template with unquote interpolation ─
+// ---- quasiquote: (quasiquote <expr>) — template with unquote interpolation ─
 
 Result<EvalResult> eval_quasiquote(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
@@ -823,7 +823,7 @@ Result<EvalResult> eval_quasiquote(
     return *result;
 }
 
-// ── provide: (provide sym1 sym2 ...) — declare module exports ──────────────
+// ---- provide: (provide sym1 sym2 ...) — declare module exports ----------------------------
 
 Result<EvalResult> eval_provide(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
@@ -838,7 +838,7 @@ Result<EvalResult> eval_provide(
     return Value(nullptr);
 }
 
-// ── import: (import "path.pml" [as prefix]) — load a module ────────────────
+// ---- import: (import "path.pml" [as prefix]) — load a module --------------------------------
 
 Result<EvalResult> eval_import(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
@@ -907,7 +907,7 @@ Result<EvalResult> eval_import(
     return Value(nullptr);
 }
 
-// ── defmacro: (defmacro name (params) <body>...) ────────────────────────────
+// ---- defmacro: (defmacro name (params) <body>...) --------------------------------------------------------
 
 Result<EvalResult> eval_defmacro(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
@@ -966,7 +966,7 @@ Result<EvalResult> eval_defmacro(
     return Value(nullptr);
 }
 
-// ── macroexpand: (macroexpand <form>) — expand macros without evaluating ────
+// ---- macroexpand: (macroexpand <form>) — expand macros without evaluating --------
 
 Result<EvalResult> eval_macroexpand(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
@@ -982,7 +982,7 @@ Result<EvalResult> eval_macroexpand(
     return expr_to_value(form);
 }
 
-// ── assert: (assert <expr>) — evaluate and error if falsy ──────────────────
+// ---- assert: (assert <expr>) — evaluate and error if falsy ------------------------------------
 
 Result<EvalResult> eval_assert(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
@@ -1008,7 +1008,7 @@ Result<EvalResult> eval_assert(
     return Value(true);  // Return #t on success
 }
 
-// ── gensym: (gensym) or (gensym "prefix") — generate a unique symbol ───────
+// ---- gensym: (gensym) or (gensym "prefix") — generate a unique symbol ------------─
 
 Result<EvalResult> eval_gensym(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> /*env*/) {
@@ -1025,7 +1025,7 @@ Result<EvalResult> eval_gensym(
     return Value(Symbol(std::format("{}{}", prefix, id), id));
 }
 
-// ── with-exception-handler: (with-exception-handler <handler> <thunk>) ──────
+// ---- with-exception-handler: (with-exception-handler <handler> <thunk>) ------------
 
 Result<EvalResult> eval_with_exception_handler(
     const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {

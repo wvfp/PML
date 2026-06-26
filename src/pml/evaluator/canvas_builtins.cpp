@@ -1,10 +1,10 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML Canvas Builtins
 //
 // Canvas management builtins only (canvas, sprite-canvas, clear-canvas, add).
 // Shape, style, transform-object, and color builtins have been split into:
 //   shape_builtins.cpp, object_style_builtins.cpp, color_builtins.cpp
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "canvas_builtins.h"
 
@@ -31,7 +31,7 @@ namespace pml {
 
 namespace {
 
-// ── Registration helper ─────────────────────────────────────────────────
+// ---- Registration helper ------------------------------------------------------------------------------------------------─
 
 void def(std::shared_ptr<Environment> env,
          const std::string& name,
@@ -43,11 +43,11 @@ void def(std::shared_ptr<Environment> env,
 
 } // anonymous namespace
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Canvas builtins
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
-// ── (canvas w h [:bg "white"]) → Canvas ──────────────────────────────────────
+// ---- (canvas w h [:bg "white"]) → Canvas ----------------------------------------------------------------------------
 //
 // Create a new canvas and set it as the current canvas.
 
@@ -67,7 +67,7 @@ static Result<Value> builtin_canvas(const std::vector<Value>& args, Environment&
     return Value(std::move(canvas));
 }
 
-// ── (clear-canvas) → nil ─────────────────────────────────────────────────────
+// ---- (clear-canvas) → nil --------------------------------------------------------------------------------------------------------─
 //
 // Clear all objects from the current canvas.  Useful for animation loops
 // where the canvas itself should not be recreated each frame.
@@ -81,8 +81,8 @@ static Result<Value> builtin_clear_canvas(const std::vector<Value>& /*args*/,
     return make_nil_value();
 }
 
-// ── (sprite-canvas w h [:bg "transparent"] [:anchor "center-bottom"]
-//                     [:padding 0]) → Canvas ───────────────────────────────────
+// ---- (sprite-canvas w h [:bg "transparent"] [:anchor "center-bottom"]
+//                     [:padding 0]) → Canvas --------------------------------------------------------------------─
 //
 // Create a sprite canvas with transparent background and anchor point.
 
@@ -104,7 +104,7 @@ static Result<Value> builtin_sprite_canvas(const std::vector<Value>& args, Envir
     return Value(std::move(canvas));
 }
 
-// ── (add canvas graphic-object) → nil ────────────────────────────────────────
+// ---- (add canvas graphic-object) → nil --------------------------------------------------------------------------------
 //
 // Add a GraphicObject to a Canvas.
 
@@ -152,21 +152,21 @@ static Result<Value> builtin_add(const std::vector<Value>& args, Environment& /*
     return make_nil_value();
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Registration (delegates to sub-modules)
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 void register_canvas_builtins(std::shared_ptr<Environment> env) {
     if (!env)
         return;
 
-    // ── Canvas builtins ─────────────────────────────────────────────────
+    // ---- Canvas builtins ------------------------------------------------------------------------------------------------─
     def(env, "canvas", builtin_canvas, true);               // accepts :bg
     def(env, "sprite-canvas", builtin_sprite_canvas, true); // accepts :bg, :anchor, :padding
     def(env, "clear-canvas", builtin_clear_canvas);
     def(env, "add", builtin_add);
 
-    // ── Sub-module registrations ────────────────────────────────────────
+    // ---- Sub-module registrations --------------------------------------------------------------------------------
     register_shape_builtins(env);          // circle, rect, ellipse, line, polygon, text, group
     register_object_style_builtins(env);   // fill, stroke, no-fill, no-stroke, stroke-width,
                                            // with-transform, translate-object, rotate-object, scale-object

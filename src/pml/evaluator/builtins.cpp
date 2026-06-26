@@ -1,17 +1,17 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML Built-in Procedures — Aggregation
-// ───────────────────────────────────────────────────────────────────────────────
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------─
 // Thin file that delegates each builtin category to its own registration
 // function.  Add new categories by including the header and calling the
 // registration function here.
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "builtins.h"
 #include "evaluator.h"
 
 #include <algorithm>
 
-// ── Sorting ─────────────────────────────────────────────────────────────────
+// ---- Sorting --------------------------------------------------------------------------------------------------------------------------------─
 // Register sort builtin (needs evaluator + trampoline, kept here for now).
 // TODO: extract to builtins_sort.cpp if sort grows more variants.
 
@@ -25,7 +25,7 @@ void register_builtins(std::shared_ptr<Environment> env) {
     register_predicates_builtins(env);
     register_container_builtins(env);
 
-    // ── sort ──────────────────────────────────────────────────────────────
+    // ---- sort ----------------------------------------------------------------------------------------------------------------------------
     // Needs trampoline access from evaluator; registered inline for now.
     auto def = [&](const std::string& name, BuiltinProcedure::BuiltinFn fn) {
         auto proc = std::make_shared<BuiltinProcedure>(name, std::move(fn));

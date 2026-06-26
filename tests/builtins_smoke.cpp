@@ -1,11 +1,11 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML Built-in Procedures — Smoke Test
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 //
 // Verifies that built-in procedures registered via register_builtins() work
 // correctly through the full lexer → parser → evaluator pipeline.
 // No Google Test dependency — standalone compile-and-run.
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "builtins.h"
 #include "evaluator.h"
@@ -35,7 +35,7 @@
 #include <string>
 #include <format>
 
-// ── Test helpers ─────────────────────────────────────────────────────────────
+// ---- Test helpers ------------------------------------------------------------------------------------------------------------------------─
 
 int g_passed = 0;
 int g_failed = 0;
@@ -126,10 +126,10 @@ int main() {
     // paths relative to the tests/ directory (where test.png lives).
     _env->define("__source_file__", pml::Value(std::string("tests/builtins_smoke.cpp")));
 
-    std::cout << "═══ PML Builtins Smoke Test ═══\n\n";
+    std::cout << "======═ PML Builtins Smoke Test ======═\n\n";
 
-    // ── Arithmetic ───────────────────────────────────────────────────────
-    std::cout << "── Arithmetic ──\n";
+    // ---- Arithmetic ------------------------------------------------------------------------------------------------------------─
+    std::cout << "---- Arithmetic ----\n";
 
     CHECK("add",          "(+ 1 2)",              "3");
     CHECK("add-multi",    "(+ 1 2 3)",            "6");
@@ -164,8 +164,8 @@ int main() {
     CHECK("tan",          "(tan 0)",              "0.0");
     CHECK("atan2",        "(atan2 0 1)",          "0.0");
 
-    // ── Comparison ──────────────────────────────────────────────────────
-    std::cout << "\n── Comparison ──\n";
+    // ---- Comparison ------------------------------------------------------------------------------------------------------------
+    std::cout << "\n---- Comparison ----\n";
 
     CHECK("num-eq-true",  "(= 5 5)",              "#t");
     CHECK("num-eq-false", "(= 5 3)",              "#f");
@@ -194,8 +194,8 @@ int main() {
     CHECK("equal-vector", "(equal? (list->vector '(1 2 3)) (list->vector '(1 2 3)))", "#t");
     CHECK("equal-vector-f","(equal? (list->vector '(1 2 3)) (list->vector '(1 2 4)))", "#f");
 
-    // ── Type predicates ─────────────────────────────────────────────────
-    std::cout << "\n── Type Predicates ──\n";
+    // ---- Type predicates ------------------------------------------------------------------------------------------------─
+    std::cout << "\n---- Type Predicates ----\n";
 
     CHECK("number?-int",  "(number? 5)",          "#t");
     CHECK("number?-float","(number? 5.5)",        "#t");
@@ -225,8 +225,8 @@ int main() {
     // procedure? — define a lambda and check
     CHECK("proc?-lambda", "(procedure? (lambda (x) x))", "#t");
 
-    // ── Quasiquote ──────────────────────────────────────────────────────
-    std::cout << "\n── Quasiquote ──\n";
+    // ---- Quasiquote ------------------------------------------------------------------------------------------------------------
+    std::cout << "\n---- Quasiquote ----\n";
 
     CHECK("qq-simple",
           "(let ((x 2)) (quasiquote (1 (unquote x) 3)))",
@@ -241,8 +241,8 @@ int main() {
           "(let ((x 2)) (quasiquote (quasiquote (1 (unquote (unquote x)) 3))))",
           "(quasiquote (1 (unquote 2) 3))");
 
-    // ── List operations ─────────────────────────────────────────────────
-    std::cout << "\n── List Operations ──\n";
+    // ---- List operations ------------------------------------------------------------------------------------------------─
+    std::cout << "\n---- List Operations ----\n";
 
     CHECK("car",          "(car (list 1 2 3))",   "1");
     CHECK("cdr",          "(cdr (list 1 2 3))",   "(2 3)");
@@ -263,8 +263,8 @@ int main() {
     CHECK("range-step",   "(range 0 10 3)",       "(0 3 6 9)");
     CHECK("range-empty",  "(range 5 5)",          "()");
 
-    // ── String operations ──────────────────────────────────────────────
-    std::cout << "\n── String Operations ──\n";
+    // ---- String operations --------------------------------------------------------------------------------------------
+    std::cout << "\n---- String Operations ----\n";
 
     CHECK("str-append",   "(string-append \"a\" \"b\")", "ab");
     CHECK("str-length",   "(string-length \"hello\")", "5");
@@ -280,8 +280,8 @@ int main() {
     CHECK_ERROR("str->num-space", "(string->number \"   \")");
     CHECK("format",       "(format \"~a + ~a = ~a\" 1 2 3)", "1 + 2 = 3");
 
-    // ── IO ───────────────────────────────────────────────────────────────
-    std::cout << "\n── IO ──\n";
+    // ---- IO ----------------------------------------------------------------------------------------------------------------------------─
+    std::cout << "\n---- IO ----\n";
 
     CHECK("typeof-num",   "(typeof 5)",           "integer");
     CHECK("typeof-flt",   "(typeof 5.5)",         "float");
@@ -299,8 +299,8 @@ int main() {
     CHECK("assert-pass",  "(assert #t)",          "#t");
     CHECK_ERROR("assert-fail", "(assert #f)");
 
-    // ── Cumulative arithmetic edge cases ────────────────────────────────
-    std::cout << "\n── Edge Cases ──\n";
+    // ---- Cumulative arithmetic edge cases ----------------------------------------------------------------
+    std::cout << "\n---- Edge Cases ----\n";
 
     CHECK("add-neg",      "(+ -5 3)",             "-2");
     CHECK("sub-neg",      "(- 5 -3)",             "8");
@@ -315,8 +315,8 @@ int main() {
     // comparison with mixed types
     CHECK("eq-mixed",     "(= 5 5.0)",            "#t");
 
-    // ── Macros / Hygiene ─────────────────────────────────────────────────
-    std::cout << "\n── Macros ──\n";
+    // ---- Macros / Hygiene ------------------------------------------------------------------------------------------------─
+    std::cout << "\n---- Macros ----\n";
 
     CHECK("hygienic-swap",
           "(begin"
@@ -331,8 +331,8 @@ int main() {
           "  (list tmp x y))",
           "(100 2 1)");
 
-    // ── Hash Tables ──────────────────────────────────────────────────────
-    std::cout << "\n── Hash Tables ──\n";
+    // ---- Hash Tables ------------------------------------------------------------------------------------------------------------
+    std::cout << "\n---- Hash Tables ----\n";
 
     CHECK("hash-ref",
           "(begin"
@@ -361,8 +361,8 @@ int main() {
           "(hash? (list 1 2))",
           "#f");
 
-    // ── Vectors ──────────────────────────────────────────────────────────
-    std::cout << "\n── Vectors ──\n";
+    // ---- Vectors --------------------------------------------------------------------------------------------------------------------
+    std::cout << "\n---- Vectors ----\n";
 
     CHECK("vector-ref/set!",
           "(begin"
@@ -385,8 +385,8 @@ int main() {
           "(vector? (make-vector 2 0))",
           "#t");
 
-    // ── Module Introspection ─────────────────────────────────────────────
-    std::cout << "\n── Module Introspection ──\n";
+    // ---- Module Introspection ----------------------------------------------------------------------------------------─
+    std::cout << "\n---- Module Introspection ----\n";
 
     CHECK("module-available-true",
           "(module-available? \"tests/_smoke_module.pml\")",
@@ -405,8 +405,8 @@ int main() {
           "  (> (length (module-list)) 0))",
           "#t");
 
-    // ── Tail-Call Optimization ───────────────────────────────────────────
-    std::cout << "\n── Tail-Call Optimization ──\n";
+    // ---- Tail-Call Optimization ------------------------------------------------------------------------------------─
+    std::cout << "\n---- Tail-Call Optimization ----\n";
 
     // Deep recursive countdown via tail call must not overflow the C++ stack.
     CHECK("tco-countdown",
@@ -430,8 +430,8 @@ int main() {
           "  (fact 20 1))",
           "2432902008176640000");
 
-    // ── Exception Handling ───────────────────────────────────────────────
-    std::cout << "\n── Exception Handling ──\n";
+    // ---- Exception Handling --------------------------------------------------------------------------------------------─
+    std::cout << "\n---- Exception Handling ----\n";
 
     CHECK("exn-catch",
           "(with-exception-handler"
@@ -460,8 +460,8 @@ int main() {
           "  (lambda () (error \"boom\")))",
           "99");
 
-    // ── New Arithmetic ───────────────────────────────────────────────────
-    std::cout << "\n── New Arithmetic ──\n";
+    // ---- New Arithmetic ----------------------------------------------------------------------------------------------------─
+    std::cout << "\n---- New Arithmetic ----\n";
 
     CHECK("modulo-pos",    "(modulo 10 3)",        "1");
     CHECK("modulo-neg",    "(modulo -10 3)",       "2");
@@ -490,8 +490,8 @@ int main() {
     CHECK("atan2-2arg",   "(atan2 1 1)",          "0.785398");
     CHECK("random-range",  "(< -1 (random 100) 100)", "#t");
 
-    // ── Logic / Comparison extensions ────────────────────────────────────
-    std::cout << "\n── Logic / Comparison Extensions ──\n";
+    // ---- Logic / Comparison extensions ------------------------------------------------------------------------
+    std::cout << "\n---- Logic / Comparison Extensions ----\n";
 
     CHECK("not-t",         "(not #f)",             "#t");
     CHECK("not-f",         "(not #t)",             "#f");
@@ -503,8 +503,8 @@ int main() {
     CHECK("string<=?-t",   "(string<=? \"a\" \"a\" \"b\")", "#t");
     CHECK("string>=?-t",   "(string>=? \"b\" \"a\" \"a\")", "#t");
 
-    // ── List extensions ──────────────────────────────────────────────────
-    std::cout << "\n── List Extensions ──\n";
+    // ---- List extensions ----------------------------------------------------------------------------------------------------
+    std::cout << "\n---- List Extensions ----\n";
 
     CHECK("list-ref",      "(list-ref '(a b c) 1)",   "b");
     CHECK("list-tail",     "(list-tail '(a b c) 1)",  "(b c)");
@@ -520,8 +520,8 @@ int main() {
     CHECK("apply",         "(apply + '(1 2 3))",      "6");
     CHECK("apply-args",    "(apply + 1 2 '(3 4))",    "10");
 
-    // ── String extensions ────────────────────────────────────────────────
-    std::cout << "\n── String Extensions ──\n";
+    // ---- String extensions ------------------------------------------------------------------------------------------------
+    std::cout << "\n---- String Extensions ----\n";
 
     CHECK("str->sym",      "(symbol? (string->symbol \"foo\"))", "#t");
     CHECK("sym->str",      "(symbol->string 'foo)",    "foo");
@@ -530,8 +530,8 @@ int main() {
     CHECK("string-copy",   "(string=? (string-copy \"abc\") \"abc\")", "#t");
     CHECK("make-string",   "(make-string 3 \"x\")",   "xxx");
 
-    // ── Vector extensions ────────────────────────────────────────────────
-    std::cout << "\n── Vector Extensions ──\n";
+    // ---- Vector extensions ------------------------------------------------------------------------------------------------
+    std::cout << "\n---- Vector Extensions ----\n";
 
     CHECK("vector-fill!",
           "(begin (define v (make-vector 3 0)) (vector-fill! v 1 9) (vector-ref v 1))",
@@ -540,8 +540,8 @@ int main() {
           "(vector->list (vector-copy (list->vector '(1 2 3 4)) 1 3))",
           "(2 3)");
 
-    // ── Efficiency special forms ─────────────────────────────────────────
-    std::cout << "\n── Efficiency Special Forms ──\n";
+    // ---- Efficiency special forms --------------------------------------------------------------------------------─
+    std::cout << "\n---- Efficiency Special Forms ----\n";
 
     CHECK("when-true",
           "(when #t 1 2 3)",
@@ -565,8 +565,8 @@ int main() {
           "(case 3 ((1) 'one) ((2 3) 'small) (else 'other))",
           "small");
 
-    // ── Layer / Composition ──────────────────────────────────────────────
-    std::cout << "\n── Layer / Composition ──\n";
+    // ---- Layer / Composition --------------------------------------------------------------------------------------------
+    std::cout << "\n---- Layer / Composition ----\n";
     pml::PMLContext::current().reset();
 
     CHECK("make-layer",
@@ -593,8 +593,8 @@ int main() {
     CHECK_ERROR("make-layer-no-name", "(make-layer)");
     CHECK_ERROR("make-layer-bad-arg", "(make-layer \"l\" 123)");
 
-    // ── Filters ──────────────────────────────────────────────────────────
-    std::cout << "\n── Filters ──\n";
+    // ---- Filters --------------------------------------------------------------------------------------------------------------------
+    std::cout << "\n---- Filters ----\n";
 
     CHECK("filter?-blur",
           "(filter? (blur :radius 3.0))",
@@ -648,7 +648,7 @@ int main() {
           "  (layer? (layer-with l :filter (list (blur :radius 1.0) (color-adjust :grayscale #t)))))",
           "#t");
 
-    // ── Asset / Bitmap I/O ───────────────────────────────────────────────
+    // ---- Asset / Bitmap I/O --------------------------------------------------------------------------------------------─
     CHECK("image-object",
           "(typeof (image \"test.png\"))",
           "graphic-object");
@@ -662,8 +662,8 @@ int main() {
           "(asset-path? \"does-not-exist-12345.png\")",
           "#f");
 
-    // ── 3D graphics ──────────────────────────────────────────────────────
-    std::cout << "\n── 3D graphics ──\n";
+    // ---- 3D graphics ------------------------------------------------------------------------------------------------------------
+    std::cout << "\n---- 3D graphics ----\n";
     pml::PMLContext::current().reset();
 
     CHECK("cube3d-object",
@@ -697,8 +697,8 @@ int main() {
           "(camera :position '(0 0 300) :projection 'orthographic :size 200)",
           "nil");
 
-    // ── Tilemap basics ───────────────────────────────────────────────────
-    std::cout << "\n── Tilemap basics ──\n";
+    // ---- Tilemap basics ----------------------------------------------------------------------------------------------------─
+    std::cout << "\n---- Tilemap basics ----\n";
 
     // GREEN phase — tilemap builtins implemented
     CHECK("define-tileset",
@@ -747,8 +747,8 @@ int main() {
           "(render-tilemap empty-tm :output \"render_tilemap_empty.png\"))",
         "render_tilemap_empty.png");
 
-    // ── Render channels ──────────────────────────────────────────────────
-    std::cout << "\n── Render channels ──\n";
+    // ---- Render channels ----------------------------------------------------------------------------------------------------
+    std::cout << "\n---- Render channels ----\n";
 
     // Basic render-channels with single albedo channel
     CHECK("render-channels-albedo",
@@ -768,8 +768,8 @@ int main() {
     CHECK_ERROR("render-channels-invalid-sprite",
         "(render-channels 'nonexistent :channels '(albedo))");
 
-    // ── Multi-texture shaders ────────────────────────────────────────────
-    std::cout << "\n── Multi-texture shaders ──\n";
+    // ---- Multi-texture shaders ----------------------------------------------------------------------------------------
+    std::cout << "\n---- Multi-texture shaders ----\n";
 
     // Verify shader with `uniform shader` compiles (NullBackend returns dummy handle 1)
     CHECK("shader-with-uniform-shader",
@@ -784,8 +784,8 @@ int main() {
     CHECK_ERROR("bind-textures-null-backend",
         "(bind-textures 42 :textures '())");
 
-    // ── Quantize noise ──────────────────────────────────────────────────
-    std::cout << "\n── Quantize noise ──\n";
+    // ---- Quantize noise ----------------------------------------------------------------------------------------------------
+    std::cout << "\n---- Quantize noise ----\n";
 
     // Error: missing :levels kwarg
     CHECK_ERROR("quantize-noise-missing-levels",
@@ -807,8 +807,8 @@ int main() {
     CHECK_ERROR("quantize-noise-null-backend",
         "(quantize-noise 1 :levels '((1.0 \"#ff0000\")))");
 
-    // ── Polygon perturbation (perturb-polygon) ───────────────────────────
-    std::cout << "\n── Polygon perturbation ──\n";
+    // ---- Polygon perturbation (perturb-polygon) ----------------------------------------------------─
+    std::cout << "\n---- Polygon perturbation ----\n";
 
     // Basic: three-point triangle with default (no-op) perturbation.
     // Each edge returns 2 endpoints (adjacent edges share vertices), so 3×2=6.
@@ -851,8 +851,8 @@ int main() {
         "(> (length (perturb-polygon '((0 0) (100 0) (100 100) (0 100)) :edge-noise '(0.1 0.2 0.3 0.4) :edge-subdiv 2 :edge-mask '(#t #t #t #t) :corner-radius 3.0 :corner-mask '(#t #t #t #t) :seed 42)) 4)",
         "#t");
 
-    // ── Summary ──────────────────────────────────────────────────────────
-    std::cout << "\n═══ Results ═══\n"
+    // ---- Summary --------------------------------------------------------------------------------------------------------------------
+    std::cout << "\n======═ Results ======═\n"
               << "Passed: " << g_passed << " / "
               << (g_passed + g_failed) << "\n";
 

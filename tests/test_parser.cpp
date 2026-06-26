@@ -1,6 +1,6 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML Parser Tests — Google Test suite for pml::Parser
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include <gtest/gtest.h>
 #include "pml/frontend/lexer.h"
@@ -15,7 +15,7 @@
 namespace pml {
 namespace {
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ---- Helpers ------------------------------------------------------------------------------------------------------------------------------------
 
 // Tokenize + parse source; asserts success and returns the Expr vector.
 std::vector<Expr> parse_ok(const std::string& source) {
@@ -47,7 +47,7 @@ const ArenaExprVector& list_elements(const Expr& e) {
     return std::get<std::shared_ptr<ListExpr>>(e)->elements;
 }
 
-// ── Integer ──────────────────────────────────────────────────────────────────
+// ---- Integer ------------------------------------------------------------------------------------------------------------------------------------
 
 TEST(Parser, ParseInteger) {
     auto exprs = parse_ok("42");
@@ -56,7 +56,7 @@ TEST(Parser, ParseInteger) {
     EXPECT_EQ(std::get<int64_t>(exprs[0]), 42);
 }
 
-// ── Float ────────────────────────────────────────────────────────────────────
+// ---- Float ----------------------------------------------------------------------------------------------------------------------------------------
 
 TEST(Parser, ParseFloat) {
     auto exprs = parse_ok("3.14");
@@ -65,7 +65,7 @@ TEST(Parser, ParseFloat) {
     EXPECT_DOUBLE_EQ(std::get<double>(exprs[0]), 3.14);
 }
 
-// ── String ───────────────────────────────────────────────────────────────────
+// ---- String ------------------------------------------------------------------------------------------------------------------------------------─
 
 TEST(Parser, ParseString) {
     auto exprs = parse_ok("\"hello\"");
@@ -74,7 +74,7 @@ TEST(Parser, ParseString) {
     EXPECT_EQ(std::get<std::string>(exprs[0]), "hello");
 }
 
-// ── Boolean ──────────────────────────────────────────────────────────────────
+// ---- Boolean ------------------------------------------------------------------------------------------------------------------------------------
 
 TEST(Parser, ParseBooleanTrue) {
     auto exprs = parse_ok("#t");
@@ -83,7 +83,7 @@ TEST(Parser, ParseBooleanTrue) {
     EXPECT_EQ(std::get<bool>(exprs[0]), true);
 }
 
-// ── Symbol ───────────────────────────────────────────────────────────────────
+// ---- Symbol ------------------------------------------------------------------------------------------------------------------------------------─
 
 TEST(Parser, ParseSymbol) {
     auto exprs = parse_ok("foo");
@@ -92,7 +92,7 @@ TEST(Parser, ParseSymbol) {
     EXPECT_EQ(std::get<Symbol>(exprs[0]).name, "foo");
 }
 
-// ── Keyword ──────────────────────────────────────────────────────────────────
+// ---- Keyword ------------------------------------------------------------------------------------------------------------------------------------
 
 TEST(Parser, ParseKeyword) {
     auto exprs = parse_ok(":key");
@@ -101,7 +101,7 @@ TEST(Parser, ParseKeyword) {
     EXPECT_EQ(std::get<Keyword>(exprs[0]).name, "key");
 }
 
-// ── Simple list ──────────────────────────────────────────────────────────────
+// ---- Simple list ----------------------------------------------------------------------------------------------------------------------------
 
 TEST(Parser, ParseSimpleList) {
     auto exprs = parse_ok("(+ 1 2)");
@@ -124,7 +124,7 @@ TEST(Parser, ParseSimpleList) {
     EXPECT_EQ(std::get<int64_t>(elems[2]), 2);
 }
 
-// ── Nested list ──────────────────────────────────────────────────────────────
+// ---- Nested list ----------------------------------------------------------------------------------------------------------------------------
 
 TEST(Parser, ParseNestedList) {
     auto exprs = parse_ok("(a (b c))");
@@ -148,7 +148,7 @@ TEST(Parser, ParseNestedList) {
     EXPECT_EQ(std::get<Symbol>(inner[1]).name, "c");
 }
 
-// ── Empty list ───────────────────────────────────────────────────────────────
+// ---- Empty list ----------------------------------------------------------------------------------------------------------------------------─
 
 TEST(Parser, ParseEmptyList) {
     auto exprs = parse_ok("()");
@@ -159,7 +159,7 @@ TEST(Parser, ParseEmptyList) {
     EXPECT_EQ(elems.size(), 0u);
 }
 
-// ── Multiple top-level expressions ──────────────────────────────────────────
+// ---- Multiple top-level expressions ------------------------------------------------------------------------------------
 
 TEST(Parser, MultipleTopLevel) {
     auto exprs = parse_ok("1 2 3");
@@ -175,7 +175,7 @@ TEST(Parser, MultipleTopLevel) {
     EXPECT_EQ(std::get<int64_t>(exprs[2]), 3);
 }
 
-// ── Quote sugar ──────────────────────────────────────────────────────────────
+// ---- Quote sugar ----------------------------------------------------------------------------------------------------------------------------
 
 TEST(Parser, QuoteSugar) {
     // 'x → (quote x)
@@ -193,7 +193,7 @@ TEST(Parser, QuoteSugar) {
     EXPECT_EQ(std::get<Symbol>(elems[1]).name, "x");
 }
 
-// ── Quasiquote with unquote ─────────────────────────────────────────────────
+// ---- Quasiquote with unquote ------------------------------------------------------------------------------------------------─
 
 TEST(Parser, QuasiquoteWithUnquote) {
     // `(1 ,x) → (quasiquote (1 (unquote x)))
@@ -227,14 +227,14 @@ TEST(Parser, QuasiquoteWithUnquote) {
     EXPECT_EQ(std::get<Symbol>(unq[1]).name, "x");
 }
 
-// ── Error: unmatched open paren ─────────────────────────────────────────────
+// ---- Error: unmatched open paren ----------------------------------------------------------------------------------------─
 
 TEST(Parser, UnmatchedOpenParen) {
     auto err = parse_err("(");
     EXPECT_EQ(err.code, ErrorCode::PMLSyntaxError);
 }
 
-// ── Error: unmatched close paren ────────────────────────────────────────────
+// ---- Error: unmatched close paren ----------------------------------------------------------------------------------------
 
 TEST(Parser, UnmatchedCloseParen) {
     auto err = parse_err(")");

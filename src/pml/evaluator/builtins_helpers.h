@@ -1,10 +1,10 @@
 #pragma once
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML Built-in Procedures — Shared helpers
-// ───────────────────────────────────────────────────────────────────────────────
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------─
 // Shared helper functions used by all builtin registration modules.
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "types.h"
 
@@ -19,7 +19,7 @@
 
 namespace pml {
 
-// ── Type checks for arithmetic ─────────────────────────────────────────────
+// ---- Type checks for arithmetic ----------------------------------------------------------------------------------------─
 
 /// Return true if any argument is a double (prompts float promotion).
 inline bool has_float(const std::vector<Value>& args) noexcept {
@@ -57,7 +57,7 @@ inline int64_t to_int64(const Value& v) {
     return 0;  // unreachable for valid numeric values
 }
 
-// ── Arity checking helpers ─────────────────────────────────────────────────
+// ---- Arity checking helpers ------------------------------------------------------------------------------------------------─
 
 /// Expect exactly N args.
 inline Result<void> expect_arity(size_t expected, const std::vector<Value>& args,
@@ -100,7 +100,7 @@ inline Result<void> expect_arity_one_of(const std::vector<size_t>& allowed,
                      args.size())));
 }
 
-// ── typeof helper ──────────────────────────────────────────────────────────
+// ---- typeof helper --------------------------------------------------------------------------------------------------------------------
 
 /// Return the PML type name as a Symbol for a runtime value.
 inline Symbol typeof_value(const Value& v) {
@@ -132,7 +132,7 @@ inline Symbol typeof_value(const Value& v) {
     return Symbol("unknown");
 }
 
-// ── Structural equality (deep compare) ─────────────────────────────────────
+// ---- Structural equality (deep compare) ------------------------------------------------------------------------─
 
 /// Recursive structural equality check.
 inline bool deep_equal(const Value& a, const Value& b) {
@@ -175,7 +175,7 @@ inline bool deep_equal(const Value& a, const Value& b) {
     return true;
 }
 
-// ── Numeric type promotion for arithmetic ──────────────────────────────────
+// ---- Numeric type promotion for arithmetic --------------------------------------------------------------------
 
 /// Result of promoting mixed int/float args for arithmetic.
 struct PromotedArgs {
@@ -216,7 +216,7 @@ inline Result<PromotedArgs> promote_numeric(const std::vector<Value>& args) {
     return result;
 }
 
-// ── Builtin registration lambda factory ────────────────────────────────────
+// ---- Builtin registration lambda factory ------------------------------------------------------------------------
 
 /// Creates a def lambda for registering builtins in an environment.
 /// Usage: auto def = make_def(env);  def("name", fn);

@@ -1,6 +1,6 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML Render Channels Builtins — Implementation
-// ───────────────────────────────────────────────────────────────────────────────
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------─
 // Implements (render-channels ...) for multi-channel sprite export.
 //
 // Channel strategies:
@@ -11,7 +11,7 @@
 //   normal   — Traverse the GraphicObject tree and replace every fill/stroke
 //              colour with the default Z-normal RGB(128, 128, 255).
 //              Alpha from the original colour is preserved.
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "render_channels_builtins.h"
 
@@ -41,9 +41,9 @@ using pml::kwargs::value_to_opt_string;
 
 namespace {
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Internal helpers
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 /// Ensure the parent directory of a file path exists.
 static void ensure_parent_dir(const std::string& filepath) {
@@ -56,9 +56,9 @@ static void ensure_parent_dir(const std::string& filepath) {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Channel: specular — replace colours with luminance values
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 /// Replace fill/stroke colours in a GraphicObject tree with their luminance
 /// values.  Luminance = 0.299R + 0.587G + 0.114B.  Alpha is preserved from
@@ -98,9 +98,9 @@ static void replace_colors_luminance(GraphicObject& obj) {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Channel: normal — replace colours with default Z-normal
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 /// Replace fill/stroke colours in a GraphicObject tree with the default normal
 /// map colour RGB(128, 128, 255) — representing a Z-normal (facing-forward
@@ -134,14 +134,14 @@ static void replace_colors_normal(GraphicObject& obj) {
 
 } // anonymous namespace
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Registration
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 void register_render_channels(std::shared_ptr<Environment> env) {
     if (!env) return;
 
-    // ── (render-channels graphic :output "path" [:channels ...] [:width W] [:height H] [:bg "transparent"]) ──
+    // ---- (render-channels graphic :output "path" [:channels ...] [:width W] [:height H] [:bg "transparent"]) ----
     //
     // Signature:   (render-channels graphic [kwargs...])
     //   graphic:   GraphicObject (required, first positional)
@@ -166,7 +166,7 @@ void register_render_channels(std::shared_ptr<Environment> env) {
                 arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
         }
 
-        // ── First positional arg: GraphicObject ──────────────────────────
+        // ---- First positional arg: GraphicObject ----------------------------------------------------
         const auto* graphic_ptr = args[0].as_graphic_object();
         if (!graphic_ptr || !*graphic_ptr) {
             return std::unexpected(
@@ -175,7 +175,7 @@ void register_render_channels(std::shared_ptr<Environment> env) {
         }
         const GraphicObject& graphic = **graphic_ptr;
 
-        // ── Parse kwargs starting at position 1 ──────────────────────────
+        // ---- Parse kwargs starting at position 1 ----------------------------------------------------
         auto kwargs = parse_kwargs(args, 1);
 
         // :output (required)
@@ -222,7 +222,7 @@ void register_render_channels(std::shared_ptr<Environment> env) {
         std::string bg = kw_string(kwargs, "bg", "transparent");
         uint32_t bg_color = parse_color(bg).value_or(0x00000000);
 
-        // ── Render each channel ──────────────────────────────────────────
+        // ---- Render each channel ------------------------------------------------------------------------------------
         RenderBackend& backend = BackendRegistry::instance().active();
 
         std::vector<std::string> results;
@@ -270,7 +270,7 @@ void register_render_channels(std::shared_ptr<Environment> env) {
             results.push_back(std::move(output_path));
         }
 
-        // ── Return list of created filenames ─────────────────────────────
+        // ---- Return list of created filenames --------------------------------------------------------─
         auto val_list = std::make_shared<ValueList>();
         for (auto& f : results) {
             val_list->elements.push_back(Value(std::move(f)));

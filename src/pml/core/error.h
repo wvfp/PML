@@ -65,7 +65,7 @@ struct PMLException {
 template<typename T>
 using Result = std::expected<T, PMLException>;
 
-// ── Factory functions (with SourceLocation) ────────────────────────────────
+// ---- Factory functions (with SourceLocation) ----------------------------------------------------------------
 
 [[nodiscard]] auto syntax_error(SourceLocation loc, std::string msg,
                                 std::optional<std::string> hint = std::nullopt) -> PMLException;
@@ -111,7 +111,7 @@ using Result = std::expected<T, PMLException>;
 [[nodiscard]] auto general_error(std::string msg,
                                  std::optional<std::string> hint = std::nullopt) -> PMLException;
 
-// ── Factory functions (without SourceLocation) ─────────────────────────────
+// ---- Factory functions (without SourceLocation) --------------------------------------------------------─
 
 [[nodiscard]] auto syntax_error(std::string msg,
                                 std::optional<std::string> hint = std::nullopt) -> PMLException;

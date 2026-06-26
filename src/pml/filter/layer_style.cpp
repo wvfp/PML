@@ -1,12 +1,12 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Layer-style filters — drop shadow / inner shadow / glow / bevel emboss
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "layer_style.h"
 
 namespace pml {
 
-// ── DropShadowFilter ──────────────────────────────────────────────────────────
+// ---- DropShadowFilter --------------------------------------------------------------------------------------------------------------------
 
 DropShadowFilter::DropShadowFilter(float dx, float dy, float blur_x, float blur_y, uint32_t color)
     : m_dx(dx), m_dy(dy), m_blur_x(blur_x), m_blur_y(blur_y), m_color(color) {}
@@ -19,7 +19,7 @@ std::string DropShadowFilter::name() const {
     return "drop-shadow";
 }
 
-// ── InnerShadowFilter ─────────────────────────────────────────────────────────
+// ---- InnerShadowFilter ----------------------------------------------------------------------------------------------------------------─
 
 InnerShadowFilter::InnerShadowFilter(float dx, float dy, float blur, uint32_t color)
     : m_dx(dx), m_dy(dy), m_blur(blur), m_color(color) {}
@@ -32,7 +32,7 @@ std::string InnerShadowFilter::name() const {
     return "inner-shadow";
 }
 
-// ── OuterGlowFilter ───────────────────────────────────────────────────────────
+// ---- OuterGlowFilter --------------------------------------------------------------------------------------------------------------------─
 
 OuterGlowFilter::OuterGlowFilter(float blur, uint32_t color)
     : m_blur(blur), m_color(color) {}
@@ -45,7 +45,7 @@ std::string OuterGlowFilter::name() const {
     return "outer-glow";
 }
 
-// ── InnerGlowFilter ───────────────────────────────────────────────────────────
+// ---- InnerGlowFilter --------------------------------------------------------------------------------------------------------------------─
 
 InnerGlowFilter::InnerGlowFilter(float blur, uint32_t color)
     : m_blur(blur), m_color(color) {}
@@ -58,7 +58,7 @@ std::string InnerGlowFilter::name() const {
     return "inner-glow";
 }
 
-// ── BevelEmbossFilter ─────────────────────────────────────────────────────────
+// ---- BevelEmbossFilter ----------------------------------------------------------------------------------------------------------------─
 
 BevelEmbossFilter::BevelEmbossFilter(float angle, float altitude, float blur,
                                      uint32_t highlight, uint32_t shadow)

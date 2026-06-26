@@ -1,11 +1,11 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML IK Solver — CCD (Cyclic Coordinate Descent) — Implementation
-// ───────────────────────────────────────────────────────────────────────────────
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------─
 // Port of pml/skeleton/ik_ccd.py exactly:
 //   - CCD iterates from the end joint toward the root, rotating each joint
 //     to minimize the angular error toward the target.
 //   - Angles are in radians, matching Python PML.
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "ik_ccd.h"
 
@@ -45,9 +45,9 @@ std::string value_to_name(const Value& v) {
 
 }  // anonymous namespace
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // solve_ccd — Cyclic Coordinate Descent IK solver
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 bool solve_ccd(
     std::shared_ptr<SkeletonInstance> skeleton,
@@ -67,12 +67,12 @@ bool solve_ccd(
     double ty = target_y;
 
     for (int iter = 0; iter < max_iterations; ++iter) {
-        // ── Check convergence ──────────────────────────────────────────
+        // ---- Check convergence ------------------------------------------------------------------------------------
         auto [ex, ey] = skeleton->end_effector_position();
         double dist = std::hypot(ex - tx, ey - ty);
         if (dist < tolerance) return true;
 
-        // ── Iterate from end effector joint back to root ───────────────
+        // ---- Iterate from end effector joint back to root ----------------------------─
         for (int joint_idx = end_idx; joint_idx >= 0; --joint_idx) {
             // Compute current world positions for all joints
             auto positions = skeleton->forward_kinematics();
@@ -116,7 +116,7 @@ bool solve_ccd(
         }
     }
 
-    // ── Final convergence check ────────────────────────────────────────
+    // ---- Final convergence check --------------------------------------------------------------------------------
     auto [ex, ey] = skeleton->end_effector_position();
     double dist = std::hypot(ex - tx, ey - ty);
 
@@ -127,9 +127,9 @@ bool solve_ccd(
     return dist < tolerance;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // register_ik — register the ik-solve builtin
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 //
 // Syntax:
 //   (ik-solve <instance> <end-effector> <target-x> <target-y>
@@ -153,7 +153,7 @@ void register_ik(std::shared_ptr<Environment> env)
                     SourceLocation{}, 4, static_cast<int>(args.size())));
             }
 
-            // ── Parse positional arguments ─────────────────────────────
+            // ---- Parse positional arguments --------------------------------------------------------─
             // args[0] = SkeletonInstance
             const auto* instance = args[0].as_skeleton_instance();
             if (!instance || !*instance) {
@@ -179,7 +179,7 @@ void register_ik(std::shared_ptr<Environment> env)
             }
             double ty = to_double_safe(args[3]);
 
-            // ── Parse keyword arguments (flat list after positional) ───
+            // ---- Parse keyword arguments (flat list after positional) ----─
             //   :method 'fabrik, :iterations 20, :tolerance 0.01
             std::string method = "fabrik";
             int iterations = 20;
@@ -213,7 +213,7 @@ void register_ik(std::shared_ptr<Environment> env)
                 // Unknown keywords are silently ignored (matching Python)
             }
 
-            // ── Dispatch to solver ─────────────────────────────────────
+            // ---- Dispatch to solver ------------------------------------------------------------------------─
             bool converged = false;
 
             if (method == "fabrik") {

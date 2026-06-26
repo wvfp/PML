@@ -1,15 +1,15 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML Skia render backend — FilterBackend member functions
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 //
 // Member function definitions for SkiaBackend's FilterBackend interface.
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "skia_backend_internal.h"
 
 namespace pml {
 
-// ── apply_sk_image_filter (private helper) ──────────────────────────────────
+// ---- apply_sk_image_filter (private helper) --------------------------------------------------------------------
 
 Result<void> SkiaBackend::apply_sk_image_filter(
     SkiaSurface& surf, sk_sp<SkImageFilter> filter)
@@ -39,7 +39,7 @@ Result<void> SkiaBackend::apply_sk_image_filter(
     return {};
 }
 
-// ── Color Matrix ────────────────────────────────────────────────────────────
+// ---- Color Matrix ------------------------------------------------------------------------------------------------------------------------
 
 Result<void> SkiaBackend::apply_color_matrix(
     Surface& s, const std::array<float,20>& m)
@@ -55,7 +55,7 @@ Result<void> SkiaBackend::apply_color_matrix(
     return apply_sk_image_filter(*surf, std::move(imf));
 }
 
-// ── Blur ────────────────────────────────────────────────────────────────────
+// ---- Blur ----------------------------------------------------------------------------------------------------------------------------------------
 
 Result<void> SkiaBackend::apply_blur(
     Surface& s, float rx, float ry, BlurType type)
@@ -74,7 +74,7 @@ Result<void> SkiaBackend::apply_blur(
         {}, "skia: only gaussian blur is supported natively"));
 }
 
-// ── Convolution ─────────────────────────────────────────────────────────────
+// ---- Convolution ------------------------------------------------------------------------------------------------------------------------─
 
 Result<void> SkiaBackend::apply_convolution(
     Surface& s, const ConvolutionKernel& k)
@@ -99,7 +99,7 @@ Result<void> SkiaBackend::apply_convolution(
     return apply_sk_image_filter(*surf, std::move(imf));
 }
 
-// ── Color Table ─────────────────────────────────────────────────────────────
+// ---- Color Table ------------------------------------------------------------------------------------------------------------------------─
 
 Result<void> SkiaBackend::apply_color_table(
     Surface& s,
@@ -123,7 +123,7 @@ Result<void> SkiaBackend::apply_color_table(
     return apply_sk_image_filter(*surf, std::move(imf));
 }
 
-// ── Offset ──────────────────────────────────────────────────────────────────
+// ---- Offset ------------------------------------------------------------------------------------------------------------------------------------
 
 Result<void> SkiaBackend::apply_offset(Surface& s, float dx, float dy)
 {
@@ -136,7 +136,7 @@ Result<void> SkiaBackend::apply_offset(Surface& s, float dx, float dy)
     return apply_sk_image_filter(*surf, std::move(imf));
 }
 
-// ── Drop Shadow ─────────────────────────────────────────────────────────────
+// ---- Drop Shadow ------------------------------------------------------------------------------------------------------------------------─
 
 Result<void> SkiaBackend::apply_drop_shadow(
     Surface& s, float dx, float dy,
@@ -152,7 +152,7 @@ Result<void> SkiaBackend::apply_drop_shadow(
     return apply_sk_image_filter(*surf, std::move(imf));
 }
 
-// ── Inner Shadow ────────────────────────────────────────────────────────────
+// ---- Inner Shadow ------------------------------------------------------------------------------------------------------------------------
 
 Result<void> SkiaBackend::apply_inner_shadow(
     Surface& s, float dx, float dy, float blur, uint32_t color)
@@ -174,7 +174,7 @@ Result<void> SkiaBackend::apply_inner_shadow(
     return apply_sk_image_filter(*surf, std::move(merge));
 }
 
-// ── Outer Glow ──────────────────────────────────────────────────────────────
+// ---- Outer Glow ----------------------------------------------------------------------------------------------------------------------------
 
 Result<void> SkiaBackend::apply_outer_glow(
     Surface& s, float blur, uint32_t color)
@@ -192,7 +192,7 @@ Result<void> SkiaBackend::apply_outer_glow(
     return apply_sk_image_filter(*surf, std::move(merge));
 }
 
-// ── Inner Glow ──────────────────────────────────────────────────────────────
+// ---- Inner Glow ----------------------------------------------------------------------------------------------------------------------------
 
 Result<void> SkiaBackend::apply_inner_glow(
     Surface& s, float blur, uint32_t color)
@@ -212,7 +212,7 @@ Result<void> SkiaBackend::apply_inner_glow(
     return apply_sk_image_filter(*surf, std::move(merge));
 }
 
-// ── Bevel / Emboss ──────────────────────────────────────────────────────────
+// ---- Bevel / Emboss --------------------------------------------------------------------------------------------------------------------
 
 Result<void> SkiaBackend::apply_bevel_emboss(
     Surface& s, float angle, float altitude, float blur,

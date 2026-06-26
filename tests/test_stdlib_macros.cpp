@@ -3,7 +3,7 @@
 #include "pml/evaluator/environment.h"
 #include "pml/module/embedded_stdlib.h"
 
-// ── Threading ──────────────────────────────────────────────────────────
+// ---- Threading --------------------------------------------------------------------------------------------------------------------
 
 TEST(StdlibLoad, ThreadFirst) {
     pml::PMLRuntime rt;
@@ -20,7 +20,7 @@ TEST(StdlibLoad, ThreadLast) {
     EXPECT_EQ(r.value.size(), 3);
 }
 
-// ── enumerate / zip ───────────────────────────────────────────────────
+// ---- enumerate / zip ----------------------------------------------------------------------------------------------------─
 
 TEST(StdlibLoad, EnumerateList) {
     pml::PMLRuntime rt;
@@ -49,7 +49,7 @@ TEST(StdlibLoad, ZipShortestTruncates) {
     EXPECT_EQ(r.value.size(), 2);
 }
 
-// ── range ─────────────────────────────────────────────────────────────
+// ---- range ------------------------------------------------------------------------------------------------------------------------─
 
 TEST(StdlibLoad, RangeOneArg) {
     pml::PMLRuntime rt;
@@ -80,7 +80,7 @@ TEST(StdlibLoad, RangeThreeArgs) {
     EXPECT_EQ(r.value[3].get<int64_t>(), 9);
 }
 
-// ── get (polymorphic) ──────────────────────────────────────────────────
+// ---- get (polymorphic) ----------------------------------------------------------------------------------------------------
 
 TEST(StdlibLoad, GetList) {
     pml::PMLRuntime rt;
@@ -103,7 +103,7 @@ TEST(StdlibLoad, GetHash) {
     EXPECT_EQ(r.value.get<int64_t>(), 42);
 }
 
-// ── set-at! (polymorphic) ──────────────────────────────────────────────
+// ---- set-at! (polymorphic) --------------------------------------------------------------------------------------------
 
 TEST(StdlibLoad, SetAtList) {
     pml::PMLRuntime rt;
@@ -121,7 +121,7 @@ TEST(StdlibLoad, SetAtVector) {
     EXPECT_EQ(r.value.get<int64_t>(), 999);
 }
 
-// ── defn + defconst (from stdlib) ─────────────────────────────────────
+// ---- defn + defconst (from stdlib) ------------------------------------------------------------------------─
 
 TEST(StdlibLoad, Defn) {
     pml::PMLRuntime rt;
@@ -139,7 +139,7 @@ TEST(StdlibLoad, Defconst) {
     EXPECT_NEAR(r.value.get<double>(), 6.28, 0.001);
 }
 
-// ── let is now sequential ──────────────────────────────────────────────
+// ---- let is now sequential --------------------------------------------------------------------------------------------
 
 TEST(StdlibLoad, LetIsNowSequential) {
     pml::PMLRuntime rt;
@@ -149,7 +149,7 @@ TEST(StdlibLoad, LetIsNowSequential) {
     EXPECT_TRUE(r.value.is_number());
 }
 
-// ── let-par is parallel ────────────────────────────────────────────────
+// ---- let-par is parallel ------------------------------------------------------------------------------------------------
 
 TEST(StdlibLoad, LetParIsParallel) {
     pml::PMLRuntime rt;
@@ -166,7 +166,7 @@ TEST(StdlibLoad, LetParWorks) {
     EXPECT_EQ(r.value.get<int64_t>(), 3);
 }
 
-// ── let* still sequential ──────────────────────────────────────────────
+// ---- let* still sequential --------------------------------------------------------------------------------------------
 
 TEST(StdlibLoad, LetStarStillSequential) {
     pml::PMLRuntime rt;
@@ -175,7 +175,7 @@ TEST(StdlibLoad, LetStarStillSequential) {
     EXPECT_EQ(r.value.get<int64_t>(), 2);
 }
 
-// ── Keyword aliases ─────────────────────────────────────────────────────
+// ---- Keyword aliases --------------------------------------------------------------------------------------------------------─
 
 TEST(StdlibLoad, KeywordAliasFill) {
     pml::PMLRuntime rt;

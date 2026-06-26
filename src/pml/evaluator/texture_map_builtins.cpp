@@ -1,6 +1,6 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML Texture-Map Builtins — texture-map
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 //
 //   (texture-map <shape>
 //                 :source <texture>
@@ -14,7 +14,7 @@
 //   Sets UV parameters on the shape's GraphicObject and returns it.
 //   The actual textured rendering is handled by the Skia backend
 //   (textured_draw.cpp) when the shape has ParamKey::uv set.
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "pml/evaluator/texture_map_builtins.h"
 
@@ -33,7 +33,7 @@
 
 namespace pml {
 
-// ── Helper: parse wrap mode string → WrapMode ──────────────────────────────
+// ---- Helper: parse wrap mode string → WrapMode ------------------------------------------------------------
 
 static WrapMode parse_wrap_mode(const std::string& s) {
     if (s == "repeat") return WrapMode::Repeat;
@@ -41,14 +41,14 @@ static WrapMode parse_wrap_mode(const std::string& s) {
     return WrapMode::Clamp;
 }
 
-// ── Helper: parse filter mode string → FilterMode ──────────────────────────
+// ---- Helper: parse filter mode string → FilterMode ----------------------------------------------------
 
 static FilterMode parse_filter_mode(const std::string& s) {
     if (s == "nearest") return FilterMode::Nearest;
     return FilterMode::Linear;
 }
 
-// ── Helper: parse UV mode string → int ─────────────────────────────────────
+// ---- Helper: parse UV mode string → int ------------------------------------------------------------------------─
 
 static int parse_uv_mode(const std::string& s) {
     if (s == "planar")   return 0;
@@ -56,7 +56,7 @@ static int parse_uv_mode(const std::string& s) {
     return 1; // harmonic (default)
 }
 
-// ── Helper: read a list of (x y) pairs from a Value ────────────────────────
+// ---- Helper: read a list of (x y) pairs from a Value ------------------------------------------------
 //
 // The value must be a list whose elements are either:
 //   - a list of 2 numbers representing (x y), or
@@ -113,7 +113,7 @@ static std::vector<Vec2> read_uv_vertices(const Value& v) {
     return result;
 }
 
-// ── texture-map ────────────────────────────────────────────────────────────
+// ---- texture-map ------------------------------------------------------------------------------------------------------------------------
 
 static Result<Value> texture_map_proc(const std::vector<Value>& args,
                                        Environment& /*env*/) {
@@ -199,7 +199,7 @@ static Result<Value> texture_map_proc(const std::vector<Value>& args,
     return Value(std::make_shared<GraphicObject>(std::move(go)));
 }
 
-// ── Registration ───────────────────────────────────────────────────────────
+// ---- Registration --------------------------------------------------------------------------------------------------------------------─
 
 void register_texture_map_builtins(std::shared_ptr<Environment> env) {
     env->define("texture-map",

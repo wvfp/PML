@@ -1,6 +1,6 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML IK Solver — FABRIK Implementation
-// ───────────────────────────────────────────────────────────────────────────────
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------─
 // Port of pml/skeleton/ik_fabrik.py.
 //
 // FABRIK operates in position space:
@@ -15,7 +15,7 @@
 //   - Single-joint chain: always treated as converged (only 1 DOF).
 //   - Zero bone segments: no-op, returns true.
 //   - Unknown end effector: returns false.
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "ik_fabrik.h"
 
@@ -35,7 +35,7 @@ bool solve_fabrik(
     int max_iterations,
     double tolerance)
 {
-    // ── Validate inputs ──────────────────────────────────────────────────────
+    // ---- Validate inputs ------------------------------------------------------------------------------------------------------------
     if (!skeleton || !skeleton->tmpl) {
         return false;
     }
@@ -45,7 +45,7 @@ bool solve_fabrik(
         return false;
     }
 
-    // ── Get chain data ───────────────────────────────────────────────────────
+    // ---- Get chain data ------------------------------------------------------------------------------------------------------------─
     // positions: [joint_0, joint_1, ..., joint_n, tip_of_joint_n]
     //            size = end_idx + 2
     // lengths:   [bone_0_len, bone_1_len, ..., bone_n_len]
@@ -72,7 +72,7 @@ bool solve_fabrik(
         target.first - root_pos.first,
         target.second - root_pos.second);
 
-    // ── Unreachable target: stretch chain toward target ──────────────────────
+    // ---- Unreachable target: stretch chain toward target --------------------------------------------
     // When the target is beyond total reach, simply align all bones toward the
     // target. The end effector will point in the right direction but won't reach.
     if (dist_to_target > total_length) {
@@ -88,7 +88,7 @@ bool solve_fabrik(
         return false;
     }
 
-    // ── FABRIK iterations ────────────────────────────────────────────────────
+    // ---- FABRIK iterations --------------------------------------------------------------------------------------------------------
     for (int iter = 0; iter < max_iterations; ++iter) {
         // Convergence check: is end effector close enough to target?
         const auto& end_pos = positions[n];  // positions has n+1 elements
@@ -100,7 +100,7 @@ bool solve_fabrik(
             return true;
         }
 
-        // ── Backward pass ────────────────────────────────────────────────────
+        // ---- Backward pass --------------------------------------------------------------------------------------------------------
         // Place end effector at target, then work backward toward root.
         positions[n] = target;
         for (int i = n - 1; i >= 0; --i) {
@@ -112,7 +112,7 @@ bool solve_fabrik(
                 positions[i + 1].second + dir.second * lengths[i]};
         }
 
-        // ── Forward pass ─────────────────────────────────────────────────────
+        // ---- Forward pass --------------------------------------------------------------------------------------------------------─
         // Fix root at original position, then work forward toward end effector.
         positions[0] = root_pos;
         for (int i = 0; i < n; ++i) {
@@ -125,7 +125,7 @@ bool solve_fabrik(
         }
     }
 
-    // ── After max iterations: final check ────────────────────────────────────
+    // ---- After max iterations: final check ------------------------------------------------------------------------
     const auto& end_pos = positions[n];
     double dist = std::hypot(
         end_pos.first - target.first,

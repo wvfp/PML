@@ -1,6 +1,6 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Adjustment filters — color matrix, levels, curves, threshold, posterize
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "adjustments.h"
 #include "filter_backend.h"
@@ -170,7 +170,7 @@ std::array<uint8_t,256> make_gamma_lut(double gamma) {
 
 } // anonymous namespace
 
-// ── ColorMatrixFilter ─────────────────────────────────────────────────────────
+// ---- ColorMatrixFilter ----------------------------------------------------------------------------------------------------------------─
 
 ColorMatrixFilter::ColorMatrixFilter(ColorAdjustParams p) : m_params(p) {}
 
@@ -213,7 +213,7 @@ std::string ColorMatrixFilter::name() const {
     return "color-adjust";
 }
 
-// ── LevelsFilter ──────────────────────────────────────────────────────────────
+// ---- LevelsFilter ----------------------------------------------------------------------------------------------------------------------------
 
 LevelsFilter::LevelsFilter(double in_low, double gamma, double in_high,
                            double out_low, double out_high)
@@ -244,7 +244,7 @@ std::string LevelsFilter::name() const {
     return "levels";
 }
 
-// ── CurvesFilter ──────────────────────────────────────────────────────────────
+// ---- CurvesFilter ----------------------------------------------------------------------------------------------------------------------------
 
 CurvesFilter::CurvesFilter(int channel, std::vector<std::pair<uint8_t,uint8_t>> points)
     : m_channel(channel), m_points(std::move(points)) {}
@@ -303,7 +303,7 @@ std::string CurvesFilter::name() const {
     return "curves";
 }
 
-// ── ThresholdFilter ───────────────────────────────────────────────────────────
+// ---- ThresholdFilter --------------------------------------------------------------------------------------------------------------------─
 
 ThresholdFilter::ThresholdFilter(uint8_t value) : m_value(value) {}
 
@@ -319,7 +319,7 @@ std::string ThresholdFilter::name() const {
     return "threshold";
 }
 
-// ── PosterizeFilter ───────────────────────────────────────────────────────────
+// ---- PosterizeFilter --------------------------------------------------------------------------------------------------------------------─
 
 PosterizeFilter::PosterizeFilter(int levels) : m_levels(std::max(levels, 2)) {}
 

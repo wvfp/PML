@@ -1,8 +1,8 @@
 #pragma once
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML Skeleton System — Joint / SkeletonTemplate / SkeletonInstance
-// ───────────────────────────────────────────────────────────────────────────────
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------─
 // Port of pml/skeleton/skeleton.py:
 //   - Joint: a single joint definition (name, offset, length, angle, constraints)
 //   - SkeletonTemplate: a skeleton blueprint (name, root params, joint chain)
@@ -15,7 +15,7 @@
 //   - joint-position       (regular builtin)
 //
 // Angles are in radians, matching the Python PML implementation.
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "environment.h"
 #include "evaluator.h"
@@ -32,9 +32,9 @@
 
 namespace pml {
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Joint — single joint definition
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 /// A single joint definition within a skeleton template.
 /// Matches Python pml.skeleton.skeleton.Joint (frozen dataclass).
@@ -48,9 +48,9 @@ struct Joint {
     std::optional<double> max_angle;     ///< Upper bound constraint (radians)
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // SkeletonTemplate — skeleton blueprint
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 /// A skeleton blueprint — defines joint topology and initial pose.
 /// Matches Python pml.skeleton.skeleton.SkeletonTemplate (frozen dataclass).
@@ -72,9 +72,9 @@ struct SkeletonTemplate {
     [[nodiscard]] int joint_index(const std::string& name) const;
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // SkeletonInstance — live skeleton with mutable angles
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 /// A live skeleton with mutable joint angles.
 /// Created from a SkeletonTemplate via instantiate-skeleton.
@@ -104,7 +104,7 @@ public:
         }
     }
 
-    // ── Chain positions ────────────────────────────────────────────────────
+    // ---- Chain positions --------------------------------------------------------------------------------------------------------
 
     /// Return positions from root to end effector, including bone tip.
     /// The returned vector has (end_index + 2) elements:
@@ -112,13 +112,13 @@ public:
     [[nodiscard]] std::vector<std::pair<double, double>> chain_positions(int end_index) const;
     [[nodiscard]] std::vector<std::pair<double, double>> chain_positions(const std::string& end_name) const;
 
-    // ── Bone lengths ───────────────────────────────────────────────────────
+    // ---- Bone lengths ------------------------------------------------------------------------------------------------------------─
 
     /// Return bone lengths from root to end effector (inclusive).
     [[nodiscard]] std::vector<double> bone_lengths(int end_index) const;
     [[nodiscard]] std::vector<double> bone_lengths(const std::string& end_name) const;
 
-    // ── Angle setting with clamping ────────────────────────────────────────
+    // ---- Angle setting with clamping --------------------------------------------------------------------------------
 
     /// Apply min/max constraints to a joint angle.
     [[nodiscard]] double clamp_angle(int index, double angle) const noexcept;
@@ -127,7 +127,7 @@ public:
     void set_angle(int index, double value);
     void set_angle(const std::string& name, double value);
 
-    // ── World position queries ─────────────────────────────────────────────
+    // ---- World position queries ----------------------------------------------------------------------------------------─
 
     /// Get a specific joint's world-space position.
     [[nodiscard]] std::pair<double, double> get_joint_world_pos(int index) const;
@@ -136,7 +136,7 @@ public:
     /// Get the position at the end of the last bone segment (tip of last joint).
     [[nodiscard]] std::pair<double, double> end_effector_position() const;
 
-    // ── Forward kinematics ─────────────────────────────────────────────────
+    // ---- Forward kinematics ------------------------------------------------------------------------------------------------─
 
     /// Compute world-space positions for all joints.
     /// Returns a vector of (x, y) tuples — one per joint.
@@ -147,9 +147,9 @@ private:
     [[nodiscard]] int joint_index(const std::string& name) const;
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Builtin registration
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 /// Special form handler for (defskeleton ...).
 /// Parses the raw AST to define a SkeletonTemplate in the environment.

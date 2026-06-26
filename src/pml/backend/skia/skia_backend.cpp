@@ -405,7 +405,7 @@ auto SkiaBackend::create_noise_shader(NoiseType type,
     // because this Skia build's SkSL requires constant loop bounds.
     // =====================================================================
 
-    // ── Generate octave loop body ──
+    // ---- Generate octave loop body ----
     // Each octave iteration is emitted as a separate source block with
     // its own constant period computation, so no runtime loop is needed.
     std::string octave_code;
@@ -508,7 +508,7 @@ auto SkiaBackend::create_noise_shader(NoiseType type,
         }
     )";
 
-    // ── Compile SkSL ──
+    // ---- Compile SkSL ----
     auto result = SkRuntimeEffect::MakeForShader(SkString(sksl));
     if (!result.effect) {
         return std::unexpected(general_error(
@@ -517,7 +517,7 @@ auto SkiaBackend::create_noise_shader(NoiseType type,
     }
     sk_sp<SkRuntimeEffect> effect = std::move(result.effect);
 
-    // ── Build uniform data (matches SkSL declaration order) ──
+    // ---- Build uniform data (matches SkSL declaration order) ----
     // SkSL packs scalar uniforms at 4-byte boundaries in declaration order.
     // 6 uniforms × 4 bytes = 24 bytes.
     struct NoiseUniforms {
@@ -545,7 +545,7 @@ auto SkiaBackend::create_noise_shader(NoiseType type,
             "skia create_noise_shader: failed to allocate uniform data"));
     }
 
-    // ── Create shader from compiled effect + uniforms ──
+    // ---- Create shader from compiled effect + uniforms ----
     sk_sp<SkShader> noise_shader = effect->makeShader(
         std::move(uniform_data), {}, nullptr);
     if (!noise_shader) {

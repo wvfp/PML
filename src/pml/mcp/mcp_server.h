@@ -1,13 +1,13 @@
 #pragma once
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // MCP Server — JSON-RPC 2.0 over stdio for PML AI agent integration.
 //
 // Ported from pml/mcp_server.py.  Provides 5 tools matching the Python MCP:
 //   execute_pml, render_sprite, validate, list_components, preview_params
 //
 // Protocol: JSON-RPC 2.0 with Content-Length framing over stdin/stdout.
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include <memory>
 #include <string>
@@ -35,7 +35,7 @@ public:
     void run();
 
 private:
-    // ── Message framing (stdio) ──────────────────────────────────────────
+    // ---- Message framing (stdio) ------------------------------------------------------------------------------------
 
     /// Read one JSON-RPC message from stdin.
     /// Parses the Content-Length header and reads exactly N bytes of JSON.
@@ -45,13 +45,13 @@ private:
     /// Write a JSON-RPC response to stdout with Content-Length framing.
     void write_message(const std::string& body);
 
-    // ── JSON-RPC request dispatch ────────────────────────────────────────
+    // ---- JSON-RPC request dispatch --------------------------------------------------------------------------------
 
     /// Dispatch a parsed JSON-RPC request and return a response JSON object.
     /// Returns a full JSON-RPC response (with id, jsonrpc, result/error).
     [[nodiscard]] nlohmann::json dispatch(const nlohmann::json& request);
 
-    // ── MCP method handlers ──────────────────────────────────────────────
+    // ---- MCP method handlers --------------------------------------------------------------------------------------------
 
     /// Handle initialize request.
     [[nodiscard]] nlohmann::json handle_initialize(const nlohmann::json& params);
@@ -62,7 +62,7 @@ private:
     /// Handle tools/call request.
     [[nodiscard]] nlohmann::json handle_tools_call(const nlohmann::json& params);
 
-    // ── Tool implementations ─────────────────────────────────────────────
+    // ---- Tool implementations ----------------------------------------------------------------------------------------─
 
     nlohmann::json tool_execute_pml(const nlohmann::json& args);
     nlohmann::json tool_render_sprite(const nlohmann::json& args);
@@ -70,7 +70,7 @@ private:
     nlohmann::json tool_list_components(const nlohmann::json& args);
     nlohmann::json tool_preview_params(const nlohmann::json& args);
 
-    // ── Helpers ──────────────────────────────────────────────────────────
+    // ---- Helpers --------------------------------------------------------------------------------------------------------------------
 
     /// Build a JSON-RPC error response object.
     [[nodiscard]] static nlohmann::json make_error(
@@ -90,7 +90,7 @@ private:
         const std::string& message,
         nlohmann::json data = nullptr);
 
-    // ── State ────────────────────────────────────────────────────────────
+    // ---- State ------------------------------------------------------------------------------------------------------------------------
 
     bool m_initialized = false;
     std::unique_ptr<PMLRuntime> m_runtime;

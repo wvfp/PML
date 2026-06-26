@@ -5,7 +5,7 @@
 
 namespace pml {
 
-// ── SourceLocation ─────────────────────────────────────────────────────────
+// ---- SourceLocation ----------------------------------------------------------------------------------------------------------------─
 
 auto SourceLocation::to_string() const -> std::string {
     if (filename.empty()) {
@@ -14,7 +14,7 @@ auto SourceLocation::to_string() const -> std::string {
     return std::format("{}:{}:{}", filename, line, column);
 }
 
-// ── ErrorCode string conversion ────────────────────────────────────────────
+// ---- ErrorCode string conversion ----------------------------------------------------------------------------------------
 
 auto to_string(ErrorCode code) -> std::string_view {
     using enum ErrorCode;
@@ -40,7 +40,7 @@ auto to_string(ErrorCode code) -> std::string_view {
     return "UnknownError";
 }
 
-// ── PMLException::what() ───────────────────────────────────────────────────
+// ---- PMLException::what() ----------------------------------------------------------------------------------------------------─
 
 auto PMLException::what() const -> std::string {
     std::string result;
@@ -54,7 +54,7 @@ auto PMLException::what() const -> std::string {
     return result;
 }
 
-// ── Factory functions (with SourceLocation) ────────────────────────────────
+// ---- Factory functions (with SourceLocation) ----------------------------------------------------------------
 
 auto syntax_error(SourceLocation loc, std::string msg,
                   std::optional<std::string> hint) -> PMLException {
@@ -157,7 +157,7 @@ auto general_error(std::string msg,
                         std::move(msg), std::move(hint)};
 }
 
-// ── Factory functions (without SourceLocation) ─────────────────────────────
+// ---- Factory functions (without SourceLocation) --------------------------------------------------------─
 
 auto syntax_error(std::string msg,
                   std::optional<std::string> hint) -> PMLException {

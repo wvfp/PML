@@ -9,13 +9,13 @@
 (define height 512)
 (define tile-size 128)
 
-;; ── 1. 基本分形噪声（无平铺，作为对比参考） ─────────────
+;; ---- 1. 基本分形噪声（无平铺，作为对比参考） ------------------------─
 (canvas width height)
 (define n1 (noise-fractal :seed 42 :octaves 6 :freq-x 0.03 :freq-y 0.03))
 (add (apply-shader! (rect 0 0 width height :fill "white") n1))
 (render "output/noise_fractal_basic.png")
 
-;; ── 2. 无缝分形噪声（128×128 tile 拼满 512×512） ─────────
+;; ---- 2. 无缝分形噪声（128×128 tile 拼满 512×512） ----------------─
 (canvas width height)
 (define n2 (noise-fractal :seed 42 :octaves 6 :freq-x 0.03 :freq-y 0.03
                           :tile-width tile-size :tile-height tile-size))
@@ -30,7 +30,7 @@
           (range 0 4))
 (render "output/noise_fractal_seamless.png")
 
-;; ── 3. 无缝湍流噪声 ───────────────────────────────────────
+;; ---- 3. 无缝湍流噪声 ----------------------------------------------------------------------------─
 (canvas width height)
 (define n3 (noise-turbulence :seed 99 :octaves 5 :freq-x 0.04 :freq-y 0.04
                              :tile-width tile-size :tile-height tile-size))
@@ -45,7 +45,7 @@
           (range 0 4))
 (render "output/noise_turbulence_seamless.png")
 
-;; ── 4. 色阶量化 — 四色石板 tile ────────────────────────────
+;; ---- 4. 色阶量化 — 四色石板 tile --------------------------------------------------------
 (canvas 256 256)
 (define n4 (noise-fractal :seed 42 :octaves 6
                           :freq-x 0.04 :freq-y 0.04
@@ -66,7 +66,7 @@
           (range 0 4))
 (render "output/noise_stone_tiles.png")
 
-;; ── 5. 色阶量化 — 三色地形 tile ────────────────────────────
+;; ---- 5. 色阶量化 — 三色地形 tile --------------------------------------------------------
 (canvas 256 256)
 (define n5 (noise-turbulence :seed 99 :octaves 4
                              :freq-x 0.06 :freq-y 0.06
@@ -86,7 +86,7 @@
           (range 0 4))
 (render "output/noise_terrain_tiles.png")
 
-;; ── 6. 对比：同一种子，有/无平铺 ──────────────────────────
+;; ---- 6. 对比：同一种子，有/无平铺 ----------------------------------------------------
 ;; 左半边：无平铺（可以看到边界接缝）
 ;; 右半边：128×128 无缝平铺（看不到接缝）
 (canvas 512 256)
@@ -106,7 +106,7 @@
           (range 0 2))
 (render "output/noise_seamless_vs_none.png")
 
-;; ── 7. 高 octaves 细节噪声（无缝） ────────────────────────
+;; ---- 7. 高 octaves 细节噪声（无缝） ------------------------------------------------
 (canvas width height)
 (define n7 (noise-fractal :seed 123 :octaves 8 :freq-x 0.08 :freq-y 0.08
                           :tile-width tile-size :tile-height tile-size))
@@ -121,7 +121,7 @@
           (range 0 4))
 (render "output/noise_fractal_detail.png")
 
-;; ── 8. 色阶量化 — 云层效果（蓝白配色） ────────────────────
+;; ---- 8. 色阶量化 — 云层效果（蓝白配色） ----------------------------------------
 (canvas 256 256)
 (define n8 (noise-fractal :seed 200 :octaves 5
                           :freq-x 0.03 :freq-y 0.03

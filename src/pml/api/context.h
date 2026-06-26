@@ -1,8 +1,8 @@
 #pragma once
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML Runtime Context — Aggregates per-runtime mutable global state
-// ───────────────────────────────────────────────────────────────────────────────
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------─
 // Replaces the loose global singletons (_current_canvas, g_timeline,
 // StyleRegistry::instance(), PaletteManager::instance()) with an explicit
 // context object owned by PMLRuntime.
@@ -14,7 +14,7 @@
 //   * A default static context is used when no runtime has been activated,
 //     preserving backward compatibility for code that uses the accessors outside
 //     of a PMLRuntime::execute() call.
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include <memory>
 #include <string>
@@ -43,7 +43,7 @@ class PMLContext {
     PMLContext(const PMLContext&) = delete;
     PMLContext& operator=(const PMLContext&) = delete;
 
-    // ── Subsystem state ─────────────────────────────────────────────────
+    // ---- Subsystem state ------------------------------------------------------------------------------------------------─
 
     std::shared_ptr<Canvas> current_canvas;   ///< Active canvas set by (canvas ...)
     std::shared_ptr<Timeline> timeline;       ///< Active animation timeline
@@ -60,7 +60,7 @@ class PMLContext {
     std::string source_dir; ///< Directory of the currently executing PML file (for relative paths)
     std::string output_dir; ///< CLI -o output directory override (empty = none)
 
-    // ── Lifecycle ───────────────────────────────────────────────────────
+    // ---- Lifecycle ------------------------------------------------------------------------------------------------------------─
 
     /// Reset all state to a fresh runtime state (predefined styles/palettes
     /// are re-registered).
@@ -76,7 +76,7 @@ class PMLContext {
         return output_files;
     }
 
-    // ── Current-context access ──────────────────────────────────────────
+    // ---- Current-context access ------------------------------------------------------------------------------------
 
     /// Return the context currently active on this thread. If none has been
     /// activated, returns a process-wide default context.

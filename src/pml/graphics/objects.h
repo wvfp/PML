@@ -1,12 +1,12 @@
 #pragma once
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML GraphicObject — Immutable scene-graph element
-// ───────────────────────────────────────────────────────────────────────────────
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------─
 // Value-semantic struct representing any primitive shape (circle, rect, text,
 // group, etc.). All "mutating" methods return a new instance, enabling safe
 // animation interpolation.
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "../layer/blend_mode.h"
 #include "params.h"
@@ -67,7 +67,7 @@ struct GraphicObject {
     /// Default-constructed objects use id == 0 (reserved, never issued).
     uint64_t id{};
 
-    // ── Constructors ───────────────────────────────────────────────────
+    // ---- Constructors ----------------------------------------------------------------------------------------------------─
 
     GraphicObject() = default;
     GraphicObject(
@@ -81,7 +81,7 @@ struct GraphicObject {
         std::unordered_map<std::string, Value> metadata_ = {}
     );
 
-    // ── Immutable "mutators" — each returns a new copy ───────────────
+    // ---- Immutable "mutators" — each returns a new copy ----------------------------─
 
     /// Return a copy with a new transform applied.
     [[nodiscard]] GraphicObject with_transform(AffineTransform t) const;
@@ -96,7 +96,7 @@ struct GraphicObject {
     [[nodiscard]] GraphicObject with_param(const std::string& key, Value value) const;
     [[nodiscard]] GraphicObject with_param(ParamKey key, Value value) const;
 
-    // ── Debugging ─────────────────────────────────────────────────────
+    // ---- Debugging --------------------------------------------------------------------------------------------------------─
 
     friend std::ostream& operator<<(std::ostream& os, const GraphicObject& obj);
 };

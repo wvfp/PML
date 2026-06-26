@@ -1,10 +1,10 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML Object Style + Transform-Object Builtins
 //
 // Extracted from canvas_builtins.cpp.  Implements:
 //   fill, stroke, no-fill, no-stroke, stroke-width,
 //   with-transform, translate-object, rotate-object, scale-object
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "object_style_builtins.h"
 
@@ -26,7 +26,7 @@ namespace pml {
 
 namespace {
 
-// ── Registration helper ─────────────────────────────────────────────────
+// ---- Registration helper ------------------------------------------------------------------------------------------------─
 
 void def(std::shared_ptr<Environment> env,
          const std::string& name,
@@ -38,14 +38,14 @@ void def(std::shared_ptr<Environment> env,
 
 } // anonymous namespace
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Style builtins
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 // Each style builtin returns a NEW GraphicObject with the style modified
 // (immutable pattern matching GraphicObject's with_fill/with_stroke methods).
 
-// ── (fill graphic-object color) → GraphicObject ──────────────────────────────
+// ---- (fill graphic-object color) → GraphicObject ------------------------------------------------------------
 
 static Result<Value> builtin_fill(const std::vector<Value>& args, Environment& /*env*/) {
     auto r = expect_arity(2, args, "fill");
@@ -66,7 +66,7 @@ static Result<Value> builtin_fill(const std::vector<Value>& args, Environment& /
     return Value(std::move(result));
 }
 
-// ── (stroke graphic-object color) → GraphicObject ────────────────────────────
+// ---- (stroke graphic-object color) → GraphicObject --------------------------------------------------------
 
 static Result<Value> builtin_stroke(const std::vector<Value>& args, Environment& /*env*/) {
     auto r = expect_arity(2, args, "stroke");
@@ -87,7 +87,7 @@ static Result<Value> builtin_stroke(const std::vector<Value>& args, Environment&
     return Value(std::move(result));
 }
 
-// ── (no-fill graphic-object) → GraphicObject ─────────────────────────────────
+// ---- (no-fill graphic-object) → GraphicObject ----------------------------------------------------------------─
 //
 // Remove the fill from a GraphicObject.
 
@@ -106,7 +106,7 @@ static Result<Value> builtin_no_fill(const std::vector<Value>& args, Environment
     return Value(std::move(result));
 }
 
-// ── (no-stroke graphic-object) → GraphicObject ───────────────────────────────
+// ---- (no-stroke graphic-object) → GraphicObject ------------------------------------------------------------─
 //
 // Remove the stroke from a GraphicObject.
 
@@ -125,7 +125,7 @@ static Result<Value> builtin_no_stroke(const std::vector<Value>& args, Environme
     return Value(std::move(result));
 }
 
-// ── (stroke-width graphic-object w) → GraphicObject ──────────────────────────
+// ---- (stroke-width graphic-object w) → GraphicObject ----------------------------------------------------
 
 static Result<Value> builtin_stroke_width(const std::vector<Value>& args, Environment& /*env*/) {
     auto r = expect_arity(2, args, "stroke-width");
@@ -144,11 +144,11 @@ static Result<Value> builtin_stroke_width(const std::vector<Value>& args, Enviro
     return Value(std::move(result));
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Transform-object builtins
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
-// ── (with-transform graphic-object transform) → GraphicObject ────────────────
+// ---- (with-transform graphic-object transform) → GraphicObject --------------------------------
 //
 // Set the transform of a GraphicObject, returning a new copy.
 
@@ -173,7 +173,7 @@ static Result<Value> builtin_with_transform(const std::vector<Value>& args, Envi
     return Value(std::move(result));
 }
 
-// ── (translate-object graphic-object tx ty) → GraphicObject ──────────────────
+// ---- (translate-object graphic-object tx ty) → GraphicObject ------------------------------------
 //
 // Compose a translation into the object's existing transform:
 //   new_transform = obj.transform · translate(tx, ty)
@@ -201,7 +201,7 @@ static Result<Value> builtin_translate_object(const std::vector<Value>& args,
     return Value(std::make_shared<GraphicObject>(std::move(translated)));
 }
 
-// ── (rotate-object graphic-object angle-deg) → GraphicObject ─────────────────
+// ---- (rotate-object graphic-object angle-deg) → GraphicObject --------------------------------─
 //
 // Compose a rotation into the object's existing transform.
 
@@ -223,7 +223,7 @@ static Result<Value> builtin_rotate_object(const std::vector<Value>& args, Envir
     return Value(std::move(result));
 }
 
-// ── (scale-object graphic-object sx [sy]) → GraphicObject ────────────────────
+// ---- (scale-object graphic-object sx [sy]) → GraphicObject ----------------------------------------
 //
 // Compose a scale into the object's existing transform.
 // If sy is omitted, uniform scale is assumed.
@@ -254,22 +254,22 @@ static Result<Value> builtin_scale_object(const std::vector<Value>& args, Enviro
     return Value(std::move(result));
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Registration
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 void register_object_style_builtins(std::shared_ptr<Environment> env) {
     if (!env)
         return;
 
-    // ── Style builtins ─────────────────────────────────────────────────
+    // ---- Style builtins ------------------------------------------------------------------------------------------------─
     def(env, "fill", builtin_fill);
     def(env, "stroke", builtin_stroke);
     def(env, "no-fill", builtin_no_fill);
     def(env, "no-stroke", builtin_no_stroke);
     def(env, "stroke-width", builtin_stroke_width);
 
-    // ── Transform-object builtins ───────────────────────────────────────
+    // ---- Transform-object builtins ----------------------------------------------------------------------------─
     def(env, "with-transform", builtin_with_transform);
     def(env, "translate-object", builtin_translate_object);
     def(env, "rotate-object", builtin_rotate_object);

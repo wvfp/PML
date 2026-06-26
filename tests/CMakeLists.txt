@@ -1,6 +1,6 @@
 enable_testing()
 
-# ── GTest test runner ───────────────────────────────────────────────────────
+# ---- GTest test runner ------------------------------------------------------------------------------------------------------------─
 add_executable(pml-tests
     stub.cpp
     test_lexer.cpp
@@ -37,7 +37,7 @@ target_link_libraries(pml-tests PRIVATE
     pml_api
 )
 
-# ── Builtins smoke test (standalone, no GTest) ──────────────────────────────
+# ---- Builtins smoke test (standalone, no GTest) ------------------------------------------------------------
 add_executable(pml-builtins-smoke
     builtins_smoke.cpp
 )
@@ -56,7 +56,7 @@ target_link_libraries(pml-builtins-smoke PRIVATE
     pml_api
 )
 
-# ── Layer unit tests (isolated from pml_sprites build issues) ────────────────
+# ---- Layer unit tests (isolated from pml_sprites build issues) --------------------------------
 add_executable(pml-layer-test
     test_layer.cpp
     test_layer_render.cpp
@@ -74,7 +74,7 @@ target_link_libraries(pml-layer-test PRIVATE
     pml_filter
 )
 
-# ── Filter unit tests ────────────────────────────────────────────────────────
+# ---- Filter unit tests ----------------------------------------------------------------------------------------------------------------
 add_executable(pml-filter-test
     test_filter.cpp
 )

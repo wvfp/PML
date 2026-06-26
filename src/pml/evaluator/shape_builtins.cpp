@@ -1,9 +1,9 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML Shape Factory Builtins
 //
 // Extracted from canvas_builtins.cpp.  Implements:
 //   circle, rect, ellipse, line, polygon, text, group
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "shape_builtins.h"
 
@@ -36,7 +36,7 @@ namespace pml {
 
 namespace {
 
-// ── Registration helper ─────────────────────────────────────────────────
+// ---- Registration helper ------------------------------------------------------------------------------------------------─
 
 void def(std::shared_ptr<Environment> env,
          const std::string& name,
@@ -46,7 +46,7 @@ void def(std::shared_ptr<Environment> env,
     env->define(name, Value(proc));
 }
 
-// ── Rough-style param resolution ────────────────────────────────────────
+// ---- Rough-style param resolution --------------------------------------------------------------------------------
 //
 // Resolve roughness parameters from two sources:
 //   1. `:style` — if the named style has roughness fields
@@ -121,7 +121,7 @@ RoughShapeResult resolve_rough_params(
     return result;
 }
 
-// ── Blend-mode + stroke-align extraction helper ──────────────────────────
+// ---- Blend-mode + stroke-align extraction helper ----------------------------------------------------
 
 void apply_blend_and_stroke(
     const std::shared_ptr<GraphicObject>& obj,
@@ -147,11 +147,11 @@ void apply_blend_and_stroke(
 
 } // anonymous namespace
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Shape factory builtins
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
-// ── (circle cx cy r [:fill color] [:stroke color] [:stroke-width w]) → GO ───
+// ---- (circle cx cy r [:fill color] [:stroke color] [:stroke-width w]) → GO ----─
 
 static Result<Value> builtin_circle(const std::vector<Value>& args, Environment& /*env*/) {
     auto r = expect_min_arity(3, args, "circle");
@@ -206,7 +206,7 @@ static Result<Value> builtin_circle(const std::vector<Value>& args, Environment&
     return Value(std::move(obj));
 }
 
-// ── (rect x y w h [:fill color] [:stroke color] [:stroke-width w] [:rx r]) → GO
+// ---- (rect x y w h [:fill color] [:stroke color] [:stroke-width w] [:rx r]) → GO
 
 static Result<Value> builtin_rect(const std::vector<Value>& args, Environment& /*env*/) {
     auto r = expect_min_arity(4, args, "rect");
@@ -268,7 +268,7 @@ static Result<Value> builtin_rect(const std::vector<Value>& args, Environment& /
     return Value(std::move(obj));
 }
 
-// ── (ellipse cx cy rx ry [:fill color] [:stroke color] [:stroke-width w]) → GO
+// ---- (ellipse cx cy rx ry [:fill color] [:stroke color] [:stroke-width w]) → GO
 
 static Result<Value> builtin_ellipse(const std::vector<Value>& args, Environment& /*env*/) {
     auto r = expect_min_arity(4, args, "ellipse");
@@ -325,7 +325,7 @@ static Result<Value> builtin_ellipse(const std::vector<Value>& args, Environment
     return Value(std::move(obj));
 }
 
-// ── (line x1 y1 x2 y2 [:stroke color] [:stroke-width w]) → GO ───────────────
+// ---- (line x1 y1 x2 y2 [:stroke color] [:stroke-width w]) → GO ----------------------------─
 
 static Result<Value> builtin_line(const std::vector<Value>& args, Environment& /*env*/) {
     auto r = expect_min_arity(4, args, "line");
@@ -374,7 +374,7 @@ static Result<Value> builtin_line(const std::vector<Value>& args, Environment& /
     return Value(std::move(obj));
 }
 
-// ── (polygon points [:fill color] [:stroke color] [:stroke-width w]) → GO ────
+// ---- (polygon points [:fill color] [:stroke color] [:stroke-width w]) → GO --------
 //
 // points is a list of (x y) pairs: (list (list x1 y1) (list x2 y2) ...)
 
@@ -439,7 +439,7 @@ static Result<Value> builtin_polygon(const std::vector<Value>& args, Environment
 
     apply_blend_and_stroke(obj, kwargs);
 
-    // ── Edge-perturbation kwargs ─────────────────────────────────────
+    // ---- Edge-perturbation kwargs ------------------------------------------------------------------------─
     // Parse optional edge-perturbation parameters. If ANY edge-* or
     // corner-* kwarg is present, store ALL edge parameters (including
     // defaults) in metadata so the render backend can apply perturbation.
@@ -484,7 +484,7 @@ static Result<Value> builtin_polygon(const std::vector<Value>& args, Environment
     return Value(std::move(obj));
 }
 
-// ── (text x y content [:fill color] [:font-size size]) → GO ─────────────────
+// ---- (text x y content [:fill color] [:font-size size]) → GO --------------------------------─
 
 static Result<Value> builtin_text(const std::vector<Value>& args, Environment& /*env*/) {
     auto r = expect_min_arity(3, args, "text");
@@ -525,7 +525,7 @@ static Result<Value> builtin_text(const std::vector<Value>& args, Environment& /
     return Value(std::move(obj));
 }
 
-// ── (path commands-list [:d svg-string] [:fill color] [:stroke color] [:stroke-width w]) → GO
+// ---- (path commands-list [:d svg-string] [:fill color] [:stroke color] [:stroke-width w]) → GO
 //
 // Creates a GraphicObject with SVG-compatible path commands.
 //
@@ -660,7 +660,7 @@ static Result<Value> builtin_path(const std::vector<Value>& args, Environment& /
     return Value(std::move(obj));
 }
 
-// ── (group object1 object2 ...) → GraphicObject ─────────────────────────────
+// ---- (group object1 object2 ...) → GraphicObject --------------------------------------------------------─
 //
 // Create a group GraphicObject containing the given objects as children.
 
@@ -690,15 +690,15 @@ static Result<Value> builtin_group(const std::vector<Value>& args, Environment& 
     return Value(std::move(obj));
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Registration
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 void register_shape_builtins(std::shared_ptr<Environment> env) {
     if (!env)
         return;
 
-    // ── Shape factory builtins ──────────────────────────────────────────
+    // ---- Shape factory builtins ------------------------------------------------------------------------------------
     def(env, "circle", builtin_circle, true);   // accepts :fill, :stroke, :stroke-width
     def(env, "rect", builtin_rect, true);       // accepts :fill, :stroke, :stroke-width, :rx
     def(env, "ellipse", builtin_ellipse, true); // accepts :fill, :stroke, :stroke-width
@@ -707,7 +707,7 @@ void register_shape_builtins(std::shared_ptr<Environment> env) {
     def(env, "text", builtin_text, true);       // accepts :fill, :font-size
     def(env, "path", builtin_path, true);       // accepts :fill, :stroke, :stroke-width, :d
 
-    // ── Group builtin ───────────────────────────────────────────────────
+    // ---- Group builtin ----------------------------------------------------------------------------------------------------─
     def(env, "group", builtin_group);
 }
 

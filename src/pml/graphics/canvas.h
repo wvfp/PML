@@ -1,12 +1,12 @@
 #pragma once
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML Canvas — Drawing surface and global state
-// ───────────────────────────────────────────────────────────────────────────────
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------─
 // A Canvas collects GraphicObjects for rendering.  Factories _canvas() and
 // _sprite_canvas() create instances and set the global current canvas, which
 // is then consumed by the render pipeline.
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "objects.h"
 #include "pml/api/context.h"
@@ -43,7 +43,7 @@ struct Canvas {
     void add(GraphicObject obj);
 };
 
-// ── Global current canvas (context-scoped) ───────────────────────────────
+// ---- Global current canvas (context-scoped) ------------------------------------------------------------─
 
 /// The current active canvas, set by _canvas() / _sprite_canvas() and
 /// consumed by the render pipeline.  Mirrors Python's _current_canvas.
@@ -54,7 +54,7 @@ struct Canvas {
     return PMLContext::current().current_canvas;
 }
 
-// ── Factory functions ───────────────────────────────────────────────────
+// ---- Factory functions ----------------------------------------------------------------------------------------------------─
 
 /// Create a regular canvas for static image rendering.
 /// Sets @p g_current_canvas to the new instance.

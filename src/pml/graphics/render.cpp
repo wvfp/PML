@@ -1,6 +1,6 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML Render Dispatch — Implementation
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "render.h"
 
@@ -42,9 +42,9 @@ namespace pml {
 void merge_skin_bindings(
     std::unordered_map<uint64_t, std::unordered_map<std::string, Value>>& obj_mods);
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Internal helpers — argument parsing from PML Values
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 namespace {
 
@@ -156,9 +156,9 @@ using pml::kwargs::value_to_string_req;
 
 } // anonymous namespace
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // SVG Path Parsing
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 auto parse_svg_path(const std::string& svg_path) -> Result<std::vector<PathCommand>> {
     std::vector<PathCommand> commands;
@@ -696,20 +696,20 @@ auto render_spritesheet(const std::string& filename,
     return resolved;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Environment Registration — bind render functions to PML
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 //
 // Each function is wrapped in a BuiltinProcedure with accepts_kwargs=true.
 // The callback parses arguments from PML Value vectors and dispatches to
 // the C++ render functions above.
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 void register_render(std::shared_ptr<Environment> env) {
     if (!env)
         return;
 
-    // ── (render filename :format "PNG" ...) ──────────────────────────────
+    // ---- (render filename :format "PNG" ...) ------------------------------------------------------------
     //
     // Signature: (render filename [kwargs...])
     //   - filename: string (required, first positional arg)
@@ -762,7 +762,7 @@ void register_render(std::shared_ptr<Environment> env) {
             Value(std::make_shared<BuiltinProcedure>("render", std::move(render_fn), true)));
     }
 
-    // ── (render-set name :content obj :scales (1 2 4) :base-size (64 64)) ─
+    // ---- (render-set name :content obj :scales (1 2 4) :base-size (64 64)) ─
     //
     // Signature: (render-set name [kwargs...])
     //   - name: string (required, first positional arg)
@@ -847,7 +847,7 @@ void register_render(std::shared_ptr<Environment> env) {
                         "render-set", std::move(render_set_fn), true)));
     }
 
-    // ── (render-spritesheet "file.png" sprite... :cols 4 ...) ────────────
+    // ---- (render-spritesheet "file.png" sprite... :cols 4 ...) ------------------------
     //
     // Signature: (render-spritesheet filename [sprites...] [kwargs...])
     //   - filename: string (required, first positional arg)
@@ -898,7 +898,7 @@ void register_render(std::shared_ptr<Environment> env) {
                         "render-spritesheet", std::move(spritesheet_fn), true)));
     }
 
-    // ── (render-tilemap name :output "out.png" [:bg "transparent"]) ──────
+    // ---- (render-tilemap name :output "out.png" [:bg "transparent"]) ------------
     //
     // Signature: (render-tilemap name [kwargs...])
     //   - name: string or symbol (tilemap name, required, first positional)
@@ -990,7 +990,7 @@ void register_render(std::shared_ptr<Environment> env) {
             };
 
             if (projection == "isometric") {
-                // ── Isometric projection ─────────────────────────────────
+                // ---- Isometric projection ----------------------------------------------------------------─
                 // Uses Painter's Algorithm: sort non-empty tiles by
                 // (row + col) ascending and render back-to-front.
                 //
@@ -1039,7 +1039,7 @@ void register_render(std::shared_ptr<Environment> env) {
                     }
                 }
             } else {
-                // ── Orthogonal projection (default) ──────────────────────
+                // ---- Orthogonal projection (default) --------------------------------------------
                 // Simple grid layout: tile at (col, row) → pixel (col*S, row*S)
                 for (const auto& layer : tm->layers) {
                     if (!layer.visible) continue;

@@ -1,9 +1,9 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML Polygon Perturbation Builtins — Implementation
 //
 // Provides:
 //   (perturb-polygon points :edge-noise N ...) → perturbed ((x y) ...)
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "perturb_builtins.h"
 
@@ -29,7 +29,7 @@ namespace pml {
 
 namespace {
 
-// ── Registration helper (same pattern as shape_builtins.cpp) ──────────────
+// ---- Registration helper (same pattern as shape_builtins.cpp) ----------------------------
 
 void def(std::shared_ptr<Environment> env,
          const std::string& name,
@@ -39,7 +39,7 @@ void def(std::shared_ptr<Environment> env,
     env->define(name, Value(proc));
 }
 
-// ── Vector-valued kwarg parsing helpers ──────────────────────────────────
+// ---- Vector-valued kwarg parsing helpers --------------------------------------------------------------------
 
 /// Parse a kwarg that can be either a single double or a list of doubles.
 static std::vector<double> parse_double_vector(const Value& v) {
@@ -89,7 +89,7 @@ static std::vector<bool> parse_bool_vector(const Value& v) {
     return result;
 }
 
-// ── builtin_perturb_polygon ───────────────────────────────────────────────
+// ---- builtin_perturb_polygon --------------------------------------------------------------------------------------------─
 
 static Result<Value> builtin_perturb_polygon(
     const std::vector<Value>& args, Environment& /*env*/)
@@ -99,7 +99,7 @@ static Result<Value> builtin_perturb_polygon(
     if (!r)
         return std::unexpected(r.error());
 
-    // ── Parse vertices (same layout as polygon's first argument) ──────────
+    // ---- Parse vertices (same layout as polygon's first argument) --------------------
     //
     // Input: ((x1 y1) (x2 y2) ...)
 
@@ -122,7 +122,7 @@ static Result<Value> builtin_perturb_polygon(
         vertices.push_back(RoughPoint{x, y});
     }
 
-    // ── Parse keyword arguments ───────────────────────────────────────────
+    // ---- Parse keyword arguments ------------------------------------------------------------------------------------─
 
     auto kwargs = parse_kwargs(args, 1);
 
@@ -174,7 +174,7 @@ static Result<Value> builtin_perturb_polygon(
         corner_mask = {true};
     }
 
-    // ── Build configuration ───────────────────────────────────────────────
+    // ---- Build configuration --------------------------------------------------------------------------------------------─
 
     PerturbConfig config;
     config.edge_noise       = std::move(edge_noise);
@@ -184,7 +184,7 @@ static Result<Value> builtin_perturb_polygon(
     config.corner_mask      = std::move(corner_mask);
     config.seed             = seed;
 
-    // ── Create Perlin noise and perturb ───────────────────────────────────
+    // ---- Create Perlin noise and perturb --------------------------------------------------------------------─
 
     PerlinNoise2D noise(seed);
     PerturbResult perturbed;
@@ -195,7 +195,7 @@ static Result<Value> builtin_perturb_polygon(
             type_error(std::string("perturb-polygon: ") + e.what()));
     }
 
-    // ── Flatten result → nested PML list ──────────────────────────────────
+    // ---- Flatten result → nested PML list --------------------------------------------------------------------
     //
     // flatten_perturb_result concatenates all edge point lists into one flat
     // vector of RoughPoints.  Convert back to: ((x1 y1) (x2 y2) ...)
@@ -213,9 +213,9 @@ static Result<Value> builtin_perturb_polygon(
 
 } // anonymous namespace
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Registration
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 void register_perturb_builtins(std::shared_ptr<Environment> env) {
     if (!env)

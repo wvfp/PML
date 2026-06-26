@@ -1,6 +1,6 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML Tilemap Builtins — Tile-based game map data management
-// ───────────────────────────────────────────────────────────────────────────────
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------─
 // Registers define-tileset, make-tilemap, tilemap-set! built-in procedures
 // for the data-management layer of tile-based game maps.
 //
@@ -12,7 +12,7 @@
 //   (tilemap-set! tilemap-name layer col row tile-id)
 //     — set a tile in the tilemap
 //   (render-tilemap ...)  — registered via register_tilemap_render() (in pml_graphics)
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "tilemap_builtins.h"
 
@@ -42,13 +42,13 @@ using pml::kwargs::kw_int;
 
 namespace {
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // value_to_expr — Convert a runtime Value back to an AST Expr for evaluation
-// ───────────────────────────────────────────────────────────────────────────────
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------─
 // When the user passes `'((id name (rect ...)))` via a kwarg, the graphic
 // expression arrives as a quoted ValueList.  To evaluate it we must convert
 // it back to an Expr and call eval_to_value.
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 Expr value_to_expr(const Value& v) {
     if (v.is_nil()) return nullptr;
@@ -77,12 +77,12 @@ Result<Value> eval_value_as_expr(const Value& v, Environment& env) {
     return eval_to_value(expr, env.shared_from_this());
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // extract_tile_entry — Convert a ValueList entry to a TileType
-// ───────────────────────────────────────────────────────────────────────────────
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------─
 // A tile entry is a list: (id name [graphic-expr [detail-expr]])
 // Returns an error if the entry is malformed.
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 Result<TileType> extract_tile_entry(const Value& entry_val, Environment& env) {
     const auto* entry_list = entry_val.as_list();
@@ -152,9 +152,9 @@ Result<TileType> extract_tile_entry(const Value& entry_val, Environment& env) {
 
 } // anonymous namespace
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Builtin Registration
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 void register_tilemap_builtins(std::shared_ptr<Environment> env) {
     if (!env) return;
@@ -169,7 +169,7 @@ void register_tilemap_builtins(std::shared_ptr<Environment> env) {
         env->define(name, Value(proc));
     };
 
-    // ── (define-tileset name :tile-size N :tiles '((id name graphic ...) ...)) ──
+    // ---- (define-tileset name :tile-size N :tiles '((id name graphic ...) ...)) ----
     // Register a named tileset with tile types.
     //
     // Positional args: name (symbol or string)
@@ -230,7 +230,7 @@ void register_tilemap_builtins(std::shared_ptr<Environment> env) {
         return Value(*name_opt);
     });
 
-    // ── (make-tilemap tileset-name cols rows [:projection 'orthogonal|'isometric] [:layers 1]) ──
+    // ---- (make-tilemap tileset-name cols rows [:projection 'orthogonal|'isometric] [:layers 1]) ----
     // Create a named tilemap and store it in TilemapManager.
     //
     // Positional args: tileset-name, cols, rows
@@ -313,7 +313,7 @@ void register_tilemap_builtins(std::shared_ptr<Environment> env) {
         return Value(*ts_name_opt);
     });
 
-    // ── (tilemap-set! tilemap-name layer col row tile-id) ────────────────────
+    // ---- (tilemap-set! tilemap-name layer col row tile-id) ----------------------------------------
     // Set a tile in the tilemap.  Returns #t on success.
     //
     // All positionals — no kwargs.
@@ -379,7 +379,7 @@ void register_tilemap_builtins(std::shared_ptr<Environment> env) {
         return Value(true);
     });
 
-    // ── (render-tilemap ...) — registered in render.cpp ────────────────
+    // ---- (render-tilemap ...) — registered in render.cpp --------------------------------
 }
 
 } // namespace pml

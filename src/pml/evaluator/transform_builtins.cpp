@@ -1,9 +1,9 @@
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // PML Transform Builtins — Implementation
 //
 // Each builtin wraps an AffineTransform operation and returns the result
 // as a Value containing a shared_ptr<AffineTransform>.
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "transform_builtins.h"
 
@@ -20,7 +20,7 @@ namespace pml {
 
 namespace {
 
-// ── Numeric extraction helpers ───────────────────────────────────────────
+// ---- Numeric extraction helpers ------------------------------------------------------------------------------------─
 
 /// Convert a Value to double. Assumes is_number(v) is true.
 [[nodiscard]] double to_double(const Value& v) {
@@ -67,7 +67,7 @@ namespace {
     return to_double(args[index]);
 }
 
-// ── Registration helper ─────────────────────────────────────────────────
+// ---- Registration helper ------------------------------------------------------------------------------------------------─
 
 void def(std::shared_ptr<Environment> env, const std::string& name,
          BuiltinProcedure::BuiltinFn fn, bool accepts_kwargs = false)
@@ -78,11 +78,11 @@ void def(std::shared_ptr<Environment> env, const std::string& name,
 
 }  // anonymous namespace
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Builtin implementations
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
-// ── (translate tx ty) → AffineTransform ──────────────────────────────────────
+// ---- (translate tx ty) → AffineTransform ----------------------------------------------------------------------------
 //
 // Create a translation transform.
 
@@ -101,7 +101,7 @@ static Result<Value> builtin_translate(
         AffineTransform::translate(*tx, *ty)));
 }
 
-// ── (rotate angle-deg) → AffineTransform ─────────────────────────────────────
+// ---- (rotate angle-deg) → AffineTransform ------------------------------------------------------------------------─
 //
 // Create a rotation transform (counter-clockwise, degrees).
 
@@ -118,7 +118,7 @@ static Result<Value> builtin_rotate(
         AffineTransform::rotate(*angle)));
 }
 
-// ── (scale sx [sy]) → AffineTransform ────────────────────────────────────────
+// ---- (scale sx [sy]) → AffineTransform --------------------------------------------------------------------------------
 //
 // Create a scale transform. If sy is omitted, it defaults to sx (uniform scale).
 
@@ -147,7 +147,7 @@ static Result<Value> builtin_scale(
         AffineTransform::scale(*sx, sy)));
 }
 
-// ── (shear shx shy) → AffineTransform ────────────────────────────────────────
+// ---- (shear shx shy) → AffineTransform --------------------------------------------------------------------------------
 //
 // Create a shear transform.
 
@@ -166,7 +166,7 @@ static Result<Value> builtin_shear(
         AffineTransform::shear(*shx, *shy)));
 }
 
-// ── (identity-matrix) → AffineTransform ──────────────────────────────────────
+// ---- (identity-matrix) → AffineTransform ----------------------------------------------------------------------------
 //
 // Return the identity affine transform.
 
@@ -180,7 +180,7 @@ static Result<Value> builtin_identity_matrix(
         AffineTransform::identity()));
 }
 
-// ── (compose t1 t2) → AffineTransform ────────────────────────────────────────
+// ---- (compose t1 t2) → AffineTransform --------------------------------------------------------------------------------
 //
 // Compose two transforms: result = t1 · t2 (apply t2 first, then t1).
 
@@ -205,7 +205,7 @@ static Result<Value> builtin_compose(
         (*t1)->compose(**t2)));
 }
 
-// ── (matrix-inverse t) → AffineTransform or nil ──────────────────────────────
+// ---- (matrix-inverse t) → AffineTransform or nil ------------------------------------------------------------
 //
 // Return the inverse of a transform, or nil if the matrix is singular.
 
@@ -229,7 +229,7 @@ static Result<Value> builtin_matrix_inverse(
     return Value(std::make_shared<AffineTransform>(std::move(*inv)));
 }
 
-// ── (matrix-apply t x y) → (x' y') ──────────────────────────────────────────
+// ---- (matrix-apply t x y) → (x' y') ------------------------------------------------------------------------------------
 //
 // Apply the transform to point (x, y) and return the result as a list (x' y').
 
@@ -254,7 +254,7 @@ static Result<Value> builtin_matrix_apply(
     return make_list_value({Value(rx), Value(ry)});
 }
 
-// ── (matrix? x) → boolean ───────────────────────────────────────────────────
+// ---- (matrix? x) → boolean ----------------------------------------------------------------------------------------------------─
 //
 // Type predicate for AffineTransform values.
 
@@ -266,9 +266,9 @@ static Result<Value> builtin_matrix_p(
     return Value(args[0].is_transform());
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // Registration
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 void register_transform_builtins(std::shared_ptr<Environment> env)
 {

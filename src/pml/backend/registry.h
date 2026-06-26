@@ -1,15 +1,15 @@
 #pragma once
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 // BackendRegistry — compile-time registration, runtime switching
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 //
 // Backends register themselves at static init time via
 // `BackendRegistry::register_backend()`.  At runtime, `set_active("name")`
 // switches the current backend; `active()` returns it.
 //
 // The NullBackend is registered first so that `active()` always succeeds.
-// ═══════════════════════════════════════════════════════════════════════════════
+// ==========================================================================================================================================================================================================================================═
 
 #include "backend.h"
 
@@ -34,12 +34,12 @@ public:
     BackendRegistry(const BackendRegistry&) = delete;
     BackendRegistry& operator=(const BackendRegistry&) = delete;
 
-    // ── Singleton access ───────────────────────────────────────────────
+    // ---- Singleton access --------------------------------------------------------------------------------------------─
 
     /// Get the singleton instance.
     static auto instance() -> BackendRegistry&;
 
-    // ── Registration ───────────────────────────────────────────────────
+    // ---- Registration ----------------------------------------------------------------------------------------------------─
 
     /// Register a backend factory under the given name.
     void add(std::string name, std::string description,
@@ -51,7 +51,7 @@ public:
         std::string name, std::string description,
         BackendCap capabilities, BackendFactory factory);
 
-    // ── Instance creation ───────────────────────────────────────────────
+    // ---- Instance creation --------------------------------------------------------------------------------------------─
 
     /// Create a backend instance by name. Returns nullptr if unknown.
     [[nodiscard]] auto create(const std::string& name)
@@ -61,12 +61,12 @@ public:
     [[nodiscard]] auto create_best()
         -> std::unique_ptr<RenderBackend>;
 
-    // ── Queries ─────────────────────────────────────────────────────────
+    // ---- Queries ----------------------------------------------------------------------------------------------------------------─
 
     /// Return metadata for all registered backends.
     [[nodiscard]] auto available() const -> std::vector<BackendInfo>;
 
-    // ── Active backend management ───────────────────────────────────────
+    // ---- Active backend management ----------------------------------------------------------------------------─
 
     /// Set the active backend by name. Returns false if name is unknown.
     [[nodiscard]] bool set_active(const std::string& name);

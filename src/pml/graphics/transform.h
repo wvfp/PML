@@ -30,7 +30,7 @@ struct AffineTransform {
     double e{0.0};
     double f{0.0};
 
-    // ── Static factories ──────────────────────────────────────────
+    // ---- Static factories ------------------------------------------------------------------------------------
 
     /// Identity matrix.
     static constexpr AffineTransform identity() noexcept
@@ -65,7 +65,7 @@ struct AffineTransform {
         return AffineTransform{1.0, shy, shx, 1.0, 0.0, 0.0};
     }
 
-    // ── Operations ────────────────────────────────────────────────
+    // ---- Operations ------------------------------------------------------------------------------------------------
 
     /// Return self · other  (apply @p other first, then self).
     [[nodiscard]] constexpr AffineTransform compose(const AffineTransform& other) const noexcept
@@ -131,7 +131,7 @@ struct AffineTransform {
             && abs(f) < 1e-9;
     }
 
-    // ── Skia integration (defined in transform.cpp) ───────────────
+    // ---- Skia integration (defined in transform.cpp) ----------------------------─
 
 #ifdef PML_USE_SKIA
     /// Convert to SkMatrix via setAffine().
@@ -140,7 +140,7 @@ struct AffineTransform {
 
 };
 
-// ── Operator overloads ───────────────────────────────────────────
+// ---- Operator overloads ------------------------------------------------------------------------------------─
 
 /// Convenience: t1 * t2  ⇔  t1.compose(t2)
 [[nodiscard]] inline constexpr AffineTransform operator*(
