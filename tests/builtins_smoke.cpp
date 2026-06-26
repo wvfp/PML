@@ -861,6 +861,18 @@ int main() {
         "#t",
         "#t");
 
+    // ---- Lisp-compatible type predicates -----------------------------------------------------------------------------------
+    std::cout << "\n---- Lisp-compatible type predicates ----\n";
+
+    CHECK("null-true",   "(null ())",       "#t");
+    CHECK("null-false",  "(null 42)",       "#f");
+    CHECK("atom-true",   "(atom 42)",       "#t");
+    CHECK("atom-false",  "(atom '(1 2))",   "#f");
+    CHECK("consp-true",  "(consp '(1 2))",  "#t");
+    CHECK("consp-false", "(consp ())",      "#f");
+    CHECK("listp-true",  "(listp '(1 2))",  "#t");
+    CHECK("listp-nil",   "(listp ())",      "#t");
+
     // ---- Summary --------------------------------------------------------------------------------------------------------------------
     std::cout << "\n======═ Results ======═\n"
               << "Passed: " << g_passed << " / "

@@ -123,6 +123,36 @@ void register_predicates_builtins(std::shared_ptr<Environment> env) {
         return Value(false);
     });
 
+    // Lisp-compatible aliases
+    def("null", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
+        if (a.size() != 1) return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(a.size())));
+        if (is_nil(a[0])) return Value(true);
+        if (const auto* lst = a[0].as_list()) {
+            if (*lst && (*lst)->elements.empty()) return Value(true);
+        }
+        return Value(false);
+    });
+    def("atom", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
+        if (a.size() != 1) return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(a.size())));
+        if (const auto* lst = a[0].as_list()) {
+            if (*lst && !(*lst)->elements.empty()) return Value(false);
+        }
+        return Value(true);
+    });
+    def("consp", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
+        if (a.size() != 1) return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(a.size())));
+        if (const auto* lst = a[0].as_list()) {
+            if (*lst && !(*lst)->elements.empty()) return Value(true);
+        }
+        return Value(false);
+    });
+    def("listp", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
+        if (a.size() != 1) return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(a.size())));
+        if (is_nil(a[0])) return Value(true);
+        if (a[0].as_list()) return Value(true);
+        return Value(false);
+    });
+
     // ==================================================================================================================================================================================================================═
     // Module Introspection
     // ==================================================================================================================================================================================================================═
