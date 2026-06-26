@@ -899,6 +899,10 @@ int main() {
     CHECK("key-basic",     "((lambda (&key x y) (list x y)) :x 10 :y 20)",  "(10 20)");
     CHECK("key-default",   "((lambda (&key (x 0)) (list x)) :y 1)",         "(0)");
 
+    // ---- Combined &optional/&key/&rest -----------------------------------------
+    CHECK("opt-key-rest", "((lambda (x &optional y &key z &rest r) (list x y z r)) 1 :z 3)",        "(1 nil 3 ())");
+    CHECK("opt-key-rest2","((lambda (x &optional y &key z &rest r) (list x y z r)) 1 2 :z 3 4 5)",  "(1 2 3 (4 5))");
+
     // ---- Summary --------------------------------------------------------------------------------------------------------------------
     std::cout << "\n======═ Results ======═\n"
               << "Passed: " << g_passed << " / "

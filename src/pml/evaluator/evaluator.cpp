@@ -1155,6 +1155,12 @@ Result<EvalResult> eval_lambda(
         return std::unexpected(type_error("lambda: parameter must be symbol"));
     }
 
+    // Reject mixing old-style ". rest" with &optional/&key/&rest
+    if (saw_dot && saw_ampersand) {
+        return std::unexpected(type_error(
+            "lambda: cannot mix '.' rest syntax with &optional/&key/&rest"));
+    }
+
     // For traditional ". rest" syntax, append "." and rest param name
     // so that apply_function can detect them via the existing code path.
     if (saw_dot && !dot_rest_name.empty()) {

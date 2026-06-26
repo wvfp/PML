@@ -21,7 +21,7 @@ static Result<Value> car_impl(const std::vector<Value>& args, Environment&) {
     const auto* lst = args[0].as_list();
     if (!lst || !*lst || (*lst)->elements.empty()) {
         return std::unexpected(
-            type_error("car: expected non-empty list"));
+            type_error("first/car: expected non-empty list"));
     }
     return (*lst)->elements[0];
 }
@@ -35,7 +35,7 @@ static Result<Value> cdr_impl(const std::vector<Value>& args, Environment&) {
     const auto* lst = args[0].as_list();
     if (!lst || !*lst || (*lst)->elements.empty()) {
         return std::unexpected(
-            type_error("cdr: expected non-empty list"));
+            type_error("rest/cdr: expected non-empty list"));
     }
     std::vector<Value> rest((*lst)->elements.begin() + 1,
                             (*lst)->elements.end());
