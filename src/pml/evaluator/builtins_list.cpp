@@ -467,6 +467,32 @@ void register_list_builtins(std::shared_ptr<Environment> env) {
         return Value(n);
     });
 
+    def("remove", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
+        if (a.size() < 2) return std::unexpected(arity_error(SourceLocation{}, 2, static_cast<int>(a.size())));
+        const auto* lst = a[1].as_list();
+        if (!lst || !*lst) return std::unexpected(type_error("remove: second argument must be a list"));
+        std::vector<Value> r;
+        for (const auto& e : (*lst)->elements) if (!deep_equal(a[0], e)) r.push_back(e);
+        return make_list_value(std::move(r));
+    });
+
+    def("last", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
+        if (a.size() != 1) return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(a.size())));
+        const auto* lst = a[0].as_list();
+        if (!lst || !*lst || (*lst)->elements.empty())
+            return std::unexpected(type_error("last: expected non-empty list"));
+        return (*lst)->elements.back();
+    });
+
+    def("butlast", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
+        if (a.size() != 1) return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(a.size())));
+        const auto* lst = a[0].as_list();
+        if (!lst || !*lst || (*lst)->elements.empty())
+            return std::unexpected(type_error("butlast: expected non-empty list"));
+        std::vector<Value> r((*lst)->elements.begin(), (*lst)->elements.end() - 1);
+        return make_list_value(std::move(r));
+    });
+
     def("null?", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
         if (args.size() != 1) {
             return std::unexpected(

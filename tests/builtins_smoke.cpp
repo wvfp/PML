@@ -538,6 +538,10 @@ int main() {
     CHECK("position-basic","(position 30 '(10 20 30 40))", "2");
     CHECK("count-basic",   "(count 30 '(10 20 30 30 40))", "2");
 
+    CHECK("remove-basic", "(remove 30 '(10 20 30 40))", "(10 20 40)");
+    CHECK("last-basic",   "(last '(10 20 30))", "30");
+    CHECK("butlast-basic","(butlast '(10 20 30))", "(10 20)");
+
     // ---- String extensions ------------------------------------------------------------------------------------------------
     std::cout << "\n---- String Extensions ----\n";
 
