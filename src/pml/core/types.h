@@ -567,6 +567,33 @@ struct ValueVector {
 };
 
 // ==========================================================================================================================================================================================================================================═
+// ParamInfo — parameter metadata for &optional/&key/&rest support
+// ==========================================================================================================================================================================================================================================═
+
+/// Parameter metadata for &optional/&key/&rest support.
+/// Populated by eval_lambda when the parameter list contains
+/// &optional, &key, or &rest keywords. When std::nullopt,
+/// existing simple parameter matching applies.
+struct ParamInfo {
+    /// All parameter names in order (required -> optional -> key -> rest)
+    std::vector<std::string> names;
+    /// Number of required parameters (first N of names)
+    size_t required_count = 0;
+    /// Number of optional parameters (after required)
+    size_t optional_count = 0;
+    /// Default values for optional parameters (empty Value = nil default)
+    std::vector<Value> defaults;
+    /// Whether &key parameters are accepted
+    bool has_keys = false;
+    /// For &key: maps keyword name (without :) to index in names[]
+    std::unordered_map<std::string, size_t> key_indices;
+    /// Whether &rest name is present
+    bool has_rest = false;
+    /// Index of rest parameter in names[] (only valid when has_rest=true)
+    size_t rest_index = 0;
+};
+
+// ==========================================================================================================================================================================================================================================═
 // Procedure — user-defined PML function (closure)
 // ==========================================================================================================================================================================================================================================═
 
@@ -577,12 +604,14 @@ public:
     Expr body;
     std::shared_ptr<Environment> closure_env;
     std::optional<std::string> name;
+    std::optional<ParamInfo> param_info;
 
     Procedure(
         std::vector<std::string> params_,
         Expr body_,
         std::shared_ptr<Environment> closure_env_,
-        std::optional<std::string> name_ = std::nullopt
+        std::optional<std::string> name_ = std::nullopt,
+        std::optional<ParamInfo> param_info_ = std::nullopt
     );
 
     /// Call the procedure with the given arguments in the given environment.

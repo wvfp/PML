@@ -126,11 +126,13 @@ Procedure::Procedure(
     std::vector<std::string> params_,
     Expr body_,
     std::shared_ptr<Environment> closure_env_,
-    std::optional<std::string> name_)
+    std::optional<std::string> name_,
+    std::optional<ParamInfo> param_info_)
     : params(std::move(params_))
     , body(std::move(body_))
     , closure_env(std::move(closure_env_))
-    , name(std::move(name_)) {}
+    , name(std::move(name_))
+    , param_info(std::move(param_info_)) {}
 
 std::ostream& operator<<(std::ostream& os, const Procedure& proc) {
     const std::string& label = proc.name.value_or("lambda");
