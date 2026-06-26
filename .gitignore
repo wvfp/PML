@@ -79,4 +79,6 @@ tests/*.pml
 
 # Python compiled bytecode
 *.pyc
-__pycache__/
+__pycache__/Project
+
+/Project
