@@ -113,9 +113,15 @@ std::vector<Vec2> collect_contour(const GraphicObject& obj) {
                                     as_double((*cmd_lst)->elements[4])};
                             Vec2 c3{as_double((*cmd_lst)->elements[5]),
                                     as_double((*cmd_lst)->elements[6])};
-                            constexpr int N = 8;
-                            for (int i = 1; i <= N; ++i) {
-                                double t = static_cast<double>(i) / N;
+                            // Adaptive subdivision based on control-point span.
+                            double cx_min = std::min({c0.x, c1.x, c2.x, c3.x});
+                            double cx_max = std::max({c0.x, c1.x, c2.x, c3.x});
+                            double cy_min = std::min({c0.y, c1.y, c2.y, c3.y});
+                            double cy_max = std::max({c0.y, c1.y, c2.y, c3.y});
+                            double span = std::max(cx_max - cx_min, cy_max - cy_min);
+                            int segs = std::max(8, static_cast<int>(std::ceil(span / 8.0)));
+                            for (int i = 1; i <= segs; ++i) {
+                                double t = static_cast<double>(i) / segs;
                                 double u = 1.0 - t;
                                 double x = u*u*u*c0.x + 3*u*u*t*c1.x +
                                            3*u*t*t*c2.x + t*t*t*c3.x;
@@ -132,9 +138,14 @@ std::vector<Vec2> collect_contour(const GraphicObject& obj) {
                                     as_double((*cmd_lst)->elements[2])};
                             Vec2 c2{as_double((*cmd_lst)->elements[3]),
                                     as_double((*cmd_lst)->elements[4])};
-                            constexpr int N = 8;
-                            for (int i = 1; i <= N; ++i) {
-                                double t = static_cast<double>(i) / N;
+                            double qx_min = std::min({c0.x, c1.x, c2.x});
+                            double qx_max = std::max({c0.x, c1.x, c2.x});
+                            double qy_min = std::min({c0.y, c1.y, c2.y});
+                            double qy_max = std::max({c0.y, c1.y, c2.y});
+                            double qspan = std::max(qx_max - qx_min, qy_max - qy_min);
+                            int qsegs = std::max(8, static_cast<int>(std::ceil(qspan / 8.0)));
+                            for (int i = 1; i <= qsegs; ++i) {
+                                double t = static_cast<double>(i) / qsegs;
                                 double u = 1.0 - t;
                                 double x = u*u*c0.x + 2*u*t*c1.x + t*t*c2.x;
                                 double y = u*u*c0.y + 2*u*t*c1.y + t*t*c2.y;
@@ -177,9 +188,12 @@ std::vector<Vec2> collect_contour(const GraphicObject& obj) {
         double ry = (st == "circle") ? param_d(obj, ParamKey::r, 50.0)
                                      : param_d(obj, ParamKey::ry, 50.0);
         std::vector<Vec2> pts;
-        constexpr int N = 32;
-        for (int i = 0; i < N; ++i) {
-            double a = 2.0 * std::numbers::pi_v<double> * i / N;
+        // Subdivision scales with radius: more segments for larger circles.
+        double max_r = std::max(rx, ry);
+        int segs = std::max(24, static_cast<int>(std::ceil(max_r / 4.0)));
+        segs = std::min(segs, 128); // cap to avoid excessive verts
+        for (int i = 0; i < segs; ++i) {
+            double a = 2.0 * std::numbers::pi_v<double> * i / segs;
             pts.push_back({cx + rx * std::cos(a), cy + ry * std::sin(a)});
         }
         return pts;

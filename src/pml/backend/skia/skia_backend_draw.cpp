@@ -399,10 +399,16 @@ Result<void> draw_text(SkCanvas* canvas, const GraphicObject& obj,
 #ifdef _WIN32
     sk_sp<SkFontMgr> font_mgr = SkFontMgr_New_DirectWrite();
 #else
-    sk_sp<SkFontMgr> font_mgr = SkFontMgr::RefEmpty();
+    sk_sp<SkFontMgr> font_mgr = SkFontMgr::RefDefault();
 #endif
 
     sk_sp<SkTypeface> typeface = font_mgr->matchFamilyStyle(nullptr, SkFontStyle());
+    if (!typeface) {
+        typeface = font_mgr->matchFamilyStyle("sans-serif", SkFontStyle());
+    }
+    if (!typeface) {
+        typeface = font_mgr->matchFamilyStyle("DejaVu Sans", SkFontStyle());
+    }
     if (!typeface) {
         typeface = font_mgr->matchFamilyStyle("Arial", SkFontStyle());
     }
