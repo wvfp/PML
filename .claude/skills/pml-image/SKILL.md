@@ -185,6 +185,9 @@ sym-name    ;; 符号
 |------|------|
 | `(list a b ...)` | 创建列表 |
 | `(car lst)` | 取第一个元素 |
+| `(cdr lst)` | 取剩余元素 |
+| `(cadr lst)` | 取第二个元素 |
+| `(caddr lst)` | 取第三个元素 |
 | `(cons a lst)` | 头部插入 |
 | `(length lst)` | 长度 |
 | `(map fn lst)` | 映射 |
@@ -207,7 +210,7 @@ sym-name    ;; 符号
 
 ### 1.10 类型判断
 
-`nil?` `int?` `float?` `number?` `string?` `bool?` `symbol?` `list?` `hash?` `vector?` `proc?` `typeof`
+`nil?` `int?` `float?` `number?` `string?` `bool?` `symbol?` `keyword?` `list?` `hash?` `vector?` `proc?` `procedure?` `graphic-object?` `typeof`
 
 ---
 
@@ -538,22 +541,15 @@ sym-name    ;; 符号
 
 ## 7. Rough 风格（手绘效果）
 
-形状名前加 `rough_` 前缀：
-
-| 函数 | 说明 |
-|------|------|
-| `(rough_circle cx cy r ...)` | 手绘圆 |
-| `(rough_rect x y w h ...)` | 手绘矩形 |
-| `(rough_ellipse cx cy rx ry ...)` | 手绘椭圆 |
-| `(rough_line x1 y1 x2 y2 ...)` | 手绘线 |
-| `(rough_polygon points ...)` | 手绘多边形 |
-| `(rough_path ...)` | 手绘路径 |
-
-**额外参数**：`:roughness n`（0-2，默认 1）`:bowing n`（0-2，默认 0.5）`:seed n`
+通过给普通形状添加 `:roughness`、`:bowing`、`:seed` 参数启用手绘效果，**不是独立的函数名**：
 
 ```pml
-(add (rough_circle 100 100 60 :fill "#e17055" :roughness 1.5 :bowing 0.8 :seed 42))
+;; 正确用法：在 circle/rect 等形状上加 roughness 参数
+(add (circle 100 100 60 :fill "#e17055" :roughness 1.5 :bowing 0.8 :seed 42))
+(add (rect 50 50 100 100 :fill "#74b9ff" :roughness 0.5 :seed 1))
 ```
+
+**参数**：`:roughness n`（0-2，默认 1）`:bowing n`（0-2，默认 0.5）`:seed n`
 
 ### 综合示例
 
@@ -561,10 +557,10 @@ sym-name    ;; 符号
 (set-backend! "skia")
 (canvas 400 300 :bg "#fff9ef")
 
-(add (rough_rect 30 30 140 100 :fill "#74b9ff" :roughness 0.5 :seed 1))
-(add (rough_circle 270 80 50 :fill "#ff7675" :roughness 1.5 :bowing 0.3 :seed 2))
-(add (rough_line 60 200 340 220 :stroke "#636e72" :stroke-width 2 :roughness 1 :seed 3))
-(add (rough_polygon (list (list 200 250) (list 280 280) (list 120 280))
+(add (rect 30 30 140 100 :fill "#74b9ff" :roughness 0.5 :seed 1))
+(add (circle 270 80 50 :fill "#ff7675" :roughness 1.5 :bowing 0.3 :seed 2))
+(add (line 60 200 340 220 :stroke "#636e72" :stroke-width 2 :roughness 1 :seed 3))
+(add (polygon (list (list 200 250) (list 280 280) (list 120 280))
       :fill "#fdcb6e" :roughness 2 :seed 4))
 
 (render "rough_demo.png")
@@ -575,11 +571,14 @@ sym-name    ;; 符号
 ## 8. 边缘扰动
 
 ### `perturb-polygon`
-**签名**: `(perturb-polygon points [:edge-noise n] [:edge-subdiv n] [:corner-radius n] [:seed n])`
+**签名**: `(perturb-polygon points [:edge-noise n] [:edge-subdiv n] [:corner-radius n]\
+    [:seed n] [:fill color] [:stroke color] [:stroke-width w])`
+
+对多边形边缘添加随机扰动，生成有机形状。支持 `:fill`、`:stroke`、`:stroke-width` 样式参数。
 
 ```pml
 (add (perturb-polygon '((0 0) (200 0) (200 200) (0 200))
-      :edge-noise 15.0 :edge-subdiv 4 :seed 42))
+      :edge-noise 15.0 :edge-subdiv 4 :seed 42 :fill "#e94560"))
 ```
 
 ---
