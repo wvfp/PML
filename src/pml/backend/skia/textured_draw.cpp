@@ -9,7 +9,9 @@
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColor.h"
 #include "include/core/SkImage.h"
+#include "include/core/SkPixmap.h"
 #include "include/core/SkSurface.h"
+
 
 #include <memory>
 #include <utility>
@@ -87,11 +89,27 @@ Result<void> draw_textured_object(SkCanvas* canvas, const GraphicObject& obj)
         }
     }
 
-    SkTileMode tile_x = (tex->wrap_x == WrapMode::Repeat)  ? SkTileMode::kRepeat
-                      : (tex->wrap_x == WrapMode::Mirror)  ? SkTileMode::kMirror : SkTileMode::kClamp;
-    SkTileMode tile_y = (tex->wrap_y == WrapMode::Repeat)  ? SkTileMode::kRepeat
-                      : (tex->wrap_y == WrapMode::Mirror)  ? SkTileMode::kMirror : SkTileMode::kClamp;
-    SkSamplingOptions sampling = (tex->filter == FilterMode::Nearest)
+    auto value_to_int = [](const Value* v, int default_val) -> int {
+        if (!v || !v->is_number()) return default_val;
+        return v->is_int() ? static_cast<int>(v->int_val())
+                           : static_cast<int>(v->double_val());
+    };
+
+    WrapMode wrap_x = tex->wrap_x;
+    WrapMode wrap_y = tex->wrap_y;
+    FilterMode filter_mode = tex->filter;
+    if (const Value* wx = obj.params.find(ParamKey::wrap_x))
+        wrap_x = static_cast<WrapMode>(value_to_int(wx, static_cast<int>(wrap_x)));
+    if (const Value* wy = obj.params.find(ParamKey::wrap_y))
+        wrap_y = static_cast<WrapMode>(value_to_int(wy, static_cast<int>(wrap_y)));
+    if (const Value* flt = obj.params.find(ParamKey::filter))
+        filter_mode = static_cast<FilterMode>(value_to_int(flt, static_cast<int>(filter_mode)));
+
+    SkTileMode tile_x = (wrap_x == WrapMode::Repeat)  ? SkTileMode::kRepeat
+                      : (wrap_x == WrapMode::Mirror)  ? SkTileMode::kMirror : SkTileMode::kClamp;
+    SkTileMode tile_y = (wrap_y == WrapMode::Repeat)  ? SkTileMode::kRepeat
+                      : (wrap_y == WrapMode::Mirror)  ? SkTileMode::kMirror : SkTileMode::kClamp;
+    SkSamplingOptions sampling = (filter_mode == FilterMode::Nearest)
         ? SkSamplingOptions(SkFilterMode::kNearest)
         : SkSamplingOptions(SkFilterMode::kLinear);
 
@@ -137,13 +155,16 @@ Result<void> draw_textured_object(SkCanvas* canvas, const GraphicObject& obj)
     const size_t n_tri = mesh.indices.size() / 3;
     std::vector<SkPoint> tri_pos; tri_pos.reserve(n_tri * 3);
     std::vector<SkPoint> tri_uv;  tri_uv.reserve(n_tri * 3);
+    const SkScalar tex_w = static_cast<SkScalar>(img->width());
+    const SkScalar tex_h = static_cast<SkScalar>(img->height());
     for (size_t t = 0; t < n_tri; ++t) {
         for (int k = 0; k < 3; ++k) {
             uint32_t idx = mesh.indices[t * 3 + k];
             tri_pos.push_back({static_cast<SkScalar>(mesh.vertices[idx].x),
                                static_cast<SkScalar>(mesh.vertices[idx].y)});
-            tri_uv.push_back({static_cast<SkScalar>(uv_result.uvs[idx].x),
-                              static_cast<SkScalar>(uv_result.uvs[idx].y)});
+            double u = uv_result.uvs[idx].x * tex_w;
+            double v = uv_result.uvs[idx].y * tex_h;
+            tri_uv.push_back({static_cast<SkScalar>(u), static_cast<SkScalar>(v)});
         }
     }
     auto vertices = SkVertices::MakeCopy(SkVertices::kTriangles_VertexMode,
@@ -152,8 +173,8 @@ Result<void> draw_textured_object(SkCanvas* canvas, const GraphicObject& obj)
 
     SkPaint paint;
     paint.setShader(std::move(shader));
-    paint.setBlendMode(SkBlendMode::kModulate);
-    canvas->drawVertices(vertices.get(), SkBlendMode::kModulate, paint);
+    paint.setBlendMode(SkBlendMode::kSrcOver);
+    canvas->drawVertices(vertices.get(), SkBlendMode::kSrcOver, paint);
     return {};
 }
 
