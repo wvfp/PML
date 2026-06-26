@@ -257,8 +257,8 @@ int main() {
     CHECK("append-empty", "(append (list) (list 1))", "(1)");
     CHECK("reverse",      "(reverse (list 1 2 3))", "(3 2 1)");
     CHECK("reverse-empty","(reverse (list))",     "()");
-    CHECK("nth",          "(nth (list 'a 'b 'c) 1)", "b");
-    CHECK("nth-first",    "(nth (list 'a 'b 'c) 0)", "a");
+    CHECK("nth-basic",    "(nth 0 '(a b c))",        "a");
+    CHECK("nth-second",   "(nth 1 '(a b c))",        "b");
     CHECK("range-basic",  "(range 0 5)",          "(0 1 2 3 4)");
     CHECK("range-step",   "(range 0 10 3)",       "(0 3 6 9)");
     CHECK("range-empty",  "(range 5 5)",          "()");

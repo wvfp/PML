@@ -161,24 +161,22 @@ void register_list_builtins(std::shared_ptr<Environment> env) {
         return make_list_value(std::move(reversed));
     });
 
-    def("nth", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
-        if (args.size() != 2) {
+    def("nth", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
+        if (a.size() != 2) {
             return std::unexpected(
-                arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
+                arity_error(SourceLocation{}, 2, static_cast<int>(a.size())));
         }
-        const auto* lst = args[0].as_list();
+        const auto* lst = a[1].as_list();
         if (!lst || !*lst) {
             return std::unexpected(
-                type_error("nth: first argument must be list"));
+                type_error("nth: second argument must be a list"));
         }
-        int64_t index = to_int64(args[1]);
-        if (index < 0 || static_cast<size_t>(index) >= (*lst)->elements.size()) {
+        int64_t idx = to_int64(a[0]);
+        if (idx < 0 || static_cast<size_t>(idx) >= (*lst)->elements.size()) {
             return std::unexpected(
-                general_error(std::format("nth: index {} out of range for list of "
-                                           "length {}", index,
-                                           (*lst)->elements.size())));
+                general_error(std::format("nth: index {} out of range", idx)));
         }
-        return (*lst)->elements[static_cast<size_t>(index)];
+        return (*lst)->elements[static_cast<size_t>(idx)];
     });
 
     def("list-ref", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
