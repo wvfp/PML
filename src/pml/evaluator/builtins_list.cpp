@@ -46,6 +46,25 @@ void register_list_builtins(std::shared_ptr<Environment> env) {
         return make_list_value(std::move(rest));
     });
 
+    // cadr = car of cdr — second element
+    // caddr = car of cdr of cdr — third element
+    auto combo = [](const std::vector<Value>& args, Environment&,
+                    const char* name, size_t n) -> Result<Value> {
+        if (args.size() != 1) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        const auto* lst = args[0].as_list();
+        if (!lst || !*lst || (*lst)->elements.size() <= n) {
+            return std::unexpected(
+                type_error(std::string(name) + ": list too short (need at least " +
+                           std::to_string(n + 1) + " elements)"));
+        }
+        return (*lst)->elements[n];
+    };
+    def("cadr",  [combo](auto& a, auto& e) { return combo(a, e, "cadr", 1); });
+    def("caddr", [combo](auto& a, auto& e) { return combo(a, e, "caddr", 2); });
+
     def("cons", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
         if (args.size() != 2) {
             return std::unexpected(

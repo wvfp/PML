@@ -78,6 +78,14 @@ void register_predicates_builtins(std::shared_ptr<Environment> env) {
             }
             return Value(is_procedure(args[0]) || is_builtin(args[0]));
         });
+    def("proc?",  // alias for procedure?
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() != 1) {
+                return std::unexpected(arity_error(
+                    SourceLocation{}, 1, static_cast<int>(args.size())));
+            }
+            return Value(is_procedure(args[0]) || is_builtin(args[0]));
+        });
 
     def("keyword?", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
         if (args.size() != 1) {
@@ -86,6 +94,15 @@ void register_predicates_builtins(std::shared_ptr<Environment> env) {
         }
         return Value(is_keyword(args[0]));
     });
+
+    def("graphic-object?",
+        [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+            if (args.size() != 1) {
+                return std::unexpected(arity_error(
+                    SourceLocation{}, 1, static_cast<int>(args.size())));
+            }
+            return Value(args[0].is_graphic_object());
+        });
 
     def("list?", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
         if (args.size() != 1) {

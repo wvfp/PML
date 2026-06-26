@@ -27,6 +27,9 @@ namespace pml {
 
 int run_file_mode(const CLIOptions& opts, PMLRuntime& runtime)
 {
+    // Load embedded standard library (defn, defconst, iteration macros, etc.)
+    load_embedded_stdlib(runtime.env());
+
     // Propagate CLI output directory to the runtime context so that
     // (render ...) respects the -o flag.
     if (!opts.output_dir.empty()) {
@@ -78,6 +81,9 @@ int run_file_mode(const CLIOptions& opts, PMLRuntime& runtime)
 
 int run_json_mode(const CLIOptions& opts, PMLRuntime& runtime)
 {
+    // Load embedded standard library (defn, defconst, iteration macros, etc.)
+    load_embedded_stdlib(runtime.env());
+
     if (!opts.output_dir.empty()) {
         runtime.context().output_dir = opts.output_dir;
     }

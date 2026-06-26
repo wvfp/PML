@@ -15,6 +15,8 @@
 #include "../graphics/perlin_noise.h"
 #include "../graphics/polygon_perturb.h"
 #include "../graphics/rough.h"
+#include "../graphics/objects.h"
+#include "../graphics/params.h"
 
 #include <memory>
 #include <stdexcept>
@@ -202,13 +204,37 @@ static Result<Value> builtin_perturb_polygon(
 
     auto flat = flatten_perturb_result(perturbed);
 
+    // Build polygon vertices as nested PML list: ((x1 y1) (x2 y2) ...)
     std::vector<Value> point_pairs;
     point_pairs.reserve(flat.size());
     for (const auto& pt : flat) {
         point_pairs.push_back(make_list_value({Value(pt.x), Value(pt.y)}));
     }
 
-    return make_list_value(std::move(point_pairs));
+    // Wrap in a GraphicObject so style params (:fill, :stroke, :opacity) work.
+    Params params;
+    params.set(ParamKey::points, make_list_value(std::move(point_pairs)));
+
+    // Pass through recognised style keyword args.
+    auto kw = parse_kwargs(args, 1);
+    std::optional<std::string> fill_color;
+    std::optional<std::string> stroke_color;
+    double stroke_width = kw_double(kw, "stroke-width", 1.0);
+
+    auto fill_it = kw.find("fill");
+    if (fill_it != kw.end()) {
+        if (const auto* s = fill_it->second.as_string()) fill_color = *s;
+    }
+    auto stroke_it = kw.find("stroke");
+    if (stroke_it != kw.end()) {
+        if (const auto* s = stroke_it->second.as_string()) stroke_color = *s;
+    }
+
+    auto obj = std::make_shared<GraphicObject>(
+        "polygon", std::move(params),
+        fill_color, stroke_color, stroke_width);
+
+    return Value(std::move(obj));
 }
 
 } // anonymous namespace

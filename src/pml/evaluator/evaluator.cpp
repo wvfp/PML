@@ -1421,14 +1421,26 @@ Result<EvalResult> eval_import(
             type_error("import: path must be a string"));
     }
 
-    // Parse optional 'as prefix' clause
+    // Parse optional prefix clause:
+    //   (import "path" prefix)
+    //   (import "path" as prefix)
+    //   (import "path" :prefix prefix)
     std::string prefix;
 
     if (expr.size() >= 4) {
-        // (import "path" as prefix)
-        const Expr& as_kw = expr[2];
-        if (const auto* as_sym = std::get_if<Symbol>(&as_kw)) {
+        const Expr& kw = expr[2];
+        // (import "path" as prefix) or (import "path" :prefix prefix)
+        if (const auto* as_sym = std::get_if<Symbol>(&kw)) {
             if (as_sym->name == "as") {
+                auto prefix_opt = extract_symbol_name(expr[3]);
+                if (!prefix_opt) {
+                    return std::unexpected(
+                        type_error("import: prefix must be a symbol"));
+                }
+                prefix = std::move(*prefix_opt);
+            }
+        } else if (const auto* kw_sym = std::get_if<Keyword>(&kw)) {
+            if (kw_sym->name == "prefix") {
                 auto prefix_opt = extract_symbol_name(expr[3]);
                 if (!prefix_opt) {
                     return std::unexpected(
@@ -1438,7 +1450,7 @@ Result<EvalResult> eval_import(
             }
         }
     } else if (expr.size() == 3) {
-        // (import "path" prefix) — without 'as' keyword
+        // (import "path" prefix) — without any keyword
         auto prefix_opt = extract_symbol_name(expr[2]);
         if (prefix_opt) {
             prefix = std::move(*prefix_opt);
