@@ -22,6 +22,7 @@
 #include <cstring>
 #include <format>
 #include "pml/graphics/graphic_object.h"
+#include "pml/layer/blend_mode.h"
 #include "types.h"
 
 #include <algorithm>
@@ -72,9 +73,10 @@ void register_shader_builtins(std::shared_ptr<Environment> env) {
         return Value(static_cast<int64_t>(*handle));
     });
 
-    // ---- (apply-shader! graphic-object shader-handle [:coordinate-space :world]) ----
+    // ---- (apply-shader! graphic-object shader-handle [:coordinate-space :world] [:blend-mode :normal]) ----
     // Return a new GraphicObject with the shader handle attached.
     // Optional :coordinate-space kwarg accepts :world (default :local).
+    // Optional :blend-mode kwarg sets the GraphicObject blend mode.
     def_kw("apply-shader!", [](const std::vector<Value>& args,
                             Environment& /*env*/) -> Result<Value> {
         if (args.size() < 2) {
@@ -107,6 +109,15 @@ void register_shader_builtins(std::shared_ptr<Environment> env) {
             if (auto s = value_to_opt_string(coord_it->second)) {
                 if (*s == "world") {
                     modified.metadata["shader_coord_space"] = Value(std::string("world"));
+                }
+            }
+        }
+
+        auto blend_it = kwargs.find("blend-mode");
+        if (blend_it != kwargs.end()) {
+            if (auto s = value_to_opt_string(blend_it->second)) {
+                if (auto bm = blend_mode_from_keyword(*s)) {
+                    modified.blend_mode = *bm;
                 }
             }
         }

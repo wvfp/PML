@@ -28,6 +28,7 @@
 #include "pml/graphics/render.h"
 #include "pml/graphics3d/builtins_3d.h"
 #include "pml/layer/layer_builtins.h"
+#include "pml/layer/blend_mode.h"
 
 #include <cassert>
 #include <iostream>
@@ -96,6 +97,33 @@ pml::Result<pml::Value> eval(const std::string& source,
         std::cerr << "FAIL [" << label << "]: " << source \
                   << " → expected error, got " << _got << '\n'; \
         g_failed++; \
+    } \
+} while(0)
+
+/// Evaluate PML source and verify the returned GraphicObject carries the
+/// expected blend mode. Used for shader + blend-mode regression tests.
+#define CHECK_BLEND_MODE(label, source, expected_mode) do { \
+    auto _r = eval((source), _env); \
+    if (!_r) { \
+        std::cerr << "FAIL [" << label << "]: " << source \
+                  << " → ERROR: " << _r.error().what() << '\n'; \
+        g_failed++; \
+    } else { \
+        const auto* _go = _r->as_graphic_object(); \
+        if (!_go || !*_go) { \
+            std::cerr << "FAIL [" << label << "]: " << source \
+                      << " → expected GraphicObject, got " \
+                      << pml::value_to_string(*_r) << '\n'; \
+            g_failed++; \
+        } else if (!(*_go)->blend_mode.has_value() || (*_go)->blend_mode.value() != (expected_mode)) { \
+            std::cerr << "FAIL [" << label << "]: " << source \
+                      << " → blend_mode mismatch" << '\n'; \
+            g_failed++; \
+        } else { \
+            std::cout << "PASS [" << label << "]: " << source \
+                      << " → blend_mode = " << pml::blend_mode_to_keyword((*_go)->blend_mode.value()) << '\n'; \
+            g_passed++; \
+        } \
     } \
 } while(0)
 
@@ -809,6 +837,26 @@ int main() {
     // Error: null backend doesn't support texture binding
     CHECK_ERROR("bind-textures-null-backend",
         "(bind-textures 42 :textures '())");
+
+    // ---- Shader blend-mode forwarding --------------------------------------------------------------------------------------
+    std::cout << "\n---- Shader blend-mode forwarding ----\n";
+
+    // Regression: apply-shader! must forward :blend-mode to the returned
+    // GraphicObject so that shader-based masking (dst-in) works.
+    CHECK_BLEND_MODE("shader-alpha-dst-in-mask",
+        "(begin"
+        "  (define alpha-mask-shader"
+        "    (shader \"half4 main(float2 xy) { return half4(1.0, 1.0, 1.0, 1.0 - xy.x / 64.0); }\"))"
+        "  (apply-shader! (rect 0 0 64 64) alpha-mask-shader :blend-mode \"dst-in\"))",
+        pml::BlendMode::DstIn);
+
+    // Regression: apply-shader! must forward :blend-mode "multiply".
+    CHECK_BLEND_MODE("shader-multiply-blend",
+        "(begin"
+        "  (define blue-shader"
+        "    (shader \"half4 main(float2 xy) { return half4(0.0, 0.0, 1.0, 1.0); }\"))"
+        "  (apply-shader! (rect 16 16 48 48) blue-shader :blend-mode \"multiply\"))",
+        pml::BlendMode::Multiply);
 
     // ---- Quantize noise ----------------------------------------------------------------------------------------------------
     std::cout << "\n---- Quantize noise ----\n";

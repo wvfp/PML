@@ -15,6 +15,7 @@ add_executable(pml-tests
     test_asset.cpp
     test_polygon_perturb.cpp
     test_stdlib_macros.cpp
+    pml_builtins_smoke.cpp
 )
 
 target_include_directories(pml-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -36,6 +37,15 @@ target_link_libraries(pml-tests PRIVATE
     pml_module
     pml_api
 )
+
+# Pixel-level shader/blend-mode regression tests need the Skia backend.
+# pml_backend_skia uses pml_backend_gif for animated GIF export.
+if(PML_USE_SKIA AND TARGET pml_backend_skia)
+    target_link_libraries(pml-tests PRIVATE pml_backend_skia)
+    if(TARGET pml_backend_gif)
+        target_link_libraries(pml-tests PRIVATE pml_backend_gif)
+    endif()
+endif()
 
 # ---- Builtins smoke test (standalone, no GTest) ------------------------------------------------------------
 add_executable(pml-builtins-smoke
