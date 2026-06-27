@@ -9,7 +9,7 @@
   (noise-voronoi :cell-size 24 :seed 0 :jitter 0.5))
 
 (define noise-b
-  (noise-fractal :octaves 5 :scale 0.03 :seed 42))
+  (noise-fractal :octaves 5 :freq-x 0.03 :freq-y 0.03 :seed 42))
 
 ;; ---- 生成三种混合模式 ------------------------------------------------------------------------─
 

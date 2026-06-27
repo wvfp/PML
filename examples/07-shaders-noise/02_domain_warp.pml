@@ -8,13 +8,13 @@
 ;; ---- 准备基础噪声和扭曲场 ----------------------------------------------------------------─
 
 ;; 基础：分形噪声（细节丰富）
-(define base (noise-fractal :octaves 6 :scale 0.025 :seed 1))
+(define base (noise-fractal :octaves 6 :freq-x 0.025 :freq-y 0.025 :seed 1))
 
 ;; 扭曲场 1：低频平滑噪声（产生柔和扭曲）
-(define warp-smooth (noise-fractal :octaves 2 :scale 0.008 :seed 99))
+(define warp-smooth (noise-fractal :octaves 2 :freq-x 0.008 :freq-y 0.008 :seed 99))
 
 ;; 扭曲场 2：湍流噪声（产生剧烈扭曲）
-(define warp-rough (noise-turbulence :octaves 4 :scale 0.015 :seed 77))
+(define warp-rough (noise-turbulence :octaves 4 :freq-x 0.015 :freq-y 0.015 :seed 77))
 
 ;; ---- 对比排列（2×2 网格） ----------------------------------------------------------------─
 

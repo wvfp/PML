@@ -26,8 +26,8 @@
 ;; ============================================================
 (print "生成扭曲大理石纹理...")
 
-(define marble-base (noise-turbulence :octaves 6 :scale 0.02 :seed 13))
-(define marble-warp (noise-fractal :octaves 2 :scale 0.005 :seed 55))
+(define marble-base (noise-turbulence :octaves 6 :freq-x 0.02 :freq-y 0.02 :seed 13))
+(define marble-warp (noise-fractal :octaves 2 :freq-x 0.005 :freq-y 0.005 :seed 55))
 
 (define marble (noise-warp marble-base marble-warp :amount 40.0 :freq 0.006))
 (define quantized-marble

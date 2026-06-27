@@ -50,7 +50,7 @@ PML combines the expressiveness of a programming language with a GPU-accelerated
 |----------|-------------|
 | **Shapes** | Circle, rect, ellipse, line, polygon, path, text, image |
 | **Canvas** | Multiple canvases, sprite canvas, groups, transforms (translate/rotate/scale) |
-| **Color & Style** | RGB/RGBA, gradients, fill/stroke, stroke alignment, blend modes |
+| **Color & Style** | RGB/RGBA, gradients, fill/stroke, stroke alignment, opacity, blend modes |
 | **Rough Style** | Hand-drawn rendering (Rough.js algorithm), noise fill, random seed |
 | **Layer Composition** | Layers, groups, compositions, blend modes, drop-shadow/glow |
 | **Filters** | Color adjust, curves, threshold, posterize, blur/sharpen, edge detect, convolution |
@@ -176,19 +176,19 @@ ctest --preset debug
 
 ```bash
 # Interactive REPL
-./build/debug/bin/Debug/pml.exe
+./build/debug/src/pml/cli/Debug/pml.exe
 
 # Execute a file
-./build/debug/bin/Debug/pml.exe hello.pml
+./build/debug/src/pml/cli/Debug/pml.exe hello.pml
 
 # Specify output directory
-./build/debug/bin/Debug/pml.exe hello.pml -o ./output
+./build/debug/src/pml/cli/Debug/pml.exe hello.pml -o ./output
 
 # Watch mode (auto-re-render on file change)
-./build/debug/bin/Debug/pml.exe hello.pml --watch
+./build/debug/src/pml/cli/Debug/pml.exe hello.pml --watch
 
 # JSON output
-./build/debug/bin/Debug/pml.exe hello.pml --json
+./build/debug/src/pml/cli/Debug/pml.exe hello.pml --json
 ```
 
 ### VSCode Extension
@@ -218,7 +218,7 @@ PML/
 │   └── api/           # PMLRuntime unified interface
 ├── examples/          # Example scripts & outputs
 ├── docs/assets/       # Documentation resources
-├── tests/             # Unit tests (134+ cases)
+├── tests/             # Unit tests (630+ cases)
 └── pml-vscode/        # VSCode extension
 ```
 
