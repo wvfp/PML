@@ -89,6 +89,11 @@ pml_core → pml_frontend → pml_evaluator → pml_graphics → pml_api
 - Shader pre-validation: `(shader-validate handle uniform-data)` checks size compatibility
 - Shader composition: `(compose-with-child wrapper-sksl child)` / `(compose-with-children wrapper-sksl (list ...) :uniforms ...)` — GPU-side pipeline assembly
 - Shader sampling: `(eval-shader handle x y)` returns `(r g b a)` for debugging
+- Gradient fills: use quoted stop lists with shape kwarg `:fill-gradient`:
+  - `(linear '((pos color) ...) [:x1 :y1 :x2 :y2])` — linear gradient (0-1 coords)
+  - `(radial '((pos color) ...) [:cx :cy :r])` — radial gradient (0-1 coords)
+  - `(sweep '((pos color) ...) [:cx :cy :start-angle :end-angle])` — sweep/angular gradient
+  - Colors are normalized to shape bounding box, so 0-1 coords map to shape extents
 
 ## Error Handling & Memory
 

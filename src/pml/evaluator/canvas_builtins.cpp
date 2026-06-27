@@ -189,7 +189,7 @@ void register_canvas_builtins(std::shared_ptr<Environment> env) {
     register_object_style_builtins(env);   // fill, stroke, no-fill, no-stroke, stroke-width,
                                            // with-transform, translate-object, rotate-object, scale-object
     register_color_builtins(env);          // color/rgb, color/rgba
-    register_gradient_builtins(env);       // linear, radial
+    register_gradient_builtins(env);       // linear, radial, sweep
     register_clip_builtins(env);           // with-clip
 }
 

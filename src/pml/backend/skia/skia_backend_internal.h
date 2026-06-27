@@ -97,7 +97,11 @@ inline void configure_fill_paint(
     sk_sp<SkShader> shader = nullptr,
     std::optional<BlendMode> blend_mode = std::nullopt,
     float opacity = 1.0f,
-    const std::optional<Gradient>* fill_gradient = nullptr)
+    const std::optional<Gradient>* fill_gradient = nullptr,
+    double bounds_x = 0.0,
+    double bounds_y = 0.0,
+    double bounds_w = 0.0,
+    double bounds_h = 0.0)
 {
     paint.setAntiAlias(true);
     paint.setStyle(SkPaint::kFill_Style);
@@ -132,6 +136,13 @@ inline void configure_fill_paint(
                               static_cast<float>(g.cy)),
                 static_cast<float>(g.r),
                 SkGradient(grad_colors, SkGradient::Interpolation{}));
+        } else if (g.type == GradientType::Sweep) {
+            grad_shader = SkShaders::SweepGradient(
+                SkPoint::Make(static_cast<float>(g.cx),
+                              static_cast<float>(g.cy)),
+                static_cast<float>(g.start_angle),
+                static_cast<float>(g.end_angle),
+                SkGradient(grad_colors, SkGradient::Interpolation{}));
         } else {
             SkPoint pts[2] = {
                 SkPoint::Make(static_cast<float>(g.x1), static_cast<float>(g.y1)),
@@ -140,6 +151,16 @@ inline void configure_fill_paint(
             grad_shader = SkShaders::LinearGradient(pts, SkGradient(grad_colors, SkGradient::Interpolation{}));
         }
         if (grad_shader) {
+            // Scale normalized gradient coordinates (0-1) to shape bounding box
+            if (bounds_w > 0.0 && bounds_h > 0.0) {
+                SkMatrix grad_scale;
+                grad_scale.setScaleTranslate(
+                    static_cast<SkScalar>(bounds_w),
+                    static_cast<SkScalar>(bounds_h),
+                    static_cast<SkScalar>(bounds_x),
+                    static_cast<SkScalar>(bounds_y));
+                grad_shader = grad_shader->makeWithLocalMatrix(grad_scale);
+            }
             paint.setShader(std::move(grad_shader));
             paint.setColor(SK_ColorWHITE);
             has_gradient = true;

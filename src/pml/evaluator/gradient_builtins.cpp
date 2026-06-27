@@ -139,6 +139,33 @@ Result<Value> builtin_radial(const std::vector<Value>& args, Environment& /*env*
     return Value(std::move(grad));
 }
 
+// ---- (sweep ((pos color) ...) [:cx 0.5 :cy 0.5 :start-angle 0 :end-angle 360]) → Gradient ─
+
+Result<Value> builtin_sweep(const std::vector<Value>& args, Environment& /*env*/) {
+    if (args.empty()) {
+        return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+    }
+
+    auto stops = parse_stops(args[0]);
+    if (!stops) return std::unexpected(stops.error());
+
+    auto kwargs = parse_kwargs(args, 1);
+    double cx  = kw_double(kwargs, "cx", 0.5);
+    double cy  = kw_double(kwargs, "cy", 0.5);
+    double sa  = kw_double(kwargs, "start-angle", 0.0);
+    double ea  = kw_double(kwargs, "end-angle", 360.0);
+
+    auto grad = std::make_shared<Gradient>();
+    grad->type = GradientType::Sweep;
+    grad->cx = cx;
+    grad->cy = cy;
+    grad->start_angle = sa;
+    grad->end_angle = ea;
+    grad->stops = std::move(*stops);
+
+    return Value(std::move(grad));
+}
+
 } // anonymous namespace
 
 // ---- Public registration ----------------------------------------------------------------------------------------------------─
@@ -148,6 +175,7 @@ void register_gradient_builtins(std::shared_ptr<Environment> env) {
 
     def(env, "linear", builtin_linear, true);
     def(env, "radial", builtin_radial, true);
+    def(env, "sweep", builtin_sweep, true);
 }
 
 }  // namespace pml

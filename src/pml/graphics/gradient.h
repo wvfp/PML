@@ -3,8 +3,8 @@
 // ==========================================================================================================================================================================================================================================═
 // PML Gradient — gradient fill descriptor
 // ------------------------------------------------------------------------------------------------------------------------------------------------------------─
-// Data-only struct describing either a linear or radial gradient, used as the
-// fill style for GraphicObject shapes.  Constructed by the `linear` and `radial`
+// Data-only struct describing either a linear, radial, or sweep gradient, used as the
+// fill style for GraphicObject shapes.  Constructed by the `linear`, `radial`, and `sweep`
 // builtins and consumed by the Skia render backend.
 // ==========================================================================================================================================================================================================================================═
 
@@ -18,6 +18,7 @@ namespace pml {
 enum class GradientType : uint8_t {
     Linear,
     Radial,
+    Sweep,
 };
 
 /// A single colour stop along the gradient.
@@ -36,6 +37,10 @@ struct Gradient {
 
     // Radial centre and radius (shape-local, normalised 0–1)
     double cx{0.5}, cy{0.5}, r{0.5};
+
+    // Sweep start/end angles in degrees (shape-local, normalised 0–1 maps to 0°–360°)
+    double start_angle{0.0};
+    double end_angle{360.0};
 
     /// Colour stops along the gradient.
     std::vector<GradientStop> stops;

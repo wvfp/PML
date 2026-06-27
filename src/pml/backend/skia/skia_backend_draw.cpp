@@ -177,7 +177,8 @@ Result<void> draw_circle(SkCanvas* canvas, const GraphicObject& obj,
 
     if (obj.fill || obj.fill_gradient || shader) {
         SkPaint paint;
-        configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode, obj.opacity, &obj.fill_gradient);
+        configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode, obj.opacity, &obj.fill_gradient,
+            cx - r, cy - r, r * 2.0, r * 2.0);
         if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
             canvas->drawCircle(static_cast<SkScalar>(cx),
                                static_cast<SkScalar>(cy),
@@ -223,7 +224,7 @@ Result<void> draw_rect(SkCanvas* canvas, const GraphicObject& obj,
 
     if (obj.fill || obj.fill_gradient || shader) {
         SkPaint paint;
-        configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode, obj.opacity, &obj.fill_gradient);
+        configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode, obj.opacity, &obj.fill_gradient, x, y, w, h);
         if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
             if (rx > 0.0) {
                 canvas->drawRoundRect(rect,
@@ -282,7 +283,8 @@ Result<void> draw_ellipse(SkCanvas* canvas, const GraphicObject& obj,
 
     if (obj.fill || obj.fill_gradient || shader) {
         SkPaint paint;
-        configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode, obj.opacity, &obj.fill_gradient);
+        configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode, obj.opacity, &obj.fill_gradient,
+            cx - rx, cy - ry, rx * 2.0, ry * 2.0);
         if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
             canvas->drawOval(oval, paint);
         }
@@ -472,10 +474,12 @@ Result<void> draw_polygon(SkCanvas* canvas, const GraphicObject& obj,
         builder.close();
     }
     SkPath path = builder.snapshot();
+    SkRect poly_bounds = path.getBounds();
 
     if (obj.fill || obj.fill_gradient || shader) {
         SkPaint paint;
-        configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode, obj.opacity, &obj.fill_gradient);
+        configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode, obj.opacity, &obj.fill_gradient,
+            poly_bounds.x(), poly_bounds.y(), poly_bounds.width(), poly_bounds.height());
         if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
             canvas->drawPath(path, paint);
         }
@@ -848,7 +852,12 @@ Result<void> draw_rough_rect(SkCanvas* canvas, const GraphicObject& obj,
             auto ops = rough_linear_path(pts, true, const_cast<RoughStyleParams&>(params), rng);
             SkPath fill_path = rough_ops_to_skpath(ops);
             SkPaint paint;
-            configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode, obj.opacity, &obj.fill_gradient);
+            double bx = get_double(obj.params, ParamKey::x, 0.0);
+            double by = get_double(obj.params, ParamKey::y, 0.0);
+            double bw = get_double(obj.params, ParamKey::w, 0.0);
+            double bh = get_double(obj.params, ParamKey::h, 0.0);
+            configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode, obj.opacity, &obj.fill_gradient,
+                bx, by, bw, bh);
             if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
                 canvas->drawPath(fill_path, paint);
             }
@@ -890,7 +899,8 @@ Result<void> draw_rough_ellipse(SkCanvas* canvas, const GraphicObject& obj,
             SkPath fill_path = rough_ops_to_skpath(ops);
             { SkPathBuilder b(fill_path); b.close(); fill_path = b.detach(); }
             SkPaint paint;
-            configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode, obj.opacity, &obj.fill_gradient);
+            configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode, obj.opacity, &obj.fill_gradient,
+                cx - rx, cy - ry, rx * 2.0, ry * 2.0);
             if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
                 canvas->drawPath(fill_path, paint);
             }
@@ -936,7 +946,8 @@ Result<void> draw_rough_circle(SkCanvas* canvas, const GraphicObject& obj,
             SkPath fill_path = rough_ops_to_skpath(ops);
             { SkPathBuilder b(fill_path); b.close(); fill_path = b.detach(); }
             SkPaint paint;
-            configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode, obj.opacity, &obj.fill_gradient);
+            configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode, obj.opacity, &obj.fill_gradient,
+                cx - r, cy - r, r * 2.0, r * 2.0);
             if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
                 canvas->drawPath(fill_path, paint);
             }
@@ -973,7 +984,15 @@ Result<void> draw_rough_polygon(SkCanvas* canvas, const GraphicObject& obj,
             auto ops = rough_linear_path(pts, true, const_cast<RoughStyleParams&>(params), rng);
             SkPath fill_path = rough_ops_to_skpath(ops);
             SkPaint paint;
-            configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode, obj.opacity, &obj.fill_gradient);
+            double min_x = pts[0].x, min_y = pts[0].y, max_x = pts[0].x, max_y = pts[0].y;
+            for (const auto& pt : pts) {
+                if (pt.x < min_x) min_x = pt.x;
+                if (pt.y < min_y) min_y = pt.y;
+                if (pt.x > max_x) max_x = pt.x;
+                if (pt.y > max_y) max_y = pt.y;
+            }
+            configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode, obj.opacity, &obj.fill_gradient,
+                min_x, min_y, max_x - min_x, max_y - min_y);
             if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
                 canvas->drawPath(fill_path, paint);
             }
@@ -1228,10 +1247,12 @@ Result<void> draw_path(SkCanvas* canvas, const GraphicObject& obj,
     if (!has_commands || cmds.empty()) return {};
 
     SkPath path = build_skpath_from_commands(cmds);
+    SkRect path_bounds = path.getBounds();
 
     if (obj.fill || obj.fill_gradient || shader) {
         SkPaint paint;
-        configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode, obj.opacity, &obj.fill_gradient);
+        configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode, obj.opacity, &obj.fill_gradient,
+            path_bounds.x(), path_bounds.y(), path_bounds.width(), path_bounds.height());
         if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
             canvas->drawPath(path, paint);
         }
@@ -1358,6 +1379,7 @@ Result<void> draw_rough_path(SkCanvas* canvas, const GraphicObject& obj,
     if (!has_commands || cmds.empty()) return {};
 
     SkPath path = build_skpath_from_commands(cmds);
+    SkRect rough_path_bounds = path.getBounds();
 
     // Sample path to get points for rough rendering
     auto pts = sample_path_points(path);
@@ -1375,7 +1397,8 @@ Result<void> draw_rough_path(SkCanvas* canvas, const GraphicObject& obj,
                 fill_path = b.detach();
             }
             SkPaint paint;
-            configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode, obj.opacity, &obj.fill_gradient);
+            configure_fill_paint(paint, obj.fill, obj.stroke_width, shader, obj.blend_mode, obj.opacity, &obj.fill_gradient,
+                rough_path_bounds.x(), rough_path_bounds.y(), rough_path_bounds.width(), rough_path_bounds.height());
             if (paint.getColor() != SK_ColorTRANSPARENT || paint.getShader()) {
                 canvas->drawPath(fill_path, paint);
             }
