@@ -115,6 +115,7 @@ if(NOT TARGET GTest::gtest AND TARGET gtest)
 endif()
 
 # libpng depends on zlib 鈥?vendor it too
+set(ZLIB_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 pml_third_party(zlib
     REPO https://github.com/madler/zlib.git
     TAG  v1.3.1
@@ -303,7 +304,8 @@ if(PML_BUILD_MCP)
     add_subdirectory(src/pml/mcp)
 endif()
 
-# 鈺愨晲鈺?Tests & Tools 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# Tests & Tools
 if(PML_BUILD_TESTS)
+    enable_testing()
     add_subdirectory(tests)
 endif()

@@ -28,8 +28,9 @@
 #include <iostream>
 #include <string>
 
-// Global source cache for file-mode error snippets.
-pml::SourceManager g_source_manager;
+// Global source cache for file-mode error snippets (backed by the
+// process-wide SourceManager singleton so module loaders can also cache).
+pml::SourceManager& g_source_manager = pml::get_global_source_manager();
 
 // ==========================================================================================================================================================================================================================================═
 // Argument parsing
@@ -59,6 +60,8 @@ static CLIOptions parse_args(int argc, char* argv[])
             opts.json = true;
         } else if (arg == "--gif") {
             opts.gif = true;
+        } else if (arg == "--check") {
+            opts.check = true;
         } else if (arg[0] == '-') {
             std::cerr << "Error: unknown option: " << arg << std::endl;
             std::exit(1);
@@ -93,6 +96,7 @@ static void print_help(const char* prog)
         "  -w, --watch             Watch file for changes and re-execute\n"
         "      --json              Output results as JSON\n"
         "      --gif               Enable GIF animation export\n"
+        "      --check             Validate file for errors without executing\n"
         "  -h, --help              Show this help message\n"
         "\n"
         "Examples:\n"
@@ -100,8 +104,9 @@ static void print_help(const char* prog)
         "  %s hello.pml            Execute hello.pml\n"
         "  %s hello.pml -o ./out   Execute and render to ./out/\n"
         "  %s hello.pml --watch    Watch and re-execute on changes\n"
-        "  %s hello.pml --json     Output execution results as JSON\n",
-        prog, prog, prog, prog, prog, prog);
+        "  %s hello.pml --json     Output execution results as JSON\n"
+        "  %s hello.pml --check    Validate hello.pml for errors\n",
+        prog, prog, prog, prog, prog, prog, prog);
 }
 
 // ==========================================================================================================================================================================================================================================═
@@ -123,6 +128,11 @@ int main(int argc, char* argv[])
     if (opts.file.empty()) {
         // REPL mode
         return pml::run_repl_mode(runtime);
+    }
+
+    if (opts.check) {
+        // Validation/check mode — report all errors without executing
+        return pml::run_check_mode(opts, runtime);
     }
 
     if (opts.watch) {

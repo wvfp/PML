@@ -217,12 +217,13 @@ int SkeletonInstance::joint_index(const std::string& name) const {
 // Matches pml/skeleton/evaluator.py:_eval_defskeleton
 
 Result<Value> eval_defskeleton(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env)
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site)
 {
     // expr[0] = 'defskeleton', expr[1] = name, expr[2] = root params, expr[3:] = joint clauses
     if (expr.size() < 4) {
         return std::unexpected(arity_error(
-            SourceLocation{}, 4, static_cast<int>(expr.size())));
+            call_site, 4, static_cast<int>(expr.size())));
     }
 
     // 1. Parse template name

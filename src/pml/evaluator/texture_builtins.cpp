@@ -46,13 +46,14 @@ static std::optional<std::string> tex_symbol_name(const Expr& expr) {
 // ==========================================================================================================================================================================================================================================═
 
 Result<EvalResult> define_texture_special(
-    const std::vector<Expr>& expr,
-    std::shared_ptr<Environment> env)
+    const ArenaExprVector& expr,
+    std::shared_ptr<Environment> env,
+    SourceLocation call_site)
 {
     // expr = [define-texture, name, (width height), body...]
     if (expr.size() < 4) {
         return std::unexpected(
-            arity_error(SourceLocation{}, 3,
+            arity_error(call_site, 3,
                         static_cast<int>(expr.size()) - 1));
     }
 

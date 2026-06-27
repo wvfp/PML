@@ -123,15 +123,25 @@ void register_predicates_builtins(std::shared_ptr<Environment> env) {
         return Value(false);
     });
 
-    // Lisp-compatible aliases
-    def("null", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
+    // Lisp-compatible aliases (share implementation with existing predicates)
+    auto null_impl = [](const std::vector<Value>& a, Environment&) -> Result<Value> {
         if (a.size() != 1) return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(a.size())));
         if (is_nil(a[0])) return Value(true);
         if (const auto* lst = a[0].as_list()) {
             if (*lst && (*lst)->elements.empty()) return Value(true);
         }
         return Value(false);
-    });
+    };
+    auto consp_impl = [](const std::vector<Value>& a, Environment&) -> Result<Value> {
+        if (a.size() != 1) return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(a.size())));
+        if (const auto* lst = a[0].as_list()) {
+            if (*lst && !(*lst)->elements.empty()) return Value(true);
+        }
+        return Value(false);
+    };
+
+    def("null", null_impl);
+    def("null?", null_impl);
     def("atom", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
         if (a.size() != 1) return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(a.size())));
         if (const auto* lst = a[0].as_list()) {
@@ -139,13 +149,8 @@ void register_predicates_builtins(std::shared_ptr<Environment> env) {
         }
         return Value(true);
     });
-    def("consp", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
-        if (a.size() != 1) return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(a.size())));
-        if (const auto* lst = a[0].as_list()) {
-            if (*lst && !(*lst)->elements.empty()) return Value(true);
-        }
-        return Value(false);
-    });
+    def("consp", consp_impl);
+    def("pair?", consp_impl);
     def("listp", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
         if (a.size() != 1) return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(a.size())));
         if (is_nil(a[0])) return Value(true);

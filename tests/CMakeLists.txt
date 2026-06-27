@@ -90,8 +90,11 @@ target_link_libraries(pml-filter-test PRIVATE
     pml_filter
 )
 
-# Discover tests via CTest
+# Register tests via CTest (runs from repo root so relative paths resolve correctly)
 include(GoogleTest)
-gtest_discover_tests(pml-tests)
-gtest_discover_tests(pml-layer-test)
-gtest_discover_tests(pml-filter-test)
+gtest_discover_tests(pml-tests PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+gtest_discover_tests(pml-layer-test PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+gtest_discover_tests(pml-filter-test PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+
+# Smoke test (standalone, no GTest discovery)
+add_test(NAME pml-builtins-smoke COMMAND pml-builtins-smoke WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")

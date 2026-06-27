@@ -40,6 +40,11 @@ private:
     std::unordered_map<std::string, std::vector<std::string>> file_cache_;
 };
 
+/// Return a reference to the global SourceManager singleton.
+/// All code (CLI, evaluator, module loader) shares this instance so that
+/// source snippets work for errors in both main files and imported modules.
+[[nodiscard]] SourceManager& get_global_source_manager();
+
 /// Format a PML error with source context. If the error carries a location
 /// and the corresponding source line is available, the output includes the
 /// line number, source text, and a caret pointing at the column.

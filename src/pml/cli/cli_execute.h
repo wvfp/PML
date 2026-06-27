@@ -17,6 +17,9 @@ int run_file_mode(const CLIOptions& opts, PMLRuntime& runtime);
 /// Execute a PML file and output results as JSON.
 int run_json_mode(const CLIOptions& opts, PMLRuntime& runtime);
 
+/// Validate a PML file without executing — reports all errors found.
+int run_check_mode(const CLIOptions& opts, PMLRuntime& runtime);
+
 /// Run the interactive REPL.
 int run_repl_mode(PMLRuntime& runtime);
 

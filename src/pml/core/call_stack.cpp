@@ -4,6 +4,8 @@
 
 #include "call_stack.h"
 
+#include "pml/api/context.h"
+
 #include <format>
 #include <utility>
 
@@ -14,6 +16,11 @@ namespace pml {
 // ==========================================================================================================================================================================================================================================═
 
 CallStack& CallStack::instance() {
+    if (auto* ctx = PMLContext::current_ptr()) {
+        if (ctx->call_stack) {
+            return *ctx->call_stack;
+        }
+    }
     thread_local CallStack cs;
     return cs;
 }

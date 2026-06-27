@@ -182,4 +182,15 @@ auto assertion_error(std::string msg) -> PMLException {
                         std::move(msg), std::nullopt};
 }
 
+auto multi_error(std::string msg,
+                 std::vector<PMLException> details,
+                 std::optional<std::string> hint) -> PMLException {
+    PMLException err;
+    err.code = ErrorCode::GeneralError;
+    err.message = std::move(msg);
+    err.repair_hint = std::move(hint);
+    err.details = std::move(details);
+    return err;
+}
+
 }  // namespace pml

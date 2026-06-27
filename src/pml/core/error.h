@@ -9,10 +9,13 @@
 namespace pml {
 
 /// 1-based source location for error reporting.
+/// Supports both single-point and range locations.
 struct SourceLocation {
-    int line{0};             ///< 1-based line number
-    int column{0};           ///< 1-based column number
+    int line{0};             ///< 1-based line number (start line for range)
+    int column{0};           ///< 1-based column number (start column for range)
     std::string filename;    ///< Empty for REPL input
+    int end_line{0};         ///< 1-based end line (0 = single-point)
+    int end_column{0};       ///< 1-based end column (0 = single-point)
 
     /// Format as "filename:line:col" or "line N:M" when filename is empty.
     [[nodiscard]] auto to_string() const -> std::string;
@@ -49,13 +52,14 @@ enum class ErrorCode {
 [[nodiscard]] auto to_string(ErrorCode code) -> std::string_view;
 
 /// A PML error with code, optional location, message, optional repair hint,
-/// and optional runtime call stack.
+/// optional runtime call stack, and optional nested sub-errors.
 struct PMLException {
     ErrorCode code;
     std::optional<SourceLocation> location;
     std::string message;
     std::optional<std::string> repair_hint;
     std::vector<CallFrame> call_stack;
+    std::vector<PMLException> details;  ///< Sub-errors (e.g. multiple syntax errors)
 
     /// Format: "filename:line:col: PMLErrorName: message" or "PMLErrorName: message".
     [[nodiscard]] auto what() const -> std::string;
@@ -110,6 +114,11 @@ using Result = std::expected<T, PMLException>;
 
 [[nodiscard]] auto general_error(std::string msg,
                                  std::optional<std::string> hint = std::nullopt) -> PMLException;
+
+/// Create an error that wraps multiple sub-errors (for validation/check mode).
+[[nodiscard]] auto multi_error(std::string msg,
+                               std::vector<PMLException> details,
+                               std::optional<std::string> hint = std::nullopt) -> PMLException;
 
 // ---- Factory functions (without SourceLocation) --------------------------------------------------------─
 

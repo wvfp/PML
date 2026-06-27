@@ -14,8 +14,9 @@ namespace pml {
 struct PMLException;
 }  // namespace pml
 
-// Global source cache for file-mode error snippets.
-extern pml::SourceManager g_source_manager;
+// Global source cache for file-mode error snippets (backed by the
+// process-wide SourceManager singleton so module loaders can also cache).
+extern pml::SourceManager& g_source_manager;
 
 // ==========================================================================================================================================================================================================================================═
 // CLI options struct
@@ -27,5 +28,6 @@ struct CLIOptions {
     bool watch{false};            ///< -w / --watch
     bool json{false};             ///< --json
     bool gif{false};              ///< --gif
+    bool check{false};            ///< --check (validate only, no execution)
     bool help{false};             ///< -h / --help
 };

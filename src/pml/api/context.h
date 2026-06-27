@@ -25,8 +25,10 @@ namespace pml {
 // Forward declarations keep the header lightweight and avoid circular
 // include dependencies between core/graphics/animation/sprites.
 class AssetCache;
+class CallStack;
 class Canvas;
 class Composition;
+class SourceManager;
 class Timeline;
 class StyleRegistry;
 class PaletteManager;
@@ -53,6 +55,12 @@ class PMLContext {
     std::unique_ptr<TilesetManager> tilesets; ///< Named tileset registry
     std::unique_ptr<AssetCache> assets;       ///< Loaded image asset cache
     std::unique_ptr<class TextureCache> texture_cache; ///< Baked texture LRU cache
+
+    // ---- Per-runtime call stack & source cache --------------------------------------------------
+    /// Call stack for error reporting (pushed/popped during function application).
+    std::unique_ptr<CallStack> call_stack;
+    /// Source file cache for error snippet display.
+    std::unique_ptr<SourceManager> source_manager;
 
     std::vector<std::shared_ptr<Composition>> compositions; ///< Registered compositions
     std::vector<std::string> output_files;                  ///< Paths written by this runtime

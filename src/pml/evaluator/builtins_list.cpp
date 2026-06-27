@@ -174,7 +174,9 @@ void register_list_builtins(std::shared_ptr<Environment> env) {
         int64_t idx = to_int64(a[0]);
         if (idx < 0 || static_cast<size_t>(idx) >= (*lst)->elements.size()) {
             return std::unexpected(
-                general_error(std::format("nth: index {} out of range", idx)));
+                general_error(std::format("nth: index {} out of range for list of "
+                                           "length {}", idx,
+                                           (*lst)->elements.size())));
         }
         return (*lst)->elements[static_cast<size_t>(idx)];
     });
@@ -442,7 +444,7 @@ void register_list_builtins(std::shared_ptr<Environment> env) {
     // ---- Sequence functions (find/position/count) -----------------------------------------------------------------------
 
     def("find", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
-        if (a.size() < 2) return std::unexpected(arity_error(SourceLocation{}, 2, static_cast<int>(a.size())));
+        if (a.size() != 2) return std::unexpected(arity_error(SourceLocation{}, 2, static_cast<int>(a.size())));
         const auto* lst = a[1].as_list();
         if (!lst || !*lst) return std::unexpected(type_error("find: second argument must be a list"));
         for (const auto& e : (*lst)->elements) if (deep_equal(a[0], e)) return e;
@@ -450,7 +452,7 @@ void register_list_builtins(std::shared_ptr<Environment> env) {
     });
 
     def("position", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
-        if (a.size() < 2) return std::unexpected(arity_error(SourceLocation{}, 2, static_cast<int>(a.size())));
+        if (a.size() != 2) return std::unexpected(arity_error(SourceLocation{}, 2, static_cast<int>(a.size())));
         const auto* lst = a[1].as_list();
         if (!lst || !*lst) return std::unexpected(type_error("position: second argument must be a list"));
         for (size_t i = 0; i < (*lst)->elements.size(); ++i)
@@ -459,7 +461,7 @@ void register_list_builtins(std::shared_ptr<Environment> env) {
     });
 
     def("count", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
-        if (a.size() < 2) return std::unexpected(arity_error(SourceLocation{}, 2, static_cast<int>(a.size())));
+        if (a.size() != 2) return std::unexpected(arity_error(SourceLocation{}, 2, static_cast<int>(a.size())));
         const auto* lst = a[1].as_list();
         if (!lst || !*lst) return std::unexpected(type_error("count: second argument must be a list"));
         int64_t n = 0;
@@ -468,7 +470,7 @@ void register_list_builtins(std::shared_ptr<Environment> env) {
     });
 
     def("remove", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
-        if (a.size() < 2) return std::unexpected(arity_error(SourceLocation{}, 2, static_cast<int>(a.size())));
+        if (a.size() != 2) return std::unexpected(arity_error(SourceLocation{}, 2, static_cast<int>(a.size())));
         const auto* lst = a[1].as_list();
         if (!lst || !*lst) return std::unexpected(type_error("remove: second argument must be a list"));
         std::vector<Value> r;
@@ -493,17 +495,6 @@ void register_list_builtins(std::shared_ptr<Environment> env) {
         return make_list_value(std::move(r));
     });
 
-    def("null?", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
-        if (args.size() != 1) {
-            return std::unexpected(
-                arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
-        }
-        if (is_nil(args[0])) return Value(true);
-        if (const auto* lst = args[0].as_list()) {
-            if (*lst && (*lst)->elements.empty()) return Value(true);
-        }
-        return Value(false);
-    });
 }
 
 }  // namespace pml

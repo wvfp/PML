@@ -218,6 +218,10 @@ nlohmann::json error_to_dict(const PMLException& e) {
             d["line"] = loc.line;
         if (loc.column > 0)
             d["column"] = loc.column;
+        if (loc.end_line > 0)
+            d["end_line"] = loc.end_line;
+        if (loc.end_column > 0)
+            d["end_column"] = loc.end_column;
         if (!loc.filename.empty())
             d["filename"] = loc.filename;
     }
@@ -231,6 +235,13 @@ nlohmann::json error_to_dict(const PMLException& e) {
             stack.push_back(f);
         }
         d["call_stack"] = stack;
+    }
+    if (!e.details.empty()) {
+        nlohmann::json details = nlohmann::json::array();
+        for (const auto& sub : e.details) {
+            details.push_back(error_to_dict(sub));
+        }
+        d["details"] = std::move(details);
     }
     return d;
 }
@@ -509,17 +520,21 @@ ValidationResult PMLRuntime::validate(const std::string& source,
         return result;
     }
 
-    // Step 2: Parse
-    auto parseResult = Parser(std::move(*tokenResult), filename).parse();
-    if (!parseResult.has_value()) {
+    // Step 2: Parse with error recovery — collect ALL syntax errors
+    Parser parser(std::move(*tokenResult), filename);
+    auto parseResult = parser.parse_all();
+    if (!parseResult.errors.empty()) {
         result.valid = false;
-        result.errors.push_back(error_to_dict(parseResult.error()));
+        for (const auto& err : parseResult.errors) {
+            result.errors.push_back(error_to_dict(err));
+        }
+        // If we have parse errors, don't attempt expansion (AST may be incomplete)
         return result;
     }
 
     // Step 3: Macro expansion
     Expander expander(m_env);
-    auto expandResult = expander.expand_all(*parseResult);
+    auto expandResult = expander.expand_all(parseResult.expressions);
     if (!expandResult.has_value()) {
         result.valid = false;
         result.errors.push_back(error_to_dict(expandResult.error()));

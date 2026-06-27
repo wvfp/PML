@@ -11,6 +11,7 @@
 
 #include "module_loader.h"
 
+#include "pml/core/call_stack.h"
 #include "pml/evaluator/builtins_helpers.h"
 
 #include <algorithm>
@@ -268,6 +269,8 @@ Result<EvaluatedArguments> evaluate_arguments(
 // ---- apply_with_param_info: ParamInfo-based argument matching (&optional/&key/&rest) ---------─
 
 /// Apply a Procedure that has ParamInfo (&optional/&key/&rest support).
+/// Default expressions are lazily evaluated at call time in the
+/// incrementally-built environment, so defaults can reference preceding params.
 static Result<EvalResult> apply_with_param_info(
     const Procedure& proc,
     const std::vector<Value>& args,
@@ -276,72 +279,99 @@ static Result<EvalResult> apply_with_param_info(
 
     const auto& info = *proc.param_info;
     size_t arg_pos = 0;
-    std::vector<std::string> bind_names;
-    std::vector<Value> bind_values;
+
+    // Build call environment incrementally so default expressions
+    // can reference earlier-bound parameters.
+    auto call_env = proc.closure_env;
+
+    // -- Local helper: evaluate a default expression to a Value --
+    auto eval_default = [&](const Expr& expr) -> Result<Value> {
+        auto result = evaluate(expr, call_env);
+        if (!result) return std::unexpected(result.error());
+        if (auto* v = std::get_if<Value>(&*result))
+            return std::move(*v);
+        auto tv = trampoline(std::get<TailCall>(std::move(*result)));
+        if (!tv) return std::unexpected(tv.error());
+        return std::move(*tv);
+    };
 
     // 1. Required parameters
-    for (size_t i = 0; i < info.required_count; ++i, ++arg_pos) {
-        if (arg_pos >= args.size()) {
-            return std::unexpected(arity_error(
-                SourceLocation{}, static_cast<int>(info.required_count),
-                static_cast<int>(args.size())));
+    {
+        std::vector<std::string> rnames;
+        std::vector<Value> rvalues;
+        rnames.reserve(info.required_count);
+        rvalues.reserve(info.required_count);
+        for (size_t i = 0; i < info.required_count; ++i, ++arg_pos) {
+            if (arg_pos >= args.size()) {
+                return std::unexpected(arity_error(
+                    SourceLocation{}, static_cast<int>(info.required_count),
+                    static_cast<int>(args.size())));
+            }
+            rnames.push_back(info.names[i]);
+            rvalues.push_back(args[arg_pos]);
         }
-        bind_names.push_back(info.names[i]);
-        bind_values.push_back(args[arg_pos]);
+        if (!rnames.empty())
+            call_env = call_env->extend(rnames, rvalues);
     }
 
-    // 2. Optional parameters (from positional args or defaults)
-    for (size_t i = 0; i < info.optional_count; ++i) {
-        size_t idx = info.required_count + i;
-        bind_names.push_back(info.names[idx]);
-        if (arg_pos < args.size()) {
-            bind_values.push_back(args[arg_pos++]);
-        } else {
-            // Use default (nil if not provided)
-            if (i < info.defaults.size()) {
-                bind_values.push_back(info.defaults[i]);
+    // 2. Optional parameters (lazy defaults evaluated at call time)
+    {
+        size_t def_idx = 0;
+        for (size_t i = 0; i < info.optional_count; ++i) {
+            size_t name_idx = info.required_count + i;
+            Value val;
+            if (arg_pos < args.size()) {
+                val = args[arg_pos++];
+            } else if (def_idx < info.default_exprs.size()) {
+                auto dv = eval_default(info.default_exprs[def_idx]);
+                if (!dv) return std::unexpected(dv.error());
+                val = std::move(*dv);
             } else {
-                bind_values.push_back(Value(nullptr));
+                val = Value(nullptr);
             }
+            call_env = call_env->extend({info.names[name_idx]}, {val});
+            def_idx++;
         }
     }
 
-    // 3. Keyword parameters
-    size_t key_start = info.required_count + info.optional_count;
-    // Iterate key param names (excluding rest)
-    for (size_t i = key_start; i < info.names.size(); ++i) {
-        if (info.has_rest && i == info.rest_index) continue;
-        const std::string& key_name = info.names[i];
-        bind_names.push_back(key_name);
-        auto it = kwargs.find(key_name);
-        if (it != kwargs.end()) {
-            bind_values.push_back(it->second);
-        } else {
-            // Use default if available
-            size_t def_idx = info.optional_count + (i - key_start);
-            if (def_idx < info.defaults.size()) {
-                bind_values.push_back(info.defaults[def_idx]);
+    // 3. Keyword parameters (lazy defaults evaluated at call time)
+    {
+        size_t key_start = info.required_count + info.optional_count;
+        size_t def_idx = info.optional_count;
+        for (size_t i = key_start; i < info.names.size(); ++i) {
+            if (info.has_rest && i == info.rest_index) continue;
+            const std::string& key_name = info.names[i];
+            Value val;
+            auto it = kwargs.find(key_name);
+            if (it != kwargs.end()) {
+                val = it->second;
+            } else if (def_idx < info.default_exprs.size()) {
+                auto dv = eval_default(info.default_exprs[def_idx]);
+                if (!dv) return std::unexpected(dv.error());
+                val = std::move(*dv);
             } else {
-                bind_values.push_back(Value(nullptr)); // default nil
+                val = Value(nullptr);
             }
+            call_env = call_env->extend({key_name}, {val});
+            def_idx++;
         }
     }
 
     // 4. &rest parameter
     if (info.has_rest) {
         std::vector<Value> rest_values;
+        rest_values.reserve(args.size() - arg_pos);
         while (arg_pos < args.size()) {
             rest_values.push_back(args[arg_pos++]);
         }
-        bind_names.push_back(info.names[info.rest_index]);
-        bind_values.push_back(make_list_value(std::move(rest_values)));
+        call_env = call_env->extend({info.names[info.rest_index]},
+                                     {make_list_value(std::move(rest_values))});
     } else if (arg_pos < args.size()) {
         return std::unexpected(arity_error(
             SourceLocation{}, static_cast<int>(info.required_count + info.optional_count),
             static_cast<int>(args.size())));
     }
 
-    auto call_env = proc.closure_env->extend(bind_names, bind_values);
     return TailCall{proc.body, call_env};
 }
 
@@ -353,7 +383,8 @@ Result<EvalResult> apply_function(
     const Value& func,
     const std::vector<Value>& args,
     const std::unordered_map<std::string, Value>& kwargs,
-    std::shared_ptr<Environment> env) {
+    std::shared_ptr<Environment> env,
+    SourceLocation call_site) {
 
     // ---- User-defined Procedure ----------------------------------------------------------------─
     if (const auto* proc_ptr = func.as_procedure()) {
@@ -446,6 +477,8 @@ Result<EvalResult> apply_function(
             return std::unexpected(
                 type_error("Cannot apply null builtin procedure"));
         }
+        // Push call frame for error reporting.
+        auto guard = CallStack::instance().push_guard(arg->name, call_site);
         // Forward kwargs merged into args vector for builtins that
         // accept keyword arguments (accepts_kwargs=true).
         // The flat-list pattern (:key val :key2 val2) is used so
@@ -541,9 +574,7 @@ Result<EvalResult> evaluate(
                     const auto& forms = get_special_forms();
                     auto it = forms.find(head_sym->name);
                     if (it != forms.end()) {
-                        std::vector<Expr> expr_elements(elements.begin(),
-                                                        elements.end());
-                        return it->second(expr_elements, env);
+                        return it->second(arg->elements, env, arg->location);
                     }
 
                     // ---- Macro expansion (by name) --------------------------------------------
@@ -601,7 +632,8 @@ Result<EvalResult> evaluate(
                     *func_val,
                     eval_args->positional,
                     eval_args->keyword,
-                    env);
+                    env,
+                    arg->location);
             }
 
             // ---- Unreachable (exhaustive variant) --------------------------------------------
@@ -717,10 +749,11 @@ Result<Value> expand_quasiquote(
 // ---- quote: (quote <expr>) → return expr unevaluated ------------------------------------------------─
 
 Result<EvalResult> eval_quote(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> /*env*/) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> /*env*/,
+    SourceLocation call_site) {
     if (expr.size() != 2) {
         return std::unexpected(
-            arity_error(SourceLocation{}, 1,
+            arity_error(call_site, 1,
                         static_cast<int>(expr.size()) - 1));
     }
     // Convert AST expression to runtime value (without evaluating it)
@@ -730,7 +763,8 @@ Result<EvalResult> eval_quote(
 // ---- if: (if <cond> <then> [<else>]) --------------------------------------------------------------------------------─
 
 Result<EvalResult> eval_if(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation /*call_site*/) {
     if (expr.size() < 3 || expr.size() > 4) {
         return std::unexpected(general_error(
             "if expects 2 or 3 arguments"));
@@ -753,7 +787,8 @@ Result<EvalResult> eval_if(
 // ---- cond: (cond (<test> <expr>...) ... (else <default>...)) --------------------------------─
 
 Result<EvalResult> eval_cond(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation /*call_site*/) {
 
     // Iterate over clauses (expr[1:] in Python, but here expr IS the full list
     // from the dispatch, which includes the head. In our dispatch, we pass the
@@ -813,7 +848,8 @@ Result<EvalResult> eval_cond(
 // ---- when: (when <condition> <body>...) ------------------------------------------------------------------------─
 
 Result<EvalResult> eval_when(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation /*call_site*/) {
     if (expr.size() < 3) {
         return std::unexpected(general_error(
             "when expects at least 2 arguments (condition and body)"));
@@ -842,7 +878,8 @@ Result<EvalResult> eval_when(
 // ---- unless: (unless <condition> <body>...) ------------------------------------------------------------─
 
 Result<EvalResult> eval_unless(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation /*call_site*/) {
     if (expr.size() < 3) {
         return std::unexpected(general_error(
             "unless expects at least 2 arguments (condition and body)"));
@@ -871,7 +908,8 @@ Result<EvalResult> eval_unless(
 // ---- case: (case <key> (<value> <expr>...) ... (else <expr>...)) ----------------─
 
 Result<EvalResult> eval_case(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation /*call_site*/) {
     if (expr.size() < 3) {
         return std::unexpected(general_error(
             "case expects at least 2 arguments (key and clauses)"));
@@ -956,11 +994,146 @@ Result<EvalResult> eval_case(
 
 // ---- define: (define <name> <expr>) or (define (<name> <params>) <body>...) ----
 
+struct ParseParamsResult {
+    std::vector<std::string> params;
+    std::string dot_rest_name;
+    bool saw_dot = false;
+    bool saw_ampersand = false;
+    ParamInfo pinfo;
+};
+
+/// Parse a list of parameter expressions (from lambda or define shorthand).
+/// Supports simple symbols, '. rest' syntax, and &optional/&key/&rest.
+static Result<ParseParamsResult> parse_lambda_params(
+    const std::vector<Expr>& param_exprs) {
+
+    std::vector<std::string> params;
+    bool saw_dot = false;
+    std::string dot_rest_name;
+    bool saw_ampersand = false;
+
+    enum class ParamSection { Required, Optional, Key, Rest };
+    ParamSection section = ParamSection::Required;
+
+    ParamInfo pinfo;
+
+    for (const auto& p : param_exprs) {
+        auto name_opt = extract_symbol_name(p);
+        if (name_opt) {
+            const std::string& n = *name_opt;
+            if (n == ".") { saw_dot = true; continue; }
+            if (n == "&optional") {
+                if (section == ParamSection::Optional || section == ParamSection::Key || section == ParamSection::Rest)
+                    return std::unexpected(type_error("&optional: duplicate or misplaced"));
+                section = ParamSection::Optional;
+                saw_ampersand = true;
+                continue;
+            }
+            if (n == "&key") {
+                if (section == ParamSection::Key || section == ParamSection::Rest)
+                    return std::unexpected(type_error("&key: duplicate or misplaced"));
+                section = ParamSection::Key;
+                pinfo.has_keys = true;
+                saw_ampersand = true;
+                continue;
+            }
+            if (n == "&rest") {
+                if (section == ParamSection::Rest)
+                    return std::unexpected(type_error("&rest: duplicate"));
+                section = ParamSection::Rest;
+                saw_ampersand = true;
+                continue;
+            }
+            if (saw_dot) {
+                dot_rest_name = n;
+                continue;
+            }
+            if (section == ParamSection::Rest) {
+                pinfo.has_rest = true;
+                pinfo.rest_index = params.size();
+                params.push_back(n);
+                pinfo.names.push_back(n);
+                continue;
+            }
+            // Simple symbol param
+            params.push_back(n);
+            pinfo.names.push_back(n);
+            if (section == ParamSection::Optional) {
+                pinfo.optional_count++;
+            } else if (section == ParamSection::Key) {
+                pinfo.key_count++;
+            }
+            continue;
+        }
+
+        // (name default) form for &optional or &key
+        const auto* sub = get_list(p);
+        if (sub && sub->size() >= 2) {
+            auto sub_name = extract_symbol_name((*sub)[0]);
+            if (!sub_name) {
+                return std::unexpected(type_error("expected symbol as parameter name"));
+            }
+            if (section != ParamSection::Optional && section != ParamSection::Key) {
+                return std::unexpected(type_error(
+                    "parameter list form only allowed after &optional or &key"));
+            }
+            // Reject (x default extra) — only 2 elements allowed
+            if (sub->size() > 2) {
+                return std::unexpected(type_error(
+                    "invalid parameter specification"));
+            }
+
+            params.push_back(*sub_name);
+            pinfo.names.push_back(*sub_name);
+
+            // Store default expression for lazy evaluation at call time
+            pinfo.default_exprs.push_back((*sub)[1]);
+
+            if (section == ParamSection::Optional) {
+                pinfo.optional_count++;
+            }
+            if (section == ParamSection::Key) {
+                pinfo.key_count++;
+            }
+            continue;
+        }
+
+        return std::unexpected(type_error("parameter must be symbol"));
+    }
+
+    // Reject mixing old-style ". rest" with &optional/&key/&rest
+    if (saw_dot && saw_ampersand) {
+        return std::unexpected(type_error(
+            "cannot mix '.' rest syntax with &optional/&key/&rest"));
+    }
+
+    // For traditional ". rest" syntax, append "." and rest param name
+    if (saw_dot && !dot_rest_name.empty()) {
+        params.push_back(".");
+        params.push_back(dot_rest_name);
+    }
+
+    if (saw_ampersand) {
+        pinfo.required_count = pinfo.names.size() - pinfo.optional_count
+                             - pinfo.key_count
+                             - (pinfo.has_rest ? 1 : 0);
+    }
+
+    return ParseParamsResult{
+        std::move(params),
+        std::move(dot_rest_name),
+        saw_dot,
+        saw_ampersand,
+        std::move(pinfo)
+    };
+}
+
 Result<EvalResult> eval_define(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site) {
     if (expr.size() < 3) {
         return std::unexpected(
-            arity_error(SourceLocation{}, 2,
+            arity_error(call_site, 2,
                         static_cast<int>(expr.size()) - 1));
     }
 
@@ -981,27 +1154,13 @@ Result<EvalResult> eval_define(
                 type_error("define: expected symbol for function name"));
         }
 
-        // Remaining elements are parameter names
-        std::vector<std::string> params;
-        bool saw_dot = false;
-        std::string rest_param;
+        // Remaining elements are parameter names (delegate to shared parser)
+        std::vector<Expr> param_exprs;
         for (size_t j = 1; j < target_list->size(); ++j) {
-            const Expr& p = (*target_list)[j];
-            if (const auto* p_sym = std::get_if<Symbol>(&p)) {
-                if (p_sym->name == ".") {
-                    saw_dot = true;
-                    continue;
-                }
-                if (saw_dot) {
-                    rest_param = p_sym->name;
-                } else {
-                    params.push_back(p_sym->name);
-                }
-            } else {
-                return std::unexpected(
-                    type_error("define: parameter must be symbol"));
-            }
+            param_exprs.push_back((*target_list)[j]);
         }
+        auto parsed = parse_lambda_params(param_exprs);
+        if (!parsed) return std::unexpected(parsed.error());
 
         // Body starts at index 2
         std::vector<Expr> body_exprs;
@@ -1010,18 +1169,17 @@ Result<EvalResult> eval_define(
             body_exprs.push_back(expr[j]);
         }
 
-        // For now, if we have a rest_param, we include "." and rest_param
-        // in the params list so that apply_function can detect it.
-        if (saw_dot && !rest_param.empty()) {
-            params.push_back(".");
-            params.push_back(rest_param);
+        std::optional<ParamInfo> param_info_opt;
+        if (parsed->saw_ampersand) {
+            param_info_opt = std::move(parsed->pinfo);
         }
 
         auto proc = std::make_shared<Procedure>(
-            params,
+            parsed->params,
             make_body_from_vector(body_exprs),
             env,
-            *name_opt);
+            *name_opt,
+            std::move(param_info_opt));
         env->define(*name_opt, Value(proc));
         return Value(nullptr);
     }
@@ -1049,10 +1207,11 @@ Result<EvalResult> eval_define(
 // ---- lambda: (lambda (<params>) <body>...) --------------------------------------------------------------------─
 
 Result<EvalResult> eval_lambda(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site) {
     if (expr.size() < 3) {
         return std::unexpected(
-            arity_error(SourceLocation{}, 2,
+            arity_error(call_site, 2,
                         static_cast<int>(expr.size()) - 1));
     }
 
@@ -1063,117 +1222,14 @@ Result<EvalResult> eval_lambda(
             type_error("lambda: parameters must be a list"));
     }
 
-    // Parse parameters, supporting:
-    //   - simple: (lambda (x y) ...)
-    //   - rest via '.': (lambda (x . rest) ...)
-    //   - &optional: (lambda (x &optional y (z 10)) ...)
-    //   - &key: (lambda (&key x (y 0)) ...)
-    //   - &rest: (lambda (x &rest rest) ...)
-    std::vector<std::string> params;
-    bool saw_dot = false;
-    std::string dot_rest_name;
-    bool saw_ampersand = false;
-
-    enum class ParamSection { Required, Optional, Key, Rest };
-    ParamSection section = ParamSection::Required;
-
-    ParamInfo pinfo;
-
-    for (const auto& p : *params_list) {
-        auto name_opt = extract_symbol_name(p);
-        if (name_opt) {
-            const std::string& n = *name_opt;
-            if (n == ".") { saw_dot = true; continue; }
-            if (n == "&optional") {
-                section = ParamSection::Optional;
-                saw_ampersand = true;
-                continue;
-            }
-            if (n == "&key") {
-                section = ParamSection::Key;
-                pinfo.has_keys = true;
-                saw_ampersand = true;
-                continue;
-            }
-            if (n == "&rest") {
-                section = ParamSection::Rest;
-                saw_ampersand = true;
-                continue;
-            }
-            if (saw_dot) {
-                dot_rest_name = n;
-                continue;
-            }
-            if (section == ParamSection::Rest) {
-                pinfo.has_rest = true;
-                pinfo.rest_index = params.size();
-                params.push_back(n);
-                pinfo.names.push_back(n);
-                continue;
-            }
-            // Simple symbol param
-            params.push_back(n);
-            pinfo.names.push_back(n);
-            if (section == ParamSection::Optional) {
-                pinfo.optional_count++;
-                pinfo.defaults.push_back(Value(nullptr));
-            } else if (section == ParamSection::Key) {
-                pinfo.key_indices[n] = pinfo.names.size() - 1;
-                pinfo.defaults.push_back(Value(nullptr));
-            }
-            continue;
-        }
-
-        // (name default) form for &optional or &key
-        const auto* sub = get_list(p);
-        if (sub && sub->size() >= 2) {
-            auto sub_name = extract_symbol_name((*sub)[0]);
-            if (!sub_name) {
-                return std::unexpected(type_error("lambda: parameter must be symbol"));
-            }
-            if (section != ParamSection::Optional && section != ParamSection::Key) {
-                return std::unexpected(type_error(
-                    "lambda: parameter list form only allowed after &optional or &key"));
-            }
-
-            params.push_back(*sub_name);
-            pinfo.names.push_back(*sub_name);
-
-            auto default_val = eval_to_value((*sub)[1], env);
-            if (!default_val) return std::unexpected(default_val.error());
-
-            if (section == ParamSection::Optional) {
-                pinfo.optional_count++;
-            }
-            pinfo.defaults.push_back(*default_val);
-            if (section == ParamSection::Key) {
-                pinfo.key_indices[*sub_name] = pinfo.names.size() - 1;
-            }
-            continue;
-        }
-
-        return std::unexpected(type_error("lambda: parameter must be symbol"));
-    }
-
-    // Reject mixing old-style ". rest" with &optional/&key/&rest
-    if (saw_dot && saw_ampersand) {
-        return std::unexpected(type_error(
-            "lambda: cannot mix '.' rest syntax with &optional/&key/&rest"));
-    }
-
-    // For traditional ". rest" syntax, append "." and rest param name
-    // so that apply_function can detect them via the existing code path.
-    if (saw_dot && !dot_rest_name.empty()) {
-        params.push_back(".");
-        params.push_back(dot_rest_name);
-    }
+    // Parse parameters using shared helper
+    std::vector<Expr> param_exprs(params_list->begin(), params_list->end());
+    auto parsed = parse_lambda_params(param_exprs);
+    if (!parsed) return std::unexpected(parsed.error());
 
     std::optional<ParamInfo> param_info_opt;
-    if (saw_ampersand) {
-        pinfo.required_count = pinfo.names.size() - pinfo.optional_count
-                             - pinfo.key_indices.size()
-                             - (pinfo.has_rest ? 1 : 0);
-        param_info_opt = std::move(pinfo);
+    if (parsed->saw_ampersand) {
+        param_info_opt = std::move(parsed->pinfo);
     }
 
     // Body expressions start at index 2
@@ -1184,7 +1240,7 @@ Result<EvalResult> eval_lambda(
     }
 
     auto proc = std::make_shared<Procedure>(
-        params,
+        parsed->params,
         make_body_from_vector(body_exprs),
         env,
         std::nullopt,          // name
@@ -1196,10 +1252,11 @@ Result<EvalResult> eval_lambda(
 // ---- let: (let ((name expr) ...) <body>...) — parallel bindings ------------------------─
 
 Result<EvalResult> eval_let_par(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site) {
     if (expr.size() < 3) {
         return std::unexpected(
-            arity_error(SourceLocation{}, 2,
+            arity_error(call_site, 2,
                         static_cast<int>(expr.size()) - 1));
     }
 
@@ -1252,10 +1309,11 @@ Result<EvalResult> eval_let_par(
 // ---- let*: (let* ((name expr) ...) <body>...) — sequential bindings ----------------─
 
 Result<EvalResult> eval_let_star(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site) {
     if (expr.size() < 3) {
         return std::unexpected(
-            arity_error(SourceLocation{}, 2,
+            arity_error(call_site, 2,
                         static_cast<int>(expr.size()) - 1));
     }
 
@@ -1302,10 +1360,11 @@ Result<EvalResult> eval_let_star(
 // ---- letrec: (letrec ((name expr) ...) <body>...) — recursive bindings ------------
 
 Result<EvalResult> eval_letrec(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site) {
     if (expr.size() < 3) {
         return std::unexpected(
-            arity_error(SourceLocation{}, 2,
+            arity_error(call_site, 2,
                         static_cast<int>(expr.size()) - 1));
     }
 
@@ -1362,7 +1421,8 @@ Result<EvalResult> eval_letrec(
 // ---- begin: (begin <expr> ...) — evaluate sequentially, return last ----------------─
 
 Result<EvalResult> eval_begin(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation /*call_site*/) {
     for (size_t i = 1; i < expr.size(); ++i) {
         if (i + 1 == expr.size()) {
             return evaluate(expr[i], env);
@@ -1376,10 +1436,11 @@ Result<EvalResult> eval_begin(
 // ---- set!: (set! <name> <expr>) --------------------------------------------------------------------------------------------
 
 Result<EvalResult> eval_set(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site) {
     if (expr.size() != 3) {
         return std::unexpected(
-            arity_error(SourceLocation{}, 2,
+            arity_error(call_site, 2,
                         static_cast<int>(expr.size()) - 1));
     }
 
@@ -1405,7 +1466,8 @@ Result<EvalResult> eval_set(
 // ---- and: (and <expr> ...) — short-circuit, return last truthy or first falsy ─
 
 Result<EvalResult> eval_and(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation /*call_site*/) {
     Value result(true);  // Start with true (identity for and)
 
     for (size_t i = 1; i < expr.size(); ++i) {
@@ -1424,7 +1486,8 @@ Result<EvalResult> eval_and(
 // ---- or: (or <expr> ...) — short-circuit, return first truthy --------------------------------
 
 Result<EvalResult> eval_or(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation /*call_site*/) {
     for (size_t i = 1; i < expr.size(); ++i) {
         auto val = eval_to_value(expr[i], env);
         if (!val) return std::unexpected(val.error());
@@ -1440,10 +1503,11 @@ Result<EvalResult> eval_or(
 // ---- do: (do ((var init step) ...) (test result...) <body>...) ----------------------------
 
 Result<EvalResult> eval_do(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site) {
     if (expr.size() < 3) {
         return std::unexpected(
-            arity_error(SourceLocation{}, 2,
+            arity_error(call_site, 2,
                         static_cast<int>(expr.size()) - 1));
     }
 
@@ -1544,10 +1608,11 @@ Result<EvalResult> eval_do(
 // ---- quasiquote: (quasiquote <expr>) — template with unquote interpolation ─
 
 Result<EvalResult> eval_quasiquote(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site) {
     if (expr.size() != 2) {
         return std::unexpected(
-            arity_error(SourceLocation{}, 1,
+            arity_error(call_site, 1,
                         static_cast<int>(expr.size()) - 1));
     }
 
@@ -1560,7 +1625,8 @@ Result<EvalResult> eval_quasiquote(
 // ---- provide: (provide sym1 sym2 ...) — declare module exports ----------------------------
 
 Result<EvalResult> eval_provide(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation /*call_site*/) {
     for (size_t i = 1; i < expr.size(); ++i) {
         auto name_opt = extract_symbol_name(expr[i]);
         if (!name_opt) {
@@ -1575,10 +1641,11 @@ Result<EvalResult> eval_provide(
 // ---- import: (import "path.pml" [as prefix]) — load a module --------------------------------
 
 Result<EvalResult> eval_import(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site) {
     if (expr.size() < 2) {
         return std::unexpected(
-            arity_error(SourceLocation{}, 1,
+            arity_error(call_site, 1,
                         static_cast<int>(expr.size()) - 1));
     }
 
@@ -1653,7 +1720,12 @@ Result<EvalResult> eval_import(
     // Load the module
     auto mod_result = loader->load(*path_str, from_file);
     if (!mod_result) {
-        return std::unexpected(mod_result.error());
+        auto err = mod_result.error();
+        if (call_site.line > 0) {
+            err.call_stack.insert(err.call_stack.begin(),
+                CallFrame{std::format("import \"{}\"", *path_str), call_site});
+        }
+        return std::unexpected(std::move(err));
     }
 
     // Bind the Module object to the prefix name
@@ -1665,10 +1737,11 @@ Result<EvalResult> eval_import(
 // ---- defmacro: (defmacro name (params) <body>...) --------------------------------------------------------
 
 Result<EvalResult> eval_defmacro(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site) {
     if (expr.size() < 4) {
         return std::unexpected(
-            arity_error(SourceLocation{}, 3,
+            arity_error(call_site, 3,
                         static_cast<int>(expr.size()) - 1));
     }
 
@@ -1729,10 +1802,11 @@ Result<EvalResult> eval_defmacro(
 // ---- macroexpand: (macroexpand <form>) — expand macros without evaluating --------
 
 Result<EvalResult> eval_macroexpand(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site) {
     if (expr.size() != 2) {
         return std::unexpected(
-            arity_error(SourceLocation{}, 1,
+            arity_error(call_site, 1,
                         static_cast<int>(expr.size()) - 1));
     }
 
@@ -1747,10 +1821,11 @@ Result<EvalResult> eval_macroexpand(
 // ---- assert: (assert <expr>) — evaluate and error if falsy ------------------------------------
 
 Result<EvalResult> eval_assert(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site) {
     if (expr.size() != 2) {
         return std::unexpected(
-            arity_error(SourceLocation{}, 1,
+            arity_error(call_site, 1,
                         static_cast<int>(expr.size()) - 1));
     }
 
@@ -1763,17 +1838,18 @@ Result<EvalResult> eval_assert(
         std::ostringstream ss;
         ss << expr[1];
         return std::unexpected(assertion_error(
-            SourceLocation{},
+            call_site,
             std::format("assertion failed: {}", ss.str())));
     }
 
     return Value(true);  // Return #t on success
 }
 
-// ---- gensym: (gensym) or (gensym "prefix") — generate a unique symbol ------------─
+// ---- gensym: (gensym) or (gensym "prefix") — generate a unique symbol ------------
 
 Result<EvalResult> eval_gensym(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> /*env*/) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> /*env*/,
+    SourceLocation /*call_site*/) {
     static std::atomic<uint64_t> s_counter{0};
 
     std::string prefix = "g";
@@ -1794,10 +1870,11 @@ Result<EvalResult> eval_gensym(
 // handler's result.  If <thunk> succeeds, returns its value directly.
 
 Result<EvalResult> eval_with_exception_handler(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env) {
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site) {
     if (expr.size() != 3) {
         return std::unexpected(
-            arity_error(SourceLocation{}, 2,
+            arity_error(call_site, 2,
                         static_cast<int>(expr.size()) - 1));
     }
 

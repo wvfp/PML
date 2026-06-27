@@ -93,12 +93,13 @@ static Result<Value> apply_threaded(
 // ==========================================================================================================================================================================================================================================═
 
 Result<EvalResult> eval_thread_first(
-    const std::vector<Expr>& expr,
-    std::shared_ptr<Environment> env)
+    const ArenaExprVector& expr,
+    std::shared_ptr<Environment> env,
+    SourceLocation call_site)
 {
     if (expr.size() < 2) {
         return std::unexpected(
-            arity_error(SourceLocation{}, 1, static_cast<int>(expr.size()) - 1));
+            arity_error(call_site, 1, static_cast<int>(expr.size()) - 1));
     }
 
     // Evaluate initial value
@@ -125,12 +126,13 @@ Result<EvalResult> eval_thread_first(
 // ==========================================================================================================================================================================================================================================═
 
 Result<EvalResult> eval_thread_last(
-    const std::vector<Expr>& expr,
-    std::shared_ptr<Environment> env)
+    const ArenaExprVector& expr,
+    std::shared_ptr<Environment> env,
+    SourceLocation call_site)
 {
     if (expr.size() < 2) {
         return std::unexpected(
-            arity_error(SourceLocation{}, 1, static_cast<int>(expr.size()) - 1));
+            arity_error(call_site, 1, static_cast<int>(expr.size()) - 1));
     }
 
     // Evaluate initial value

@@ -11,6 +11,8 @@
 #include "pml/sprites/palette.h"
 #include "pml/graphics/tilemap.h"
 #include "pml/graphics/tileset.h"
+#include "pml/core/call_stack.h"
+#include "pml/core/source_manager.h"
 #include "pml/core/texture_cache.h"
 
 namespace pml {
@@ -26,7 +28,9 @@ thread_local PMLContext* PMLContext::s_current = nullptr;
 // ==========================================================================================================================================================================================================================================═
 
 PMLContext::PMLContext()
-    : assets(std::make_unique<AssetCache>()) {}
+    : assets(std::make_unique<AssetCache>())
+    , call_stack(std::make_unique<CallStack>())
+    , source_manager(std::make_unique<SourceManager>()) {}
 
 PMLContext::~PMLContext() = default;
 
@@ -47,6 +51,8 @@ void PMLContext::reset() {
     output_files.clear();
     source_dir.clear();
     output_dir.clear();
+    call_stack = std::make_unique<CallStack>();
+    source_manager = std::make_unique<SourceManager>();
 }
 
 // ==========================================================================================================================================================================================================================================═

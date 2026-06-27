@@ -4,6 +4,7 @@
 
 #include "module_loader.h"
 
+#include "pml/core/source_manager.h"
 #include "environment.h"
 #include "evaluator.h"
 #include "expander.h"
@@ -225,6 +226,9 @@ Result<std::shared_ptr<Module>> ModuleLoader::do_load(
     std::stringstream buffer;
     buffer << file_stream.rdbuf();
     std::string source = buffer.str();
+
+    // Cache source for error snippet display across file boundaries.
+    get_global_source_manager().load_source(resolved_path, source);
 
     // 2. Lex
     Lexer lexer(source, resolved_path);

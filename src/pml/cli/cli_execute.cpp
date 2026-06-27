@@ -16,6 +16,8 @@
 #include "pml/module/embedded_stdlib.h"
 #include "repl.h"
 
+#include <format>
+#include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
 
@@ -90,9 +92,99 @@ int run_json_mode(const CLIOptions& opts, PMLRuntime& runtime)
 
     // PMLRuntime::execute_file returns errors via RenderResult, not exceptions.
     auto r = runtime.execute_file(opts.file);
-    std::cout << r.to_json().dump(2) << std::endl;
+    std::cout << r.to_json().dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << std::endl;
 
     return r.success ? 0 : 1;
+}
+
+// ==========================================================================================================================================================================================================================================═
+// Check mode (validate only)
+// ==========================================================================================================================================================================================================================================═
+
+int run_check_mode(const CLIOptions& opts, PMLRuntime& runtime)
+{
+    // Load embedded standard library
+    load_embedded_stdlib(runtime.env());
+
+    // Read the file
+    std::ifstream file(opts.file);
+    if (!file.is_open()) {
+        std::cerr << "Error: file not found: " << opts.file << std::endl;
+        return 1;
+    }
+    std::ostringstream ss;
+    ss << file.rdbuf();
+    std::string source = std::move(ss).str();
+
+    // Cache source for error snippet display
+    g_source_manager.load_source(opts.file, source);
+
+    // Validate without executing — collects ALL errors
+    auto result = runtime.validate(source, opts.file);
+
+    if (result.valid) {
+        std::cout << "No errors found." << std::endl;
+        return 0;
+    }
+
+    if (opts.json) {
+        // JSON output for check mode
+        nlohmann::json j;
+        j["success"] = false;
+        j["file"] = opts.file;
+        nlohmann::json err_list = nlohmann::json::array();
+        for (const auto& e : result.errors) {
+            err_list.push_back(e);
+        }
+        j["errors"] = std::move(err_list);
+        j["count"] = result.errors.size();
+        std::cout << j.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << std::endl;
+    } else {
+        // Human-readable output using the rich error formatter
+        std::cerr << std::format("Found {} error(s) in {}:\n",
+                                 result.errors.size(), opts.file);
+        for (size_t i = 0; i < result.errors.size(); ++i) {
+            if (result.errors.size() > 1) {
+                std::cerr << std::format("\n--- Error {} of {} ---\n",
+                                         i + 1, result.errors.size());
+            }
+            // Convert JSON error back to PMLException and use rich formatting
+            PMLException exc;
+            exc.code = ErrorCode::GeneralError;
+            exc.message = result.errors[i].value("message", "");
+            std::string type = result.errors[i].value("type", "GeneralError");
+            if (type == "PMLSyntaxError")    exc.code = ErrorCode::PMLSyntaxError;
+            else if (type == "PMLTypeError") exc.code = ErrorCode::PMLTypeError;
+            // Parse structured location (nested or flat)
+            bool has_loc = false;
+            SourceLocation loc;
+            if (result.errors[i].contains("location") && result.errors[i]["location"].is_object()) {
+                const auto& jloc = result.errors[i]["location"];
+                loc.line = jloc.value("line", 0);
+                loc.column = jloc.value("column", 0);
+                loc.end_line = jloc.value("end_line", 0);
+                loc.end_column = jloc.value("end_column", 0);
+                loc.filename = jloc.value("filename", opts.file);
+                has_loc = true;
+            } else if (result.errors[i].contains("line")) {
+                loc.line = result.errors[i].value("line", 0);
+                loc.column = result.errors[i].value("column", 0);
+                loc.end_line = result.errors[i].value("end_line", 0);
+                loc.end_column = result.errors[i].value("end_column", 0);
+                loc.filename = result.errors[i].value("filename", opts.file);
+                has_loc = true;
+            }
+            if (has_loc) {
+                exc.location = std::move(loc);
+            }
+            if (result.errors[i].contains("hint") && !result.errors[i]["hint"].is_null()) {
+                exc.repair_hint = result.errors[i].value("hint", "");
+            }
+            std::cerr << format_error_with_source(exc, g_source_manager);
+        }
+    }
+
+    return 1;
 }
 
 // ==========================================================================================================================================================================================================================================═

@@ -154,7 +154,8 @@ private:
 /// Special form handler for (defskeleton ...).
 /// Parses the raw AST to define a SkeletonTemplate in the environment.
 [[nodiscard]] Result<Value> eval_defskeleton(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site);
 
 /// Register all skeleton builtins and the defskeleton special form.
 void register_skeleton(std::shared_ptr<Environment> env);

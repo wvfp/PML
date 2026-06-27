@@ -581,12 +581,12 @@ struct ParamInfo {
     size_t required_count = 0;
     /// Number of optional parameters (after required)
     size_t optional_count = 0;
-    /// Default values for optional parameters (empty Value = nil default)
-    std::vector<Value> defaults;
+    /// Default value expressions for optional/key parameters (lazily evaluated at call time)
+    std::vector<Expr> default_exprs;
     /// Whether &key parameters are accepted
     bool has_keys = false;
-    /// For &key: maps keyword name (without :) to index in names[]
-    std::unordered_map<std::string, size_t> key_indices;
+    /// Number of &key parameters (used instead of key_indices map)
+    size_t key_count = 0;
     /// Whether &rest name is present
     bool has_rest = false;
     /// Index of rest parameter in names[] (only valid when has_rest=true)

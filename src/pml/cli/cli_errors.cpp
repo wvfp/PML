@@ -2,26 +2,84 @@
 // PML CLI — Error formatting implementation
 //
 // Ported from pml/repl.py.  Provides structured error display with source
-// snippets, JSON error serialization, and call-stack-aware error formatting.
+// snippets, JSON error serialization with call-stack and range info,
+// and multi-error support.
 // ==========================================================================================================================================================================================================================================═
 
 #include "cli_errors.h"
 #include "cli_shared.h"
 
 #include "pml/core/error.h"
+#include "pml/core/source_manager.h"
 
+#include <format>
 #include <iostream>
 #include <nlohmann/json.hpp>
 
 namespace pml {
 
 // ==========================================================================================================================================================================================================================================═
-// Error formatting
+// JSON helpers
+// ==========================================================================================================================================================================================================================================═
+
+static nlohmann::json location_to_json(const SourceLocation& loc) {
+    nlohmann::json j;
+    if (loc.line > 0)   j["line"] = loc.line;
+    if (loc.column > 0) j["column"] = loc.column;
+    if (loc.end_line > 0)   j["end_line"] = loc.end_line;
+    if (loc.end_column > 0) j["end_column"] = loc.end_column;
+    if (!loc.filename.empty()) j["filename"] = loc.filename;
+    return j;
+}
+
+static nlohmann::json call_stack_to_json(const std::vector<CallFrame>& frames) {
+    nlohmann::json arr = nlohmann::json::array();
+    for (const auto& frame : frames) {
+        nlohmann::json f;
+        f["function"] = frame.function_name;
+        if (frame.call_site.line > 0) {
+            f["location"] = frame.call_site.to_string();
+        }
+        arr.push_back(std::move(f));
+    }
+    return arr;
+}
+
+// ==========================================================================================================================================================================================================================================═
+// Single error to JSON
+// ==========================================================================================================================================================================================================================================═
+
+static nlohmann::json error_to_json_impl(const PMLException& e) {
+    nlohmann::json j;
+    j["type"] = std::string(to_string(e.code));
+    j["message"] = e.message;
+    if (e.location.has_value()) {
+        j["location"] = location_to_json(*e.location);
+    }
+    j["hint"] = e.repair_hint.has_value() ? nlohmann::json(*e.repair_hint) : nlohmann::json(nullptr);
+
+    if (!e.call_stack.empty()) {
+        j["call_stack"] = call_stack_to_json(e.call_stack);
+    }
+
+    if (!e.details.empty()) {
+        nlohmann::json details = nlohmann::json::array();
+        for (const auto& sub : e.details) {
+            details.push_back(error_to_json_impl(sub));
+        }
+        j["details"] = std::move(details);
+    }
+
+    return j;
+}
+
+// ==========================================================================================================================================================================================================================================═
+// Public API
 // ==========================================================================================================================================================================================================================================═
 
 void print_error(const PMLException& err)
 {
-    // Format with source snippet, line number and caret when available.
+    // format_error_with_source now handles multi-error with context lines
     std::cerr << format_error_with_source(err, g_source_manager);
 }
 
@@ -53,7 +111,18 @@ void print_render_error(const nlohmann::json& err)
             exc.code = ErrorCode::PMLAssertionError;
     }
 
-    if (err.contains("line")) {
+    // Parse structured location with range info
+    if (err.contains("location") && err["location"].is_object()) {
+        SourceLocation loc;
+        const auto& jloc = err["location"];
+        loc.line = jloc.value("line", 0);
+        loc.column = jloc.value("column", 0);
+        loc.end_line = jloc.value("end_line", 0);
+        loc.end_column = jloc.value("end_column", 0);
+        loc.filename = jloc.value("filename", "");
+        exc.location = std::move(loc);
+    } else if (err.contains("line")) {
+        // Fallback to flat fields
         SourceLocation loc;
         loc.line = err.value("line", 0);
         loc.column = err.value("column", 0);
@@ -69,7 +138,6 @@ void print_render_error(const nlohmann::json& err)
         for (const auto& frame : err["call_stack"]) {
             CallFrame f;
             f.function_name = frame.value("function", "");
-            // Parse location string "filename:line:col" or "line line:col"
             std::string loc_str = frame.value("location", "");
             if (!loc_str.empty()) {
                 auto last_colon = loc_str.find_last_of(':');
@@ -93,31 +161,37 @@ void print_render_error(const nlohmann::json& err)
         }
     }
 
+    // Parse nested details
     if (err.contains("details") && err["details"].is_array()) {
-        std::cerr << format_error_with_source(exc, g_source_manager);
-        int index = 1;
         for (const auto& detail : err["details"]) {
-            std::cerr << "\n  --- Error " << index++ << " ---\n";
-            print_render_error(detail);
+            PMLException sub;
+            sub.code = ErrorCode::GeneralError;
+            sub.message = detail.value("message", "");
+            std::string dtype = detail.value("type", "GeneralError");
+            if (dtype == "PMLSyntaxError") sub.code = ErrorCode::PMLSyntaxError;
+            else if (dtype == "PMLTypeError") sub.code = ErrorCode::PMLTypeError;
+            if (detail.contains("location") && detail["location"].is_object()) {
+                SourceLocation sloc;
+                sloc.line = detail["location"].value("line", 0);
+                sloc.column = detail["location"].value("column", 0);
+                sloc.end_line = detail["location"].value("end_line", 0);
+                sloc.end_column = detail["location"].value("end_column", 0);
+                sloc.filename = detail["location"].value("filename", "");
+                sub.location = std::move(sloc);
+            }
+            if (detail.contains("hint") && !detail["hint"].is_null()) {
+                sub.repair_hint = detail.value("hint", "");
+            }
+            exc.details.push_back(std::move(sub));
         }
-    } else {
-        std::cerr << format_error_with_source(exc, g_source_manager);
     }
+
+    std::cerr << format_error_with_source(exc, g_source_manager);
 }
 
 nlohmann::json error_to_json(const PMLException& e)
 {
-    nlohmann::json j;
-    j["type"] = std::string(to_string(e.code));
-    j["message"] = e.message;
-    if (e.location.has_value()) {
-        const auto& loc = *e.location;
-        if (loc.line > 0)   j["line"] = loc.line;
-        if (loc.column > 0) j["column"] = loc.column;
-        if (!loc.filename.empty()) j["filename"] = loc.filename;
-    }
-    j["hint"] = e.repair_hint.has_value() ? nlohmann::json(*e.repair_hint) : nlohmann::json(nullptr);
-    return j;
+    return error_to_json_impl(e);
 }
 
 nlohmann::json error_to_json(int /*code*/, const std::string& type,
@@ -135,8 +209,23 @@ void print_json_error(const PMLException& err)
     j["success"] = false;
     j["result"] = nullptr;
     j["files"] = nlohmann::json::array();
-    j["error"] = error_to_json(err);
-    std::cout << j.dump(2) << std::endl;
+
+    if (err.details.empty()) {
+        j["error"] = error_to_json_impl(err);
+    } else {
+        // Multi-error: produce an error list instead of a single error
+        nlohmann::json err_list = nlohmann::json::array();
+        for (const auto& sub : err.details) {
+            err_list.push_back(error_to_json_impl(sub));
+        }
+        j["error"] = nlohmann::json{
+            {"type", "MultiError"},
+            {"message", std::format("Found {} error(s)", err.details.size())},
+            {"details", std::move(err_list)}
+        };
+    }
+
+    std::cout << j.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << std::endl;
 }
 
 }  // namespace pml

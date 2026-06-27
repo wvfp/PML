@@ -104,7 +104,8 @@ struct EvaluatedArguments {
     const Value& func,
     const std::vector<Value>& args,
     const std::unordered_map<std::string, Value>& kwargs,
-    std::shared_ptr<Environment> env);
+    std::shared_ptr<Environment> env,
+    SourceLocation call_site = {});
 
 // ==========================================================================================================================================================================================================================================═
 // Truthiness
@@ -118,104 +119,129 @@ struct EvaluatedArguments {
 // ==========================================================================================================================================================================================================================================═
 
 /// Signature for all special form handlers.
+/// @param expr  The expressions of the form (head arg1 arg2 ...), arena-allocated.
+/// @param env   The current lexical environment.
+/// @param call_site  The source location of the opening '(' of this form.
 using SpecialForm = std::function<Result<EvalResult>(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env)>;
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site)>;
 
 // ---- Core special forms ------------------------------------------------------------------------------------------------------------
 
 /// (quote <expr>) → return expr unevaluated.
 [[nodiscard]] Result<EvalResult> eval_quote(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site);
 
 /// (if <cond> <then> [<else>])
 [[nodiscard]] Result<EvalResult> eval_if(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site);
 
 /// (cond (<test> <expr> ...) ... (else <default> ...))
 [[nodiscard]] Result<EvalResult> eval_cond(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site);
 
 /// (define <name> <expr>) or (define (<name> <params>) <body>...)
 [[nodiscard]] Result<EvalResult> eval_define(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site);
 
 /// (lambda (<params>) <body>...)
 [[nodiscard]] Result<EvalResult> eval_lambda(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site);
 
 /// (let ((name expr) ...) <body>...) — sequential bindings
 /// (delegated to eval_let_star, declared below).
 
 /// (let* ((name expr) ...) <body>...) — sequential bindings.
 [[nodiscard]] Result<EvalResult> eval_let_star(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site);
 
 /// (let-par ((name expr) ...) <body>...) — parallel bindings (was let before Wave 3).
 [[nodiscard]] Result<EvalResult> eval_let_par(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site);
 
 /// (letrec ((name expr) ...) <body>...) — recursive bindings.
 [[nodiscard]] Result<EvalResult> eval_letrec(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site);
 
 /// (begin <expr> ...) — evaluate sequentially, return last.
 [[nodiscard]] Result<EvalResult> eval_begin(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site);
 
 /// (set! <name> <expr>)
 [[nodiscard]] Result<EvalResult> eval_set(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site);
 
 /// (and <expr> ...) — short-circuit, return last truthy or first falsy.
 [[nodiscard]] Result<EvalResult> eval_and(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site);
 
 /// (or <expr> ...) — short-circuit, return first truthy.
 [[nodiscard]] Result<EvalResult> eval_or(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site);
 
 /// (do ((var init step) ...) (test result...) <body>...)
 [[nodiscard]] Result<EvalResult> eval_do(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site);
 
 /// (quasiquote <expr>) — template with unquote interpolation.
 [[nodiscard]] Result<EvalResult> eval_quasiquote(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site);
 
 // ---- Module system special forms ----------------------------------------------------------------------------------------
 
 /// (provide sym1 sym2 ...) — declare exported symbols from this module.
 [[nodiscard]] Result<EvalResult> eval_provide(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site);
 
 /// (import "path.pml" [as prefix]) — load a module and bind it.
 [[nodiscard]] Result<EvalResult> eval_import(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site);
 
 // ---- Macro system special forms ----------------------------------------------------------------------------------------─
 
 /// (defmacro name (params) <body>...) — define a macro.
 [[nodiscard]] Result<EvalResult> eval_defmacro(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site);
 
 /// (macroexpand <form>) — expand macros without evaluating.
 [[nodiscard]] Result<EvalResult> eval_macroexpand(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site);
 
 // ---- Utility special forms ----------------------------------------------------------------------------------------------------
 
 /// (assert <expr>) — evaluate and error if falsy.
 [[nodiscard]] Result<EvalResult> eval_assert(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site);
 
 /// (gensym) or (gensym "prefix") — generate a unique symbol.
 [[nodiscard]] Result<EvalResult> eval_gensym(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site);
 
 /// (with-exception-handler <handler> <thunk>) — catch errors from thunk.
 /// Calls handler with the error as a value (list: (error <type> <message>)).
 [[nodiscard]] Result<EvalResult> eval_with_exception_handler(
-    const std::vector<Expr>& expr, std::shared_ptr<Environment> env);
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site);
 
 // ---- Special forms dispatch table ------------------------------------------------------------------------------------─
 

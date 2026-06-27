@@ -372,22 +372,22 @@ void register_string_builtins(std::shared_ptr<Environment> env) {
 
     // ---- string-upcase, string-downcase, string-trim ------------------------------------------------------------
 
-    def("string-upcase", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
+    auto string_case_impl = [](const std::vector<Value>& a, int (*transform_fn)(int),
+                                const char* name) -> Result<Value> {
         if (a.size() != 1) return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(a.size())));
         const auto* s = a[0].as_string();
-        if (!s) return std::unexpected(type_error("string-upcase: argument must be a string"));
+        if (!s) return std::unexpected(type_error(std::string(name) + ": argument must be a string"));
         std::string r = *s;
-        for (auto& c : r) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+        for (auto& c : r) c = static_cast<char>(transform_fn(static_cast<unsigned char>(c)));
         return Value(std::move(r));
+    };
+
+    def("string-upcase", [string_case_impl](const std::vector<Value>& a, Environment&) -> Result<Value> {
+        return string_case_impl(a, std::toupper, "string-upcase");
     });
 
-    def("string-downcase", [](const std::vector<Value>& a, Environment&) -> Result<Value> {
-        if (a.size() != 1) return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(a.size())));
-        const auto* s = a[0].as_string();
-        if (!s) return std::unexpected(type_error("string-downcase: argument must be a string"));
-        std::string r = *s;
-        for (auto& c : r) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        return Value(std::move(r));
+    def("string-downcase", [string_case_impl](const std::vector<Value>& a, Environment&) -> Result<Value> {
+        return string_case_impl(a, std::tolower, "string-downcase");
     });
 
     def("string-trim", [](const std::vector<Value>& a, Environment&) -> Result<Value> {

@@ -408,7 +408,7 @@ nlohmann::json MCPServer::handle_tools_call(const nlohmann::json& params) {
     // Wrap tool result in MCP content array
     nlohmann::json content_item;
     content_item["type"] = "text";
-    content_item["text"] = tool_result.dump(2);
+    content_item["text"] = tool_result.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
 
     nlohmann::json content = nlohmann::json::array();
     content.push_back(std::move(content_item));

@@ -155,7 +155,7 @@ auto Parser::parse_list() -> Result<Expr> {
     if (at_end()) {
         return std::unexpected(syntax_error(
             list_loc,
-            "Unmatched '(' — expected closing ')'"
+            "Unmatched '(' -- expected closing ')'"
         ));
     }
 
