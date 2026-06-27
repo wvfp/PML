@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { PMLPreviewProvider } from './previewProvider';
 import { initDiagnostics } from './diagnostics';
+import { registerCompletionProvider } from './completionProvider';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Diagnostics collection (module-level singleton)
@@ -72,6 +73,9 @@ export function activate(context: vscode.ExtensionContext) {
   statusBarItem.command = 'pml.previewSide';
   statusBarItem.show();
   context.subscriptions.push(statusBarItem);
+
+  // ── Code completion provider ───────────────────────────────────────────────
+  registerCompletionProvider(context);
 
   // ── Custom editor provider ───────────────────────────────────────────────────
   const provider = new PMLPreviewProvider(context);
