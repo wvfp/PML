@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { PMLPreviewProvider } from './previewProvider';
 import { initDiagnostics } from './diagnostics';
 import { registerCompletionProvider } from './completionProvider';
+import { initOutputChannel, getOutputChannel } from './outputChannel';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Diagnostics collection (module-level singleton)
@@ -62,6 +63,9 @@ export function activate(context: vscode.ExtensionContext) {
   _diagnostics = vscode.languages.createDiagnosticCollection('pml');
   context.subscriptions.push(_diagnostics);
   initDiagnostics(_diagnostics);
+
+  // ── Output channel ───────────────────────────────────────────────────────────
+  initOutputChannel();
 
   // ── Status bar item ──────────────────────────────────────────────────────────
   statusBarItem = vscode.window.createStatusBarItem(
@@ -134,6 +138,14 @@ export function activate(context: vscode.ExtensionContext) {
         );
       },
     ),
+  );
+
+  // ── Show output channel ──────────────────────────────────────────────────────
+  context.subscriptions.push(
+    vscode.commands.registerCommand('pml.showOutput', () => {
+      const ch = getOutputChannel();
+      if (ch) ch.show();
+    }),
   );
 }
 

@@ -6,6 +6,7 @@ import * as os from 'os';
 import { executePML, selectMainFile, resolveBinaryPath, RenderError, notifyErrorOnce, resetFirstErrorShown } from './executor';
 import { getDiagnostics, updateStatusBar } from './extension';
 import { setDiagnostics, clearDiagnostics } from './diagnostics';
+import { logRender } from './outputChannel';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PreviewInfo — per-preview-panel state
@@ -311,6 +312,9 @@ export class PMLPreviewProvider implements vscode.CustomReadonlyEditorProvider<P
     webviewPanel: vscode.WebviewPanel,
     tempDir: string,
   ): Promise<void> {
+    let elapsed = 0;
+    let binaryPath = '';
+    let sourceDir = '';
     try {
       updateStatusBar('rendering');
       const renderStart = performance.now();
@@ -330,8 +334,8 @@ export class PMLPreviewProvider implements vscode.CustomReadonlyEditorProvider<P
       //   - NOTE: -o is ignored in --json mode (run_json_mode doesn't read
       //     opts.output_dir). Output files are written to CWD (= sourceDir).
       //     We copy them to tempDir afterwards for WebView serving.
-      const binaryPath = resolveBinaryPath(this.context);
-      const sourceDir = path.dirname(document.uri.fsPath);
+      binaryPath = resolveBinaryPath(this.context);
+      sourceDir = path.dirname(document.uri.fsPath);
       const result = await executePML(pmlPath, sourceDir, binaryPath);
       const elapsed = Math.round(performance.now() - renderStart);
 
@@ -365,6 +369,7 @@ export class PMLPreviewProvider implements vscode.CustomReadonlyEditorProvider<P
           console.warn('[PML] All output files missing — sending empty result');
         }
         this._postMessage(webviewPanel, { command: 'render', files });
+        logRender(document.uri.fsPath, binaryPath, sourceDir, true, elapsed, result.files, null);
 
         // ── Re-scan imports and update dependency tracking ─────────────
         // The user may have added or removed (import "...") forms since the
@@ -383,6 +388,7 @@ export class PMLPreviewProvider implements vscode.CustomReadonlyEditorProvider<P
           );
         }
         const err = result.error;
+        logRender(document.uri.fsPath, binaryPath, sourceDir, false, elapsed, result.files, result.error);
         this._postMessage(webviewPanel, {
           command: 'error',
           type: err?.type ?? 'PMLExecutionError',
@@ -400,6 +406,7 @@ export class PMLPreviewProvider implements vscode.CustomReadonlyEditorProvider<P
       const message = err instanceof Error ? err.message : String(err);
       clearDiagnostics(document.uri);
       notifyErrorOnce('PMLSystemError', message);
+      logRender(document.uri.fsPath, binaryPath, sourceDir, false, elapsed, [], null);
       this._postMessage(webviewPanel, {
         command: 'error',
         type: 'PMLSystemError',
