@@ -76,6 +76,11 @@
           "enum": ["live", "manual"],
           "default": "live",
           "description": "PML preview render mode: live (render on each keystroke) or manual (render only on save)"
+        },
+        "pml.binaryPath": {
+          "type": "string",
+          "default": "",
+          "description": "Custom pml.exe path. Leave empty to use the bundled pml-bin/pml.exe. Reload window after changing."
         }
       }
     }

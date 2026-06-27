@@ -123,6 +123,15 @@ export function selectMainFile(files: string[]): string | null {
  * @returns The absolute path to the PML binary.
  */
 export function resolveBinaryPath(context: vscode.ExtensionContext): string {
+  const config = vscode.workspace.getConfiguration('pml');
+  const customPath = config.get<string>('binaryPath');
+  if (customPath) {
+    const trimmed = customPath.trim();
+    if (trimmed && fs.existsSync(trimmed)) {
+      return trimmed;
+    }
+    console.warn(`[PML] Custom binary path not found: "${trimmed}", falling back to bundled`);
+  }
   const binaryName = process.platform === 'win32' ? 'pml.exe' : 'pml';
   return context.asAbsolutePath(path.join('pml-bin', binaryName));
 }
