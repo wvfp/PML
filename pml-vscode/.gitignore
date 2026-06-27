@@ -1,1 +1,2 @@
-pml-bin/
+# Bundled runtime DLLs (MSVC redistributable) — track pml.exe but not DLLs
+pml-bin/*.dll
