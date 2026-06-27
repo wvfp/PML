@@ -436,7 +436,9 @@ export class PMLPreviewProvider implements vscode.CustomReadonlyEditorProvider<P
         let dataUri: string;
         try {
           const buf = fs.readFileSync(absPath);
-          dataUri = `data:image/png;base64,${buf.toString('base64')}`;
+          const ext = path.extname(file).toLowerCase();
+          const mime = ext === '.gif' ? 'image/gif' : 'image/png';
+          dataUri = `data:${mime};base64,${buf.toString('base64')}`;
         } catch {
           return null;
         }
