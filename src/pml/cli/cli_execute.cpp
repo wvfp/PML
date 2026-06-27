@@ -19,6 +19,7 @@
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <nlohmann/json.hpp>
 
 namespace pml {
@@ -90,9 +91,24 @@ int run_json_mode(const CLIOptions& opts, PMLRuntime& runtime)
         runtime.context().output_dir = opts.output_dir;
     }
 
-    // PMLRuntime::execute_file returns errors via RenderResult, not exceptions.
+    // Redirect stdout during execution so (print ...) output doesn't
+    // pollute the JSON response. Captured output is optionally included
+    // as a "messages" field.
+    auto old_buf = std::cout.rdbuf();
+    std::ostringstream capture_buf;
+    std::cout.rdbuf(capture_buf.rdbuf());
+
     auto r = runtime.execute_file(opts.file);
-    std::cout << r.to_json().dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << std::endl;
+
+    // Restore stdout before writing JSON
+    std::cout.rdbuf(old_buf);
+
+    auto j = r.to_json();
+    std::string captured = capture_buf.str();
+    if (!captured.empty()) {
+        j["messages"] = std::move(captured);
+    }
+    std::cout << j.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << std::endl;
 
     return r.success ? 0 : 1;
 }
