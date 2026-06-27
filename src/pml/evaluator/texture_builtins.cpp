@@ -201,6 +201,34 @@ Result<Value> texture_filter(const std::vector<Value>& args, Environment&) {
     return Value(tex);
 }
 
+// ---- render-to-texture ----------------------------------------------------------------------------------------------------------------
+//   (render-to-texture <width> <height> <graphic-object>) → TextureBox value
+//   Renders a GraphicObject at the given resolution and wraps it as a TextureBox.
+
+Result<Value> render_to_texture(const std::vector<Value>& args, Environment&) {
+    if (args.size() != 3) {
+        return std::unexpected(arity_error(SourceLocation{}, 3, static_cast<int>(args.size())));
+    }
+    auto to_int = [](const Value& v) -> int {
+        return v.is_int() ? static_cast<int>(v.int_val())
+             : v.is_double() ? static_cast<int>(v.double_val()) : 0;
+    };
+    int width = to_int(args[0]);
+    int height = to_int(args[1]);
+    if (width <= 0 || height <= 0) {
+        return std::unexpected(type_error(
+            "render-to-texture: width and height must be positive integers"));
+    }
+    const auto* go_ptr = args[2].as_graphic_object();
+    if (!go_ptr || !*go_ptr) {
+        return std::unexpected(type_error(
+            "render-to-texture: third argument must be a graphic object (got " +
+            value_to_string(args[2]) + ")"));
+    }
+    auto tex = std::make_shared<TextureBox>(*go_ptr, width, height);
+    return Value(std::move(tex));
+}
+
 } // anonymous namespace
 
 // ---- Registration ----------------------------------------------------------------------------------------------------------------─
@@ -220,6 +248,7 @@ void register_texture_builtins(std::shared_ptr<Environment> env) {
     def("texture-id",       texture_id);
     def("texture-wrap!",    texture_wrap,     true);
     def("texture-filter!",  texture_filter,   true);
+    def("render-to-texture", render_to_texture);
 }
 
 } // namespace pml

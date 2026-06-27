@@ -54,6 +54,7 @@
 #include "pml/skeleton/skin_binding.h"
 
 // ---- Module system ----------------------------------------------------------------------------------------------------------------
+#include "pml/module/module_loader.h"
 // register_module_builtins is not yet implemented.  Module loading is
 // handled via special forms in the evaluator (eval_import / eval_provide).
 
@@ -158,7 +159,7 @@ nlohmann::json serialize_value(const Value& val) {
     if (const auto* go = val.as_graphic_object()) {
         if (!*go)
             return "<graphic-object>";
-        return std::format("<graphic-object:{}>", (*go)->shape_type);
+        return std::format("<graphic-object:{}>", to_string((*go)->shape_type));
     }
     // Module → "<module>"
     if (val.is_module()) {
@@ -255,6 +256,7 @@ PMLRuntime::PMLRuntime()
     // Initialize per-runtime mutable state (styles, palettes, etc.) so that
     // each PMLRuntime instance is isolated from others.
     ctx_.reset();
+    ctx_.module_loader = std::make_shared<ModuleLoader>(m_env);
     init_global_env();
 }
 
@@ -546,6 +548,7 @@ ValidationResult PMLRuntime::validate(const std::string& source,
 void PMLRuntime::reset() {
     m_env = std::make_shared<Environment>();
     ctx_.reset();
+    ctx_.module_loader = std::make_shared<ModuleLoader>(m_env);
     init_global_env();
 }
 

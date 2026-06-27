@@ -47,6 +47,7 @@ enum class ParamKey : uint8_t {
     edge_blend,   ///< edge blend radius in pixels
     uv_vertices,  ///< explicit UV vertices (list of x,y pairs)
     align,        ///< text alignment (left/center/right)
+    perspective_correction, ///< enable perspective-correct texture mapping
     count
 };
 
@@ -60,7 +61,7 @@ enum class ParamKey : uint8_t {
 /// Provides map-like mutation/lookup while storing values in a fixed-size array.
 class Params {
 public:
-    using Mask = uint32_t;
+    using Mask = uint64_t;
     static_assert(static_cast<size_t>(ParamKey::count) <= sizeof(Mask) * 8,
                   "Params mask is too small for the number of keys");
 

@@ -23,6 +23,7 @@
 #include <skia.h>
 #include <codec/SkCodec.h>
 #include <effects/SkPerlinNoiseShader.h>
+#include <effects/SkGradient.h>
 
 #include <png.h>
 
@@ -94,24 +95,77 @@ inline void configure_fill_paint(
     const std::optional<std::string>& fill,
     double /*stroke_width*/,
     sk_sp<SkShader> shader = nullptr,
-    std::optional<BlendMode> blend_mode = std::nullopt)
+    std::optional<BlendMode> blend_mode = std::nullopt,
+    float opacity = 1.0f,
+    const std::optional<Gradient>* fill_gradient = nullptr)
 {
     paint.setAntiAlias(true);
     paint.setStyle(SkPaint::kFill_Style);
-    if (shader) {
-        paint.setShader(std::move(shader));
-        paint.setColor(SK_ColorWHITE);
-    } else if (fill) {
-        if (auto c = parse_sk_color(*fill)) {
-            paint.setColor(*c);
+
+    // Gradient fill takes highest precedence
+    bool has_gradient = false;
+    if (fill_gradient && *fill_gradient) {
+        const Gradient& g = **fill_gradient;
+        const size_t n = g.stops.size();
+        std::vector<SkColor4f> colors;
+        std::vector<float> positions;
+        colors.reserve(n);
+        positions.reserve(n);
+        for (const auto& stop : g.stops) {
+            auto skc = parse_sk_color(stop.color);
+            colors.push_back(skc.has_value()
+                ? SkColor4f::FromColor(*skc)
+                : SkColors::kTransparent);
+            positions.push_back(static_cast<float>(
+                std::clamp(stop.position, 0.0, 1.0)));
+        }
+
+        SkGradient::Colors grad_colors(
+            SkSpan(colors.data(), n),
+            SkSpan(positions.data(), n),
+            SkTileMode::kClamp);
+
+        sk_sp<SkShader> grad_shader;
+        if (g.type == GradientType::Radial) {
+            grad_shader = SkShaders::RadialGradient(
+                SkPoint::Make(static_cast<float>(g.cx),
+                              static_cast<float>(g.cy)),
+                static_cast<float>(g.r),
+                SkGradient(grad_colors, SkGradient::Interpolation{}));
+        } else {
+            SkPoint pts[2] = {
+                SkPoint::Make(static_cast<float>(g.x1), static_cast<float>(g.y1)),
+                SkPoint::Make(static_cast<float>(g.x2), static_cast<float>(g.y2)),
+            };
+            grad_shader = SkShaders::LinearGradient(pts, SkGradient(grad_colors, SkGradient::Interpolation{}));
+        }
+        if (grad_shader) {
+            paint.setShader(std::move(grad_shader));
+            paint.setColor(SK_ColorWHITE);
+            has_gradient = true;
+        }
+    }
+
+    if (!has_gradient) {
+        if (shader) {
+            paint.setShader(std::move(shader));
+            paint.setColor(SK_ColorWHITE);
+        } else if (fill) {
+            if (auto c = parse_sk_color(*fill)) {
+                paint.setColor(*c);
+            } else {
+                paint.setColor(SK_ColorTRANSPARENT);
+            }
         } else {
             paint.setColor(SK_ColorTRANSPARENT);
         }
-    } else {
-        paint.setColor(SK_ColorTRANSPARENT);
     }
+
     if (blend_mode.has_value()) {
         paint.setBlendMode(to_skia_blend_mode(*blend_mode));
+    }
+    if (opacity < 1.0f) {
+        paint.setAlphaf(paint.getColor4f().fA * opacity);
     }
 }
 
@@ -119,7 +173,8 @@ inline void configure_stroke_paint(
     SkPaint& paint,
     const std::optional<std::string>& stroke,
     double stroke_width,
-    std::optional<BlendMode> blend_mode = std::nullopt)
+    std::optional<BlendMode> blend_mode = std::nullopt,
+    float opacity = 1.0f)
 {
     paint.setAntiAlias(true);
     paint.setStyle(SkPaint::kStroke_Style);
@@ -135,6 +190,9 @@ inline void configure_stroke_paint(
     }
     if (blend_mode.has_value()) {
         paint.setBlendMode(to_skia_blend_mode(*blend_mode));
+    }
+    if (opacity < 1.0f) {
+        paint.setAlphaf(paint.getColor4f().fA * opacity);
     }
 }
 

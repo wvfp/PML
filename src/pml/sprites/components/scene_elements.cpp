@@ -102,7 +102,7 @@ const std::unordered_map<std::string, TimeColors> k_time_colors = {
             double y = uniform(rng, -half * 0.8, half * 0.8);
             double h = uniform(rng, 3.0, 6.0);
             parts.emplace_back(
-                "line",
+                ShapeType::Line,
                 Params{{ParamKey::x1, x}, {ParamKey::y1, y}, {ParamKey::x2, x + uniform(rng, -1.0, 1.0)}, {ParamKey::y2, y - h}},
                 std::nullopt,
                 colors.detail,
@@ -114,7 +114,7 @@ const std::unordered_map<std::string, TimeColors> k_time_colors = {
             double y = uniform(rng, -half * 0.6, half * 0.6);
             double r = uniform(rng, 2.0, 4.0);
             parts.emplace_back(
-                "ellipse",
+                ShapeType::Ellipse,
                 Params{{ParamKey::cx, x}, {ParamKey::cy, y}, {ParamKey::rx, r}, {ParamKey::ry, r * 0.7}},
                 colors.detail,
                 std::nullopt,
@@ -124,7 +124,7 @@ const std::unordered_map<std::string, TimeColors> k_time_colors = {
         for (int i = 0; i < 3; ++i) {
             double y = -half + (i + 1) * (sz / 4.0);
             parts.emplace_back(
-                "line",
+                ShapeType::Line,
                 Params{{ParamKey::x1, -half}, {ParamKey::y1, y}, {ParamKey::x2, half}, {ParamKey::y2, y}},
                 std::nullopt,
                 colors.detail,
@@ -135,7 +135,7 @@ const std::unordered_map<std::string, TimeColors> k_time_colors = {
             double x = uniform(rng, -half * 0.8, half * 0.8);
             double y = uniform(rng, -half * 0.8, half * 0.8);
             parts.emplace_back(
-                "circle",
+                ShapeType::Circle,
                 Params{{ParamKey::cx, x}, {ParamKey::cy, y}, {ParamKey::r, 1.0}},
                 colors.detail,
                 std::nullopt,
@@ -145,7 +145,7 @@ const std::unordered_map<std::string, TimeColors> k_time_colors = {
         for (int i = 0; i < 2; ++i) {
             double y = -half * 0.4 + i * (sz * 0.4);
             parts.emplace_back(
-                "line",
+                ShapeType::Line,
                 Params{{ParamKey::x1, -half * 0.6}, {ParamKey::y1, y}, {ParamKey::x2, half * 0.6}, {ParamKey::y2, y + 2.0}},
                 std::nullopt,
                 colors.detail,
@@ -156,7 +156,7 @@ const std::unordered_map<std::string, TimeColors> k_time_colors = {
             double x = uniform(rng, -half * 0.7, half * 0.7);
             double y = uniform(rng, -half * 0.7, half * 0.7);
             parts.emplace_back(
-                "circle",
+                ShapeType::Circle,
                 Params{{ParamKey::cx, x}, {ParamKey::cy, y}, {ParamKey::r, uniform(rng, 1.0, 2.0)}},
                 colors.detail,
                 std::nullopt,
@@ -171,7 +171,7 @@ const std::unordered_map<std::string, TimeColors> k_time_colors = {
             for (int col = -1; col < 3; ++col) {
                 double x = -half + col * brick_w + offset;
                 parts.emplace_back(
-                    "rect",
+                    ShapeType::Rect,
                     Params{{ParamKey::x, x + 0.5}, {ParamKey::y, y + 0.5}, {ParamKey::w, brick_w - 1.0}, {ParamKey::h, brick_h - 1.0}},
                     std::nullopt,
                     colors.edge,
@@ -190,7 +190,7 @@ const std::unordered_map<std::string, TimeColors> k_time_colors = {
     double half = sz / 2.0;
     if (edge == "top") {
         return {GraphicObject(
-            "line",
+            ShapeType::Line,
             Params{{ParamKey::x1, -half}, {ParamKey::y1, -half}, {ParamKey::x2, half}, {ParamKey::y2, -half}},
             std::nullopt,
             colors.edge,
@@ -198,7 +198,7 @@ const std::unordered_map<std::string, TimeColors> k_time_colors = {
     }
     if (edge == "bottom") {
         return {GraphicObject(
-            "line",
+            ShapeType::Line,
             Params{{ParamKey::x1, -half}, {ParamKey::y1, half}, {ParamKey::x2, half}, {ParamKey::y2, half}},
             std::nullopt,
             colors.edge,
@@ -206,7 +206,7 @@ const std::unordered_map<std::string, TimeColors> k_time_colors = {
     }
     if (edge == "left") {
         return {GraphicObject(
-            "line",
+            ShapeType::Line,
             Params{{ParamKey::x1, -half}, {ParamKey::y1, -half}, {ParamKey::x2, -half}, {ParamKey::y2, half}},
             std::nullopt,
             colors.edge,
@@ -214,7 +214,7 @@ const std::unordered_map<std::string, TimeColors> k_time_colors = {
     }
     if (edge == "right") {
         return {GraphicObject(
-            "line",
+            ShapeType::Line,
             Params{{ParamKey::x1, half}, {ParamKey::y1, -half}, {ParamKey::x2, half}, {ParamKey::y2, half}},
             std::nullopt,
             colors.edge,
@@ -232,7 +232,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
     double canopy_r = 22.0 * scale;
 
     parts.emplace_back(
-        "rect",
+        ShapeType::Rect,
         Params{{ParamKey::x, -trunk_w / 2.0}, {ParamKey::y, 0.0}, {ParamKey::w, trunk_w}, {ParamKey::h, trunk_h}},
         sc.trunk,
         "#3e2723",
@@ -245,7 +245,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
         double oy = -trunk_h * 0.3 - i * canopy_r * 0.5;
         double r = canopy_r * (1.0 - i * 0.15);
         parts.emplace_back(
-            "ellipse",
+            ShapeType::Ellipse,
             Params{{ParamKey::cx, ox}, {ParamKey::cy, oy}, {ParamKey::rx, r}, {ParamKey::ry, r * 0.85}},
             sc.leaf,
             "#1b5e20",
@@ -263,7 +263,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
     for (int i = 0; i < 3; ++i) {
         double ox = (i - 1) * r * 0.6 + uniform(rng, -2.0, 2.0);
         parts.emplace_back(
-            "ellipse",
+            ShapeType::Ellipse,
             Params{{ParamKey::cx, ox}, {ParamKey::cy, -r * 0.3}, {ParamKey::rx, r * 0.7}, {ParamKey::ry, r * 0.5}},
             sc.leaf,
             "#2e7d32",
@@ -288,13 +288,13 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
     }
 
     parts.emplace_back(
-        "polygon",
+        ShapeType::Polygon,
         Params{{ParamKey::points, make_points(points)}},
         "#78909c",
         "#455a64",
         1.5);
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, -r * 0.2}, {ParamKey::cy, -r * 0.2}, {ParamKey::rx, r * 0.25}, {ParamKey::ry, r * 0.15}},
         "#90a4ae",
         std::nullopt,
@@ -309,7 +309,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
     double petal_r = 4.0 * scale;
 
     parts.emplace_back(
-        "line",
+        ShapeType::Line,
         Params{{ParamKey::x1, 0.0}, {ParamKey::y1, 0.0}, {ParamKey::x2, 0.0}, {ParamKey::y2, -stem_h}},
         std::nullopt,
         "#4caf50",
@@ -322,7 +322,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
         double px = std::cos(angle) * petal_r * 1.5;
         double py = cy + std::sin(angle) * petal_r * 1.5;
         parts.emplace_back(
-            "ellipse",
+            ShapeType::Ellipse,
             Params{{ParamKey::cx, px}, {ParamKey::cy, py}, {ParamKey::rx, petal_r}, {ParamKey::ry, petal_r * 0.7}},
             sc.flower,
             std::nullopt,
@@ -330,7 +330,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
     }
 
     parts.emplace_back(
-        "circle",
+        ShapeType::Circle,
         Params{{ParamKey::cx, 0.0}, {ParamKey::cy, cy}, {ParamKey::r, petal_r * 0.6}},
         "#ffeb3b",
         std::nullopt,
@@ -346,13 +346,13 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
     double cap_r = 12.0 * scale;
 
     parts.emplace_back(
-        "rect",
+        ShapeType::Rect,
         Params{{ParamKey::x, -stem_w / 2.0}, {ParamKey::y, -stem_h}, {ParamKey::w, stem_w}, {ParamKey::h, stem_h}},
         "#f5f5dc",
         "#bfae8e",
         1.0);
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, 0.0}, {ParamKey::cy, -stem_h - cap_r * 0.3}, {ParamKey::rx, cap_r}, {ParamKey::ry, cap_r * 0.6}},
         "#e53935",
         "#b71c1c",
@@ -363,7 +363,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
         double sx = uniform(rng, -cap_r * 0.5, cap_r * 0.5);
         double sy = -stem_h - cap_r * 0.3 + uniform(rng, -cap_r * 0.2, cap_r * 0.1);
         parts.emplace_back(
-            "circle",
+            ShapeType::Circle,
             Params{{ParamKey::cx, sx}, {ParamKey::cy, sy}, {ParamKey::r, 2.0 * scale}},
             "#ffffff",
             std::nullopt,
@@ -378,19 +378,19 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
     double sz = 28.0 * scale;
 
     parts.emplace_back(
-        "rect",
+        ShapeType::Rect,
         Params{{ParamKey::x, -sz / 2.0}, {ParamKey::y, -sz}, {ParamKey::w, sz}, {ParamKey::h, sz}},
         "#a1887f",
         "#5d4037",
         1.5);
     parts.emplace_back(
-        "line",
+        ShapeType::Line,
         Params{{ParamKey::x1, -sz / 2.0}, {ParamKey::y1, -sz / 2.0}, {ParamKey::x2, sz / 2.0}, {ParamKey::y2, -sz / 2.0}},
         std::nullopt,
         "#6d4c41",
         1.5);
     parts.emplace_back(
-        "line",
+        ShapeType::Line,
         Params{{ParamKey::x1, 0.0}, {ParamKey::y1, -sz}, {ParamKey::x2, 0.0}, {ParamKey::y2, 0.0}},
         std::nullopt,
         "#6d4c41",
@@ -405,7 +405,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
     double h = 30.0 * scale;
 
     parts.emplace_back(
-        "rect",
+        ShapeType::Rect,
         Params{{ParamKey::x, -w / 2.0}, {ParamKey::y, -h}, {ParamKey::w, w}, {ParamKey::h, h}},
         "#8d6e63",
         "#4e342e",
@@ -414,7 +414,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
     for (double frac : {0.2, 0.5, 0.8}) {
         double by = -h + h * frac;
         parts.emplace_back(
-            "line",
+            ShapeType::Line,
             Params{{ParamKey::x1, -w / 2.0}, {ParamKey::y1, by}, {ParamKey::x2, w / 2.0}, {ParamKey::y2, by}},
             std::nullopt,
             "#5d4037",
@@ -429,7 +429,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
     double stick_h = 28.0 * scale;
 
     parts.emplace_back(
-        "line",
+        ShapeType::Line,
         Params{{ParamKey::x1, 0.0}, {ParamKey::y1, 0.0}, {ParamKey::x2, 0.0}, {ParamKey::y2, -stick_h}},
         std::nullopt,
         "#6d4c41",
@@ -437,13 +437,13 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
 
     double flame_y = -stick_h - 6.0 * scale;
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, 0.0}, {ParamKey::cy, flame_y}, {ParamKey::rx, 5.0 * scale}, {ParamKey::ry, 8.0 * scale}},
         "#ff9800",
         std::nullopt,
         0.0);
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, 0.0}, {ParamKey::cy, flame_y - 2.0 * scale}, {ParamKey::rx, 3.0 * scale}, {ParamKey::ry, 5.0 * scale}},
         "#ffeb3b",
         std::nullopt,
@@ -459,7 +459,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
     double board_h = 18.0 * scale;
 
     parts.emplace_back(
-        "line",
+        ShapeType::Line,
         Params{{ParamKey::x1, 0.0}, {ParamKey::y1, 0.0}, {ParamKey::x2, 0.0}, {ParamKey::y2, -post_h}},
         std::nullopt,
         "#6d4c41",
@@ -467,7 +467,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
 
     double board_y = -post_h + board_h / 2.0;
     parts.emplace_back(
-        "rect",
+        ShapeType::Rect,
         Params{{ParamKey::x, -board_w / 2.0}, {ParamKey::y, board_y - board_h / 2.0}, {ParamKey::w, board_w}, {ParamKey::h, board_h}},
         "#d7ccc8",
         "#5d4037",
@@ -484,7 +484,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
 
     for (double x : {-rail_w / 2.0, rail_w / 2.0}) {
         parts.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, x - post_w / 2.0}, {ParamKey::y, -post_h}, {ParamKey::w, post_w}, {ParamKey::h, post_h}},
             "#8d6e63",
             "#4e342e",
@@ -494,7 +494,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
     for (double frac : {0.35, 0.7}) {
         double ry = -post_h * frac;
         parts.emplace_back(
-            "line",
+            ShapeType::Line,
             Params{{ParamKey::x1, -rail_w / 2.0}, {ParamKey::y1, ry}, {ParamKey::x2, rail_w / 2.0}, {ParamKey::y2, ry}},
             std::nullopt,
             "#6d4c41",
@@ -510,7 +510,7 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
     double lantern_r = 6.0 * scale;
 
     parts.emplace_back(
-        "line",
+        ShapeType::Line,
         Params{{ParamKey::x1, 0.0}, {ParamKey::y1, 0.0}, {ParamKey::x2, 0.0}, {ParamKey::y2, -post_h}},
         std::nullopt,
         "#37474f",
@@ -518,13 +518,13 @@ using MakerFn = std::vector<GraphicObject>(*)(double scale, const SeasonColors& 
 
     double ly = -post_h - lantern_r;
     parts.emplace_back(
-        "rect",
+        ShapeType::Rect,
         Params{{ParamKey::x, -lantern_r}, {ParamKey::y, ly - lantern_r}, {ParamKey::w, lantern_r * 2.0}, {ParamKey::h, lantern_r * 2.0}},
         "#455a64",
         "#263238",
         1.0);
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, 0.0}, {ParamKey::cy, ly}, {ParamKey::rx, lantern_r * 0.7}, {ParamKey::ry, lantern_r * 0.7}},
         "#fff9c4",
         std::nullopt,
@@ -587,7 +587,7 @@ std::shared_ptr<GraphicObject> create_tile(
     double half = sz / 2.0;
 
     children.emplace_back(
-        "rect",
+        ShapeType::Rect,
         Params{{ParamKey::x, -half}, {ParamKey::y, -half}, {ParamKey::w, static_cast<double>(sz)}, {ParamKey::h, static_cast<double>(sz)}},
         colors.base,
         std::nullopt,
@@ -602,7 +602,7 @@ std::shared_ptr<GraphicObject> create_tile(
     }
 
     return std::make_shared<GraphicObject>(
-        "group",
+        ShapeType::Group,
         Params{},
         std::nullopt,
         std::nullopt,
@@ -650,7 +650,7 @@ std::shared_ptr<GraphicObject> create_decoration(
     auto children = maker(scale, sc, variant);
 
     return std::make_shared<GraphicObject>(
-        "group",
+        ShapeType::Group,
         Params{},
         std::nullopt,
         std::nullopt,
@@ -698,7 +698,7 @@ namespace {
 
     const auto& tc2 = it->second;
     parts.emplace_back(
-        "rect",
+        ShapeType::Rect,
         Params{{ParamKey::x, -half_w}, {ParamKey::y, ground_y}, {ParamKey::w, static_cast<double>(w)}, {ParamKey::h, h / 2.0 - ground_y + h * 0.05}},
         tc2.ground,
         std::nullopt,
@@ -710,13 +710,13 @@ namespace {
             double tx = -half_w + (i + 0.5) * (w / 5.0) + uniform(rng, -10.0, 10.0);
             double tree_h = uniform(rng, 30.0, 50.0);
             parts.emplace_back(
-                "line",
+                ShapeType::Line,
                 Params{{ParamKey::x1, tx}, {ParamKey::y1, ground_y}, {ParamKey::x2, tx}, {ParamKey::y2, ground_y - tree_h}},
                 std::nullopt,
                 "#5d4037",
                 4.0);
             parts.emplace_back(
-                "ellipse",
+                ShapeType::Ellipse,
                 Params{{ParamKey::cx, tx}, {ParamKey::cy, ground_y - tree_h - 10.0}, {ParamKey::rx, 15.0}, {ParamKey::ry, 18.0}},
                 tc2.detail,
                 std::nullopt,
@@ -727,7 +727,7 @@ namespace {
             double mx = -half_w * 0.6 + i * half_w * 0.6;
             double mh = 40.0 + i * 15.0;
             parts.emplace_back(
-                "polygon",
+                ShapeType::Polygon,
                 Params{{ParamKey::points, make_points({mx - 30.0, ground_y, mx, ground_y - mh, mx + 30.0, ground_y})}},
                 tc2.detail,
                 "#37474f",
@@ -738,7 +738,7 @@ namespace {
         for (int i = 0; i < 4; ++i) {
             double wy = ground_y + 5.0 + i * 8.0;
             parts.emplace_back(
-                "line",
+                ShapeType::Line,
                 Params{{ParamKey::x1, -half_w * 0.8}, {ParamKey::y1, wy}, {ParamKey::x2, half_w * 0.8}, {ParamKey::y2, wy + uniform(rng, -2.0, 2.0)}},
                 std::nullopt,
                 "#0288d1",
@@ -751,7 +751,7 @@ namespace {
             double bw = uniform(rng, 18.0, 28.0);
             double bh = uniform(rng, 25.0, 45.0);
             parts.emplace_back(
-                "rect",
+                ShapeType::Rect,
                 Params{{ParamKey::x, bx - bw / 2.0}, {ParamKey::y, ground_y - bh}, {ParamKey::w, bw}, {ParamKey::h, bh}},
                 "#a1887f",
                 "#5d4037",
@@ -761,7 +761,7 @@ namespace {
         for (int i = 0; i < 3; ++i) {
             double px = -half_w * 0.6 + i * half_w * 0.6;
             parts.emplace_back(
-                "rect",
+                ShapeType::Rect,
                 Params{{ParamKey::x, px - 6.0}, {ParamKey::y, ground_y - 50.0}, {ParamKey::w, 12.0}, {ParamKey::h, 50.0}},
                 "#616161",
                 "#424242",
@@ -786,7 +786,7 @@ namespace {
             double cx = uniform(rng, -half_w * 0.7, half_w * 0.7);
             double cy = uniform(rng, -half_h * 0.7, -half_h * 0.3);
             parts.emplace_back(
-                "ellipse",
+                ShapeType::Ellipse,
                 Params{{ParamKey::cx, cx}, {ParamKey::cy, cy}, {ParamKey::rx, 25.0}, {ParamKey::ry, 12.0}},
                 "#b0bec580",
                 std::nullopt,
@@ -797,7 +797,7 @@ namespace {
             double rx = uniform(rng, -half_w * 0.9, half_w * 0.9);
             double ry = uniform(rng, -half_h, half_h);
             parts.emplace_back(
-                "line",
+                ShapeType::Line,
                 Params{{ParamKey::x1, rx}, {ParamKey::y1, ry}, {ParamKey::x2, rx - 1.0}, {ParamKey::y2, ry + 8.0}},
                 std::nullopt,
                 "#90a4ae80",
@@ -808,7 +808,7 @@ namespace {
             double sx = uniform(rng, -half_w * 0.9, half_w * 0.9);
             double sy = uniform(rng, -half_h, half_h);
             parts.emplace_back(
-                "circle",
+                ShapeType::Circle,
                 Params{{ParamKey::cx, sx}, {ParamKey::cy, sy}, {ParamKey::r, 2.0}},
                 "#ffffffcc",
                 std::nullopt,
@@ -816,7 +816,7 @@ namespace {
         }
     } else if (weather == "fog") {
         parts.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, -half_w}, {ParamKey::y, -half_h * 0.3}, {ParamKey::w, static_cast<double>(w)}, {ParamKey::h, h * 0.6}},
             "#cfd8dc60",
             std::nullopt,
@@ -847,13 +847,13 @@ std::shared_ptr<GraphicObject> create_background(
     double half_h = h / 2.0;
 
     children.emplace_back(
-        "rect",
+        ShapeType::Rect,
         Params{{ParamKey::x, -half_w}, {ParamKey::y, -half_h}, {ParamKey::w, static_cast<double>(w)}, {ParamKey::h, h / 2.0}},
         tc.sky_top,
         std::nullopt,
         0.0);
     children.emplace_back(
-        "rect",
+        ShapeType::Rect,
         Params{{ParamKey::x, -half_w}, {ParamKey::y, 0.0}, {ParamKey::w, static_cast<double>(w)}, {ParamKey::h, h / 2.0}},
         tc.sky_bot,
         std::nullopt,
@@ -866,7 +866,7 @@ std::shared_ptr<GraphicObject> create_background(
     children.insert(children.end(), weather_parts.begin(), weather_parts.end());
 
     return std::make_shared<GraphicObject>(
-        "group",
+        ShapeType::Group,
         Params{},
         std::nullopt,
         std::nullopt,

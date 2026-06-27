@@ -32,7 +32,7 @@ namespace {
 
     if (top == "armor") {
         parts.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{
                 {ParamKey::x, -torso_w / 2.0 + 2.0},
                 {ParamKey::y, 2.0},
@@ -43,7 +43,7 @@ namespace {
             2.0);
         for (double dx : {-torso_w / 2.0 - 4.0, torso_w / 2.0 - 8.0}) {
             parts.emplace_back(
-                "ellipse",
+                ShapeType::Ellipse,
                 Params{
                     {ParamKey::cx, dx + 6.0},
                     {ParamKey::cy, torso_h * 0.08},
@@ -55,7 +55,7 @@ namespace {
         }
     } else if (top == "robe") {
         parts.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{
                 {ParamKey::x, -torso_w / 2.0 - 4.0},
                 {ParamKey::y, -4.0},
@@ -65,7 +65,7 @@ namespace {
             "#1a1a1a",
             2.0);
         parts.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{
                 {ParamKey::x, -torso_w / 2.0},
                 {ParamKey::y, torso_h * 0.5},
@@ -76,7 +76,7 @@ namespace {
             1.0);
     } else if (top == "hoodie") {
         parts.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{
                 {ParamKey::x, -torso_w / 2.0 - 2.0},
                 {ParamKey::y, 0.0},
@@ -86,7 +86,7 @@ namespace {
             "#1a1a1a",
             2.0);
         parts.emplace_back(
-            "ellipse",
+            ShapeType::Ellipse,
             Params{
                 {ParamKey::cx, 0.0},
                 {ParamKey::cy, -8.0},
@@ -96,7 +96,7 @@ namespace {
             "#1a1a1a",
             1.5);
         parts.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{
                 {ParamKey::x, -torso_w * 0.3},
                 {ParamKey::y, torso_h * 0.55},
@@ -107,7 +107,7 @@ namespace {
             1.0);
     } else if (top == "dress") {
         parts.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{
                 {ParamKey::x, -torso_w / 2.0 - 2.0},
                 {ParamKey::y, 0.0},
@@ -118,7 +118,7 @@ namespace {
             2.0);
     } else if (top == "suit") {
         parts.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{
                 {ParamKey::x, -torso_w / 2.0},
                 {ParamKey::y, 0.0},
@@ -128,7 +128,7 @@ namespace {
             "#1a1a1a",
             2.0);
         parts.emplace_back(
-            "line",
+            ShapeType::Line,
             Params{
                 {ParamKey::x1, 0.0},
                 {ParamKey::y1, 0.0},
@@ -138,7 +138,7 @@ namespace {
             "#1a1a1a",
             1.5);
         parts.emplace_back(
-            "line",
+            ShapeType::Line,
             Params{
                 {ParamKey::x1, 0.0},
                 {ParamKey::y1, 0.0},
@@ -148,7 +148,7 @@ namespace {
             "#1a1a1a",
             1.5);
         parts.emplace_back(
-            "polygon",
+            ShapeType::Polygon,
             Params{{ParamKey::points, make_points({
                 0.0, 2.0,
                 -4.0, torso_h * 0.4,
@@ -159,7 +159,7 @@ namespace {
             1.0);
     } else if (top == "sailor") {
         parts.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{
                 {ParamKey::x, -torso_w / 2.0},
                 {ParamKey::y, 0.0},
@@ -169,7 +169,7 @@ namespace {
             "#1a1a1a",
             2.0);
         parts.emplace_back(
-            "polygon",
+            ShapeType::Polygon,
             Params{{ParamKey::points, make_points({
                 -torso_w * 0.4, 0.0,
                 0.0, torso_h * 0.3,
@@ -179,7 +179,7 @@ namespace {
             1.5);
     } else if (top == "tank") {
         parts.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{
                 {ParamKey::x, -torso_w / 2.0 + 6.0},
                 {ParamKey::y, 0.0},
@@ -191,7 +191,7 @@ namespace {
     } else {
         // t-shirt / jacket default
         parts.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{
                 {ParamKey::x, -torso_w / 2.0},
                 {ParamKey::y, 0.0},
@@ -202,7 +202,7 @@ namespace {
             2.0);
         if (top == "jacket") {
             parts.emplace_back(
-                "line",
+                ShapeType::Line,
                 Params{
                     {ParamKey::x1, 0.0},
                     {ParamKey::y1, 0.0},
@@ -218,7 +218,7 @@ namespace {
         for (int i = 0; i < 3; ++i) {
             double y = torso_h * 0.2 + i * torso_h * 0.25;
             parts.emplace_back(
-                "line",
+                ShapeType::Line,
                 Params{
                     {ParamKey::x1, -torso_w / 2.0 + 4.0},
                     {ParamKey::y1, y},
@@ -230,7 +230,7 @@ namespace {
         }
     } else if (detail == "badge") {
         parts.emplace_back(
-            "ellipse",
+            ShapeType::Ellipse,
             Params{
                 {ParamKey::cx, torso_w * 0.25},
                 {ParamKey::cy, torso_h * 0.2},
@@ -256,7 +256,7 @@ namespace {
 
     if (bottom == "skirt") {
         parts.emplace_back(
-            "polygon",
+            ShapeType::Polygon,
             Params{{ParamKey::points, make_points({
                 -torso_w / 2.0, leg_y,
                 torso_w / 2.0, leg_y,
@@ -267,7 +267,7 @@ namespace {
             2.0);
     } else if (bottom == "long-skirt") {
         parts.emplace_back(
-            "polygon",
+            ShapeType::Polygon,
             Params{{ParamKey::points, make_points({
                 -torso_w / 2.0, leg_y,
                 torso_w / 2.0, leg_y,
@@ -279,7 +279,7 @@ namespace {
     } else if (bottom == "shorts") {
         for (double dx : {-leg_w / 2.0 - 2.0, leg_w / 2.0 + 2.0}) {
             parts.emplace_back(
-                "rect",
+                ShapeType::Rect,
                 Params{
                     {ParamKey::x, dx - leg_w / 2.0},
                     {ParamKey::y, leg_y},
@@ -292,7 +292,7 @@ namespace {
     } else if (bottom == "armor") {
         for (double dx : {-leg_w / 2.0 - 2.0, leg_w / 2.0 + 2.0}) {
             parts.emplace_back(
-                "rect",
+                ShapeType::Rect,
                 Params{
                     {ParamKey::x, dx - leg_w / 2.0},
                     {ParamKey::y, leg_y},
@@ -306,7 +306,7 @@ namespace {
         // pants
         for (double dx : {-leg_w / 2.0 - 2.0, leg_w / 2.0 + 2.0}) {
             parts.emplace_back(
-                "rect",
+                ShapeType::Rect,
                 Params{
                     {ParamKey::x, dx - leg_w / 2.0},
                     {ParamKey::y, leg_y},
@@ -351,7 +351,7 @@ namespace {
 
     for (double dx : {-torso_w * 0.2, torso_w * 0.2}) {
         parts.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{
                 {ParamKey::x, dx - shoe_w / 2.0},
                 {ParamKey::y, leg_y - 2.0},
@@ -410,7 +410,7 @@ std::shared_ptr<GraphicObject> create_outfit(
     all.insert(all.end(), shoe_parts.begin(), shoe_parts.end());
 
     return std::make_shared<GraphicObject>(
-        "group",
+        ShapeType::Group,
         Params{},
         std::nullopt,
         std::nullopt,

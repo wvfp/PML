@@ -279,21 +279,19 @@ Result<std::shared_ptr<Module>> ModuleLoader::do_load(
 // Global ModuleLoader accessor
 // ==========================================================================================================================================================================================================================================═
 
-static std::shared_ptr<ModuleLoader> s_global_loader;
-
 std::shared_ptr<ModuleLoader> get_global_loader(std::shared_ptr<Environment> env) {
-    if (s_global_loader) {
-        return s_global_loader;
-    }
-
     // Walk to the root (top-level) environment
     auto root = std::move(env);
     while (root->parent) {
         root = root->parent;
     }
 
-    s_global_loader = std::make_shared<ModuleLoader>(std::move(root));
-    return s_global_loader;
+    // Last-resort fallback when no PMLContext is active (e.g., standalone tests).
+    static std::shared_ptr<ModuleLoader> s_fallback;
+    if (!s_fallback) {
+        s_fallback = std::make_shared<ModuleLoader>(std::move(root));
+    }
+    return s_fallback;
 }
 
 }  // namespace pml

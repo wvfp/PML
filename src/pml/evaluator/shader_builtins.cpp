@@ -72,11 +72,12 @@ void register_shader_builtins(std::shared_ptr<Environment> env) {
         return Value(static_cast<int64_t>(*handle));
     });
 
-    // ---- (apply-shader! graphic-object shader-handle) ------------------------------------------------─
+    // ---- (apply-shader! graphic-object shader-handle [:coordinate-space :world]) ----
     // Return a new GraphicObject with the shader handle attached.
-    def("apply-shader!", [](const std::vector<Value>& args,
+    // Optional :coordinate-space kwarg accepts :world (default :local).
+    def_kw("apply-shader!", [](const std::vector<Value>& args,
                             Environment& /*env*/) -> Result<Value> {
-        if (args.size() != 2) {
+        if (args.size() < 2) {
             return std::unexpected(arity_error(
                 SourceLocation{}, 2, static_cast<int>(args.size())));
         }
@@ -98,6 +99,18 @@ void register_shader_builtins(std::shared_ptr<Environment> env) {
         }
 
         auto modified = (*obj)->with_param("shader", Value(handle));
+
+        // Parse optional keyword arguments
+        auto kwargs = pml::kwargs::parse_kwargs(args, 2);
+        auto coord_it = kwargs.find("coordinate-space");
+        if (coord_it != kwargs.end()) {
+            if (auto s = value_to_opt_string(coord_it->second)) {
+                if (*s == "world") {
+                    modified.metadata["shader_coord_space"] = Value(std::string("world"));
+                }
+            }
+        }
+
         return Value(std::make_shared<GraphicObject>(std::move(modified)));
     });
 

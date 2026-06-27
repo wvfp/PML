@@ -30,7 +30,7 @@ HairParts bangs(const std::string& color) {
     double bw = k_head_w * 0.85;
     double bh = 14.0;
     parts.emplace_back(
-        "rect",
+        ShapeType::Rect,
         Params{{ParamKey::x, -bw / 2.0}, {ParamKey::y, -k_head_w / 2.0 - 4.0}, {ParamKey::w, bw}, {ParamKey::h, bh}},
         color,
         "#1a1a1a",
@@ -39,7 +39,7 @@ HairParts bangs(const std::string& color) {
     for (int i = 0; i < 5; ++i) {
         double sx = -bw / 2.0 + strand_spacing * (i + 1);
         parts.emplace_back(
-            "line",
+            ShapeType::Line,
             Params{{ParamKey::x1, sx}, {ParamKey::y1, -k_head_w / 2.0 - 4.0}, {ParamKey::x2, sx + 3.0}, {ParamKey::y2, -k_head_w / 2.0 - 4.0 + bh}},
             std::nullopt,
             "#1a1a1a",
@@ -52,14 +52,14 @@ HairParts create_short(const std::string& color, double /*length*/, bool with_ba
     HairParts parts;
     double cap_h = 16.0;
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, 0.0}, {ParamKey::cy, -k_head_w / 2.0 + 4.0}, {ParamKey::rx, k_head_w / 2.0 + 4.0}, {ParamKey::ry, cap_h}},
         color,
         "#1a1a1a",
         1.5);
     for (double dx : {-k_head_w / 2.0 - 2.0, k_head_w / 2.0 + 2.0}) {
         parts.emplace_back(
-            "ellipse",
+            ShapeType::Ellipse,
             Params{{ParamKey::cx, dx}, {ParamKey::cy, -k_head_w / 4.0}, {ParamKey::rx, 6.0}, {ParamKey::ry, 12.0}},
             color,
             "#1a1a1a",
@@ -75,7 +75,7 @@ HairParts create_short(const std::string& color, double /*length*/, bool with_ba
 HairParts create_medium(const std::string& color, double length, bool with_bangs, bool /*highlights*/) {
     HairParts parts;
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, 0.0}, {ParamKey::cy, -k_head_w / 2.0 + 4.0}, {ParamKey::rx, k_head_w / 2.0 + 5.0}, {ParamKey::ry, 18.0}},
         color,
         "#1a1a1a",
@@ -83,7 +83,7 @@ HairParts create_medium(const std::string& color, double length, bool with_bangs
     double side_h = std::min(length * 0.6, 40.0);
     for (double dx : {-k_head_w / 2.0 - 4.0, k_head_w / 2.0 + 4.0}) {
         parts.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, dx - 8.0}, {ParamKey::y, -k_head_w / 4.0}, {ParamKey::w, 16.0}, {ParamKey::h, side_h}},
             color,
             "#1a1a1a",
@@ -99,7 +99,7 @@ HairParts create_medium(const std::string& color, double length, bool with_bangs
 HairParts create_long(const std::string& color, double length, bool with_bangs, bool /*highlights*/) {
     HairParts parts;
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, 0.0}, {ParamKey::cy, -k_head_w / 2.0 + 4.0}, {ParamKey::rx, k_head_w / 2.0 + 6.0}, {ParamKey::ry, 20.0}},
         color,
         "#1a1a1a",
@@ -107,14 +107,14 @@ HairParts create_long(const std::string& color, double length, bool with_bangs, 
     double side_h = std::min(length * 0.8, 80.0);
     for (double dx : {-k_head_w / 2.0 - 5.0, k_head_w / 2.0 + 5.0}) {
         parts.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, dx - 10.0}, {ParamKey::y, -k_head_w / 4.0}, {ParamKey::w, 20.0}, {ParamKey::h, side_h}},
             color,
             "#1a1a1a",
             1.0);
     }
     parts.emplace_back(
-        "rect",
+        ShapeType::Rect,
         Params{{ParamKey::x, -k_head_w / 2.0 - 4.0}, {ParamKey::y, -k_head_w / 2.0 + 10.0}, {ParamKey::w, k_head_w + 8.0}, {ParamKey::h, length * 0.7}},
         color,
         "#1a1a1a",
@@ -131,13 +131,13 @@ HairParts create_ponytail(const std::string& color, double length, bool with_ban
     double tail_w = 16.0;
     double tail_h = std::min(length * 0.7, 60.0);
     parts.emplace_back(
-        "rect",
+        ShapeType::Rect,
         Params{{ParamKey::x, -tail_w / 2.0}, {ParamKey::y, -k_head_w / 2.0 - 8.0}, {ParamKey::w, tail_w}, {ParamKey::h, tail_h}},
         color,
         "#1a1a1a",
         1.5);
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, 0.0}, {ParamKey::cy, -k_head_w / 2.0 - 8.0}, {ParamKey::rx, tail_w / 2.0 + 2.0}, {ParamKey::ry, 4.0}},
         "#c0392b",
         "#1a1a1a",
@@ -150,13 +150,13 @@ HairParts create_twintails(const std::string& color, double length, bool with_ba
     double tail_h = std::min(length * 0.6, 50.0);
     for (double dx : {-k_head_w / 2.0 - 8.0, k_head_w / 2.0 + 8.0}) {
         parts.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, dx - 7.0}, {ParamKey::y, -k_head_w / 4.0}, {ParamKey::w, 14.0}, {ParamKey::h, tail_h}},
             color,
             "#1a1a1a",
             1.5);
         parts.emplace_back(
-            "ellipse",
+            ShapeType::Ellipse,
             Params{{ParamKey::cx, dx}, {ParamKey::cy, -k_head_w / 4.0}, {ParamKey::rx, 9.0}, {ParamKey::ry, 4.0}},
             "#e74c3c",
             "#1a1a1a",
@@ -178,7 +178,7 @@ HairParts create_spiky(const std::string& color, double /*length*/, bool with_ba
         double perp_x = -std::sin(angle) * 6.0;
         double perp_y = std::cos(angle) * 6.0;
         parts.emplace_back(
-            "polygon",
+            ShapeType::Polygon,
             Params{
                 {ParamKey::points,
                  poly({bx + perp_x, by + perp_y,
@@ -199,7 +199,7 @@ HairParts create_bob(const std::string& color, double length, bool with_bangs, b
     HairParts parts;
     double cap_h = 20.0;
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, 0.0}, {ParamKey::cy, -k_head_w / 2.0 + 4.0}, {ParamKey::rx, k_head_w / 2.0 + 6.0}, {ParamKey::ry, cap_h}},
         color,
         "#1a1a1a",
@@ -207,7 +207,7 @@ HairParts create_bob(const std::string& color, double length, bool with_bangs, b
     double bob_h = std::min(length * 0.4, 28.0);
     for (double dx : {-k_head_w / 2.0 - 6.0, k_head_w / 2.0 + 6.0}) {
         parts.emplace_back(
-            "ellipse",
+            ShapeType::Ellipse,
             Params{{ParamKey::cx, dx}, {ParamKey::cy, 0.0}, {ParamKey::rx, 10.0}, {ParamKey::ry, bob_h}},
             color,
             "#1a1a1a",
@@ -223,7 +223,7 @@ HairParts create_bob(const std::string& color, double length, bool with_bangs, b
 HairParts create_bald(const std::string& /*color*/, double /*length*/, bool /*bangs*/, bool /*highlights*/) {
     HairParts parts;
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, -6.0}, {ParamKey::cy, -k_head_w / 2.0 + 8.0}, {ParamKey::rx, 8.0}, {ParamKey::ry, 5.0}},
         "#FFFFFF");
     return parts;
@@ -286,7 +286,7 @@ std::shared_ptr<GraphicObject> create_hair(
     HairParts parts = maker(color, length, bangs_flag, highlights);
 
     return std::make_shared<GraphicObject>(
-        "group",
+        ShapeType::Group,
         Params{},
         std::nullopt,
         std::nullopt,

@@ -626,27 +626,27 @@ auto SkiaBackend::bind_textures_to_shader(
                 return def;
             };
 
-            if (o.shape_type == "rect") {
+            if (o.shape_type == ShapeType::Rect) {
                 double x = get_param_double(ParamKey::x, 0);
                 double y = get_param_double(ParamKey::y, 0);
                 double w = get_param_double(ParamKey::w, 0);
                 double h = get_param_double(ParamKey::h, 0);
                 min_x = x; min_y = y; max_x = x + w; max_y = y + h;
                 found = true;
-            } else if (o.shape_type == "circle") {
+            } else if (o.shape_type == ShapeType::Circle) {
                 double cx = get_param_double(ParamKey::cx, 0);
                 double cy = get_param_double(ParamKey::cy, 0);
                 double r = get_param_double(ParamKey::r, 0);
                 min_x = cx - r; min_y = cy - r; max_x = cx + r; max_y = cy + r;
                 found = true;
-            } else if (o.shape_type == "ellipse") {
+            } else if (o.shape_type == ShapeType::Ellipse) {
                 double cx = get_param_double(ParamKey::cx, 0);
                 double cy = get_param_double(ParamKey::cy, 0);
                 double rx = get_param_double(ParamKey::rx, 0);
                 double ry = get_param_double(ParamKey::ry, 0);
                 min_x = cx - rx; min_y = cy - ry; max_x = cx + rx; max_y = cy + ry;
                 found = true;
-            } else if (o.shape_type == "line") {
+            } else if (o.shape_type == ShapeType::Line) {
                 double x1 = get_param_double(ParamKey::x, 0);
                 double y1 = get_param_double(ParamKey::y, 0);
                 double x2 = get_param_double(ParamKey::x2, 0);
@@ -677,12 +677,12 @@ auto SkiaBackend::bind_textures_to_shader(
 
     // Helper: determine texture size from GraphicObject
     auto compute_texture_size = [&compute_bounds](const GraphicObject& obj) -> std::pair<int, int> {
-        if (obj.shape_type == "group" || obj.shape_type.empty()) {
+        if (obj.shape_type == ShapeType::Group) {
             auto [w, h] = compute_bounds(obj);
             return {std::max(1, static_cast<int>(std::ceil(w))),
                     std::max(1, static_cast<int>(std::ceil(h)))};
         }
-        if (obj.shape_type == "rect") {
+        if (obj.shape_type == ShapeType::Rect) {
             int w = 256, h = 256;
             if (const Value* v = obj.params.find(ParamKey::w)) {
                 if (v->is_int()) w = static_cast<int>(v->int_val());
@@ -694,7 +694,7 @@ auto SkiaBackend::bind_textures_to_shader(
             }
             return {std::max(1, w), std::max(1, h)};
         }
-        if (obj.shape_type == "circle") {
+        if (obj.shape_type == ShapeType::Circle) {
             double r = 32.0;
             if (const Value* v = obj.params.find(ParamKey::r)) {
                 if (v->is_int()) r = static_cast<double>(v->int_val());
@@ -703,7 +703,7 @@ auto SkiaBackend::bind_textures_to_shader(
             int size = std::max(1, static_cast<int>(std::ceil(r * 2.0)));
             return {size, size};
         }
-        if (obj.shape_type == "ellipse") {
+        if (obj.shape_type == ShapeType::Ellipse) {
             double rx = 32.0, ry = 32.0;
             if (const Value* v = obj.params.find(ParamKey::rx)) {
                 if (v->is_int()) rx = static_cast<double>(v->int_val());

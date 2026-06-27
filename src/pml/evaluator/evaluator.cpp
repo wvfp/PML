@@ -11,6 +11,7 @@
 
 #include "module_loader.h"
 
+#include "pml/api/context.h"
 #include "pml/core/call_stack.h"
 #include "pml/evaluator/builtins_helpers.h"
 
@@ -176,9 +177,10 @@ Result<EvalResult> expand_macro(
     Macro& macro, const std::vector<Expr>& args,
     std::shared_ptr<Environment> env) {
 
-    g_macro_depth += 1;
-    if (g_macro_depth > MAX_MACRO_DEPTH) {
-        g_macro_depth = 0;
+    auto& ctx = PMLContext::current();
+    ctx.macro_depth += 1;
+    if (ctx.macro_depth > MAX_MACRO_DEPTH) {
+        ctx.macro_depth = 0;
         return std::unexpected(macro_expansion_depth_error(
             SourceLocation{}, MAX_MACRO_DEPTH));
     }
@@ -189,7 +191,7 @@ Result<EvalResult> expand_macro(
     // Evaluate the expanded expression to a final value.
     auto result = eval_to_value(expanded, std::move(env));
 
-    g_macro_depth -= 1;
+    ctx.macro_depth -= 1;
     if (!result) {
         return std::unexpected(result.error());
     }
@@ -1714,8 +1716,15 @@ Result<EvalResult> eval_import(
         from_file = *src_file->as_string();
     }
 
-    // Get or create the global ModuleLoader
-    auto loader = get_global_loader(env);
+    // Get a ModuleLoader — prefer the per-runtime instance from PMLContext,
+    // fall back to the global accessor for backward compatibility.
+    std::shared_ptr<ModuleLoader> loader;
+    auto* ctx = PMLContext::current_ptr();
+    if (ctx && ctx->module_loader) {
+        loader = ctx->module_loader;
+    } else {
+        loader = get_global_loader(env);
+    }
 
     // Load the module
     auto mod_result = loader->load(*path_str, from_file);

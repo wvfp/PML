@@ -48,6 +48,7 @@ struct Mesh3D;               // pml/graphics3d/mesh3d.h
 struct Transform3D;          // pml/graphics3d/transform3d.h
 class Layer;                 // pml/layer/layer.h
 class Composition;           // pml/layer/composition.h
+struct Gradient;              // pml/graphics/gradient.h
 class ImageFilter;           // pml/filter/image_filter.h
 struct TextureBox;            // pml/core/texture.h
 
@@ -342,7 +343,8 @@ struct Box {
         Style, Palette, Timeline,
         Layer, Composition,
         ImageFilter,
-        Texture
+        Texture,
+        Gradient
     };
 
     Kind kind;
@@ -369,7 +371,8 @@ struct Box {
         std::shared_ptr<Layer>,
         std::shared_ptr<Composition>,
         std::shared_ptr<ImageFilter>,
-        std::shared_ptr<TextureBox>
+        std::shared_ptr<TextureBox>,
+        std::shared_ptr<Gradient>
     > data;
 };
 
@@ -418,6 +421,7 @@ public:
     Value(std::shared_ptr<Composition> v);
     Value(std::shared_ptr<ImageFilter> v);
     Value(std::shared_ptr<TextureBox> v);
+    Value(std::shared_ptr<Gradient> v);
 
     // ---- Tag / predicates --------------------------------------------------------------------------------------------
     [[nodiscard]] Tag tag() const noexcept { return tag_; }
@@ -453,6 +457,8 @@ public:
     [[nodiscard]] bool is_image_filter() const noexcept;
 
     [[nodiscard]] bool is_texture() const noexcept;
+
+    [[nodiscard]] bool is_gradient() const noexcept;
 
     // ---- Object kind (valid only when tag() == Tag::Object) ----------------------------
     [[nodiscard]] Box::Kind object_kind() const noexcept { return box_kind(); }
@@ -504,6 +510,8 @@ public:
     [[nodiscard]] const std::shared_ptr<ImageFilter>* as_image_filter() const noexcept;
 
     [[nodiscard]] const std::shared_ptr<TextureBox>* as_texture() const noexcept;
+
+    [[nodiscard]] const std::shared_ptr<Gradient>* as_gradient() const noexcept;
 
     // ---- Equality (structural for scalars, reference for boxed objects) ─
     bool operator==(const Value& other) const noexcept;

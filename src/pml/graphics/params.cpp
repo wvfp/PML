@@ -51,6 +51,7 @@ constexpr KeyEntry k_key_table[] = {
     {"edge-blend",     ParamKey::edge_blend},
     {"uv-vertices",    ParamKey::uv_vertices},
     {"align",          ParamKey::align},
+    {"perspective-correction", ParamKey::perspective_correction},
 };
 
 }  // anonymous namespace
@@ -95,6 +96,7 @@ const char* param_key_to_string(ParamKey key) noexcept {
         case ParamKey::edge_blend:     return "edge-blend";
         case ParamKey::uv_vertices:    return "uv-vertices";
         case ParamKey::align:          return "align";
+        case ParamKey::perspective_correction: return "perspective-correction";
         default:                       return "";
     }
 }

@@ -76,7 +76,7 @@ public:
 TEST(LayerRenderTest, MockBackendRendersComposition) {
     Composition c("test", Size2D{32, 32});
     auto layer = std::make_shared<Layer>(LayerProperties{"l"},
-        std::make_shared<GraphicObject>("circle"));
+        std::make_shared<GraphicObject>(pml::ShapeType::Circle));
     c = c.with_layer_appended(layer);
 
     MockBackend backend;

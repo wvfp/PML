@@ -200,6 +200,90 @@ Result<void> stage_draw(SkCanvas* canvas, const sk_sp<SkVertices>& verts,
     return {};
 }
 
+/// Perspective correction for explicit UV mode.
+///
+/// Uses SkMatrix::setPolyToPoly() to compute a perspective homography from
+/// the shape's 4 boundary corners to the user-provided UV corners, then
+/// pre-warps every mesh vertex's UV coordinate.  The resulting affine
+/// interpolation within each triangle approximates perspective-correct
+/// texture mapping.
+///
+/// @return  true when correction was successfully applied.
+static bool correct_uv_for_perspective(
+    UVResult& uv_result,
+    const std::vector<Vec2>& mesh_vertices,
+    const GraphicObject& obj)
+{
+    // We need the shape's boundary corners and the user's UV corners.
+    // Both come from params: "points" for polygon shapes, "uv-vertices" for UVs.
+    const Value* pts_val = obj.params.find(ParamKey::points);
+    const Value* uvs_val = obj.params.find(ParamKey::uv_vertices);
+    if (!pts_val || !uvs_val) return false;
+
+    // Parse "points" — get first 4 vertices (the quad corners).
+    auto read_pts = [](const Value& v, SkPoint out[4]) -> int {
+        const auto* lst = v.as_list();
+        if (!lst || !*lst) return 0;
+        const auto& elems = (*lst)->elements;
+        bool flat = !elems.empty() && !elems[0].as_list();
+        int count = 0;
+        auto push = [&](double x, double y) {
+            if (count < 4) out[count++] = {SkScalar(x), SkScalar(y)};
+        };
+        if (flat) {
+            for (size_t i = 0; i + 1 < elems.size() && count < 4; i += 2) {
+                double x = elems[i].is_number()
+                    ? (elems[i].is_int() ? double(elems[i].int_val()) : elems[i].double_val())
+                    : 0.0;
+                double y = elems[i+1].is_number()
+                    ? (elems[i+1].is_int() ? double(elems[i+1].int_val()) : elems[i+1].double_val())
+                    : 0.0;
+                push(x, y);
+            }
+        } else {
+            for (size_t i = 0; i < elems.size() && count < 4; ++i) {
+                const auto* pair = elems[i].as_list();
+                if (!pair || !*pair || (*pair)->elements.size() < 2) continue;
+                double x = (*pair)->elements[0].is_number()
+                    ? ((*pair)->elements[0].is_int() ? double((*pair)->elements[0].int_val())
+                       : (*pair)->elements[0].double_val()) : 0.0;
+                double y = (*pair)->elements[1].is_number()
+                    ? ((*pair)->elements[1].is_int() ? double((*pair)->elements[1].int_val())
+                       : (*pair)->elements[1].double_val()) : 0.0;
+                push(x, y);
+            }
+        }
+        return count;
+    };
+
+    SkPoint shape_corners[4];
+    if (read_pts(*pts_val, shape_corners) != 4) return false;
+
+    // Parse "uv-vertices" — get first 4 UV corners.
+    SkPoint uv_corners[4];
+    if (read_pts(*uvs_val, uv_corners) != 4) return false;
+
+    // Compute perspective matrix: shape_position → UV.
+    // PolyToPoly is a static method that returns std::optional<SkMatrix>.
+    auto persp = SkMatrix::PolyToPoly(SkSpan<const SkPoint>(shape_corners, 4),
+                                       SkSpan<const SkPoint>(uv_corners, 4));
+    if (!persp.has_value()) return false;
+
+    // Map every mesh vertex position through the perspective matrix to get
+    // the corrected UV.  This pre-warps UVs so that affine interpolation
+    // within each triangle approximates perspective-correct texturing.
+    std::vector<Vec2> corrected;
+    corrected.reserve(mesh_vertices.size());
+    for (const auto& v : mesh_vertices) {
+        SkPoint src{SkScalar(v.x), SkScalar(v.y)};
+        SkPoint dst;
+        persp->mapPoints(SkSpan<SkPoint>(&dst, 1), SkSpan<const SkPoint>(&src, 1));
+        corrected.push_back({dst.x(), dst.y()});
+    }
+    uv_result.uvs = std::move(corrected);
+    return true;
+}
+
 } // anonymous namespace
 
 // ---- draw_textured_object — stage orchestrator --------------------------------------------------------
@@ -217,6 +301,11 @@ Result<void> draw_textured_object(SkCanvas* canvas, const GraphicObject& obj)
     // Stage 3: solve UVs
     auto uv_result = stage_solve_uv(*mesh, uv.uv_mode, obj);
     if (!uv_result.valid || uv_result.uvs.size() != mesh->vertices.size()) return {};
+
+    // Stage 3b: perspective correction (explicit UV mode only)
+    if (uv.uv_mode == 2 && obj.params.find(ParamKey::perspective_correction)) {
+        correct_uv_for_perspective(uv_result, mesh->vertices, obj);
+    }
 
     // Stage 4: bake texture
     auto img = stage_bake(uv.texture);

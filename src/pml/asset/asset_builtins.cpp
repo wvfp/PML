@@ -56,7 +56,7 @@ static Value make_image_object(const std::string& path,
     if (crop)    params.set(ParamKey::crop, *crop);
 
     return Value(std::make_shared<GraphicObject>(
-        GraphicObject("image", std::move(params))));
+        GraphicObject(ShapeType::Image, std::move(params))));
 }
 
 static std::shared_ptr<ValueList> make_value_list(
@@ -163,7 +163,7 @@ static Result<Value> builtin_bitmap_layer(const std::vector<Value>& args,
     props.offset = {x, y};
 
     auto leaf = std::make_shared<GraphicObject>(
-        GraphicObject("image", Params{
+        GraphicObject(ShapeType::Image, Params{
             {ParamKey::src, Value(*resolved)},
             {ParamKey::x,   Value(0.0)},
             {ParamKey::y,   Value(0.0)},

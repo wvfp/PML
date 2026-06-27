@@ -240,7 +240,7 @@ TEST(FilterTest, BevelEmbossFilterCallsBackend) {
 
 TEST(FilterTest, LayerWithFilterStoresFilter) {
     Layer layer(LayerProperties{"l"},
-                std::make_shared<GraphicObject>("circle"));
+                std::make_shared<GraphicObject>(pml::ShapeType::Circle));
 
     auto filter = std::make_shared<BlurFilter>(2.0f, BlurFilterType::Box, 0.0f);
     Layer updated = layer.with_filter(filter);
@@ -252,7 +252,7 @@ TEST(FilterTest, LayerWithFilterStoresFilter) {
 
 TEST(FilterTest, LayerWithFiltersReplacesFilterList) {
     Layer layer(LayerProperties{"l"},
-                std::make_shared<GraphicObject>("rect"));
+                std::make_shared<GraphicObject>(ShapeType::Rect));
 
     auto filters = std::vector<std::shared_ptr<ImageFilter>>{
         std::make_shared<BlurFilter>(1.0f, BlurFilterType::Gaussian, 0.0f),

@@ -78,7 +78,7 @@ const std::unordered_map<std::string, double> k_size_scale = {
     auto it = k_element_colors.find(element);
     if (it == k_element_colors.end()) return {};
     return {GraphicObject(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, cx}, {ParamKey::cy, cy}, {ParamKey::rx, r}, {ParamKey::ry, r}},
         it->second + "40",
         it->second,
@@ -90,7 +90,7 @@ const std::unordered_map<std::string, double> k_size_scale = {
     if (ornament == "plain") return {};
     if (ornament == "gem") {
         return {GraphicObject(
-            "ellipse",
+            ShapeType::Ellipse,
             Params{{ParamKey::cx, x}, {ParamKey::cy, y}, {ParamKey::rx, 4.0}, {ParamKey::ry, 4.0}},
             "#e74c3c",
             "#1a1a1a",
@@ -98,7 +98,7 @@ const std::unordered_map<std::string, double> k_size_scale = {
     }
     if (ornament == "rune") {
         return {GraphicObject(
-            "line",
+            ShapeType::Line,
             Params{{ParamKey::x1, x - 3.0}, {ParamKey::y1, y - 3.0}, {ParamKey::x2, x + 3.0}, {ParamKey::y2, y + 3.0}},
             std::nullopt,
             "#85c1e9",
@@ -106,7 +106,7 @@ const std::unordered_map<std::string, double> k_size_scale = {
     }
     if (ornament == "engraved") {
         return {GraphicObject(
-            "line",
+            ShapeType::Line,
             Params{{ParamKey::x1, x - 4.0}, {ParamKey::y1, y}, {ParamKey::x2, x + 4.0}, {ParamKey::y2, y}},
             std::nullopt,
             "#1a1a1a",
@@ -173,19 +173,19 @@ std::shared_ptr<GraphicObject> create_weapon(
     if (wtype == "sword") {
         double blade_h = 60.0 * s;
         children.emplace_back(
-            "polygon",
+            ShapeType::Polygon,
             Params{{ParamKey::points, make_points({0.0, 0.0, -5.0 * s, -blade_h, 5.0 * s, -blade_h})}},
             mat_color,
             "#1a1a1a",
             1.5);
         children.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, -12.0 * s}, {ParamKey::y, 0.0}, {ParamKey::w, 24.0 * s}, {ParamKey::h, 4.0 * s}},
             "#8B4513",
             "#1a1a1a",
             1.0);
         children.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, -3.0 * s}, {ParamKey::y, 4.0 * s}, {ParamKey::w, 6.0 * s}, {ParamKey::h, 16.0 * s}},
             "#5D4037",
             "#1a1a1a",
@@ -195,13 +195,13 @@ std::shared_ptr<GraphicObject> create_weapon(
     } else if (wtype == "axe") {
         double handle_h = 50.0 * s;
         children.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, -2.0 * s}, {ParamKey::y, 0.0}, {ParamKey::w, 4.0 * s}, {ParamKey::h, handle_h}},
             "#8B4513",
             "#1a1a1a",
             1.0);
         children.emplace_back(
-            "polygon",
+            ShapeType::Polygon,
             Params{{ParamKey::points, make_points({
                 2.0 * s, 4.0 * s,
                 20.0 * s, -8.0 * s,
@@ -212,19 +212,19 @@ std::shared_ptr<GraphicObject> create_weapon(
     } else if (wtype == "bow") {
         double bow_h = 50.0 * s;
         children.emplace_back(
-            "line",
+            ShapeType::Line,
             Params{{ParamKey::x1, 0.0}, {ParamKey::y1, -bow_h / 2.0}, {ParamKey::x2, 8.0 * s}, {ParamKey::y2, 0.0}},
             std::nullopt,
             mat_color,
             3.0 * s);
         children.emplace_back(
-            "line",
+            ShapeType::Line,
             Params{{ParamKey::x1, 8.0 * s}, {ParamKey::y1, 0.0}, {ParamKey::x2, 0.0}, {ParamKey::y2, bow_h / 2.0}},
             std::nullopt,
             mat_color,
             3.0 * s);
         children.emplace_back(
-            "line",
+            ShapeType::Line,
             Params{{ParamKey::x1, 0.0}, {ParamKey::y1, -bow_h / 2.0}, {ParamKey::x2, 0.0}, {ParamKey::y2, bow_h / 2.0}},
             std::nullopt,
             "#f5f5dc",
@@ -233,13 +233,13 @@ std::shared_ptr<GraphicObject> create_weapon(
         double staff_h = 80.0 * s;
         std::string material = *p["material"].as_string();
         children.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, -2.0 * s}, {ParamKey::y, -staff_h}, {ParamKey::w, 4.0 * s}, {ParamKey::h, staff_h}},
             material == "wood" ? mat_color : "#5D4037",
             "#1a1a1a",
             1.5);
         children.emplace_back(
-            "ellipse",
+            ShapeType::Ellipse,
             Params{{ParamKey::cx, 0.0}, {ParamKey::cy, -staff_h - 8.0 * s}, {ParamKey::rx, 8.0 * s}, {ParamKey::ry, 8.0 * s}},
             get_element_color(element),
             "#1a1a1a",
@@ -249,19 +249,19 @@ std::shared_ptr<GraphicObject> create_weapon(
     } else if (wtype == "dagger") {
         double blade_h = 30.0 * s;
         children.emplace_back(
-            "polygon",
+            ShapeType::Polygon,
             Params{{ParamKey::points, make_points({0.0, 0.0, -4.0 * s, -blade_h, 4.0 * s, -blade_h})}},
             mat_color,
             "#1a1a1a",
             1.5);
         children.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, -8.0 * s}, {ParamKey::y, 0.0}, {ParamKey::w, 16.0 * s}, {ParamKey::h, 3.0 * s}},
             "#8B4513",
             "#1a1a1a",
             1.0);
         children.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, -2.0 * s}, {ParamKey::y, 3.0 * s}, {ParamKey::w, 4.0 * s}, {ParamKey::h, 10.0 * s}},
             "#5D4037",
             "#1a1a1a",
@@ -269,13 +269,13 @@ std::shared_ptr<GraphicObject> create_weapon(
     } else if (wtype == "spear") {
         double shaft_h = 80.0 * s;
         children.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, -2.0 * s}, {ParamKey::y, -shaft_h}, {ParamKey::w, 4.0 * s}, {ParamKey::h, shaft_h}},
             "#8B4513",
             "#1a1a1a",
             1.0);
         children.emplace_back(
-            "polygon",
+            ShapeType::Polygon,
             Params{{ParamKey::points, make_points({
                 0.0, -shaft_h - 16.0 * s,
                 -5.0 * s, -shaft_h,
@@ -285,13 +285,13 @@ std::shared_ptr<GraphicObject> create_weapon(
             1.5);
     } else if (wtype == "gun") {
         children.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, 0.0}, {ParamKey::y, -4.0 * s}, {ParamKey::w, 30.0 * s}, {ParamKey::h, 8.0 * s}},
             mat_color,
             "#1a1a1a",
             1.5);
         children.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, 2.0 * s}, {ParamKey::y, 4.0 * s}, {ParamKey::w, 8.0 * s}, {ParamKey::h, 16.0 * s}},
             "#5D4037",
             "#1a1a1a",
@@ -302,7 +302,7 @@ std::shared_ptr<GraphicObject> create_weapon(
     children.insert(children.end(), glow.begin(), glow.end());
 
     return std::make_shared<GraphicObject>(
-        "group",
+        ShapeType::Group,
         Params{},
         std::nullopt,
         std::nullopt,
@@ -332,76 +332,89 @@ std::shared_ptr<GraphicObject> create_potion(
 
     if (container == "bottle") {
         children.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, -10.0 * s}, {ParamKey::y, -20.0 * s}, {ParamKey::w, 20.0 * s}, {ParamKey::h, 24.0 * s}},
             "#d5e8f0",
             "#1a1a1a",
             1.5);
         children.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, -8.0 * s}, {ParamKey::y, -14.0 * s}, {ParamKey::w, 16.0 * s}, {ParamKey::h, 16.0 * s}},
             liquid_color,
             std::nullopt,
             0.0);
         children.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, -4.0 * s}, {ParamKey::y, -28.0 * s}, {ParamKey::w, 8.0 * s}, {ParamKey::h, 10.0 * s}},
             "#d5e8f0",
             "#1a1a1a",
             1.0);
         children.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, -5.0 * s}, {ParamKey::y, -32.0 * s}, {ParamKey::w, 10.0 * s}, {ParamKey::h, 5.0 * s}},
             "#8B4513",
             "#1a1a1a",
             1.0);
     } else if (container == "flask") {
         children.emplace_back(
-            "ellipse",
+            ShapeType::Ellipse,
             Params{{ParamKey::cx, 0.0}, {ParamKey::cy, -8.0 * s}, {ParamKey::rx, 14.0 * s}, {ParamKey::ry, 14.0 * s}},
             "#d5e8f0",
             "#1a1a1a",
             1.5);
         children.emplace_back(
-            "ellipse",
+            ShapeType::Ellipse,
             Params{{ParamKey::cx, 0.0}, {ParamKey::cy, -6.0 * s}, {ParamKey::rx, 11.0 * s}, {ParamKey::ry, 10.0 * s}},
             liquid_color,
             std::nullopt,
             0.0);
         children.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, -3.0 * s}, {ParamKey::y, -26.0 * s}, {ParamKey::w, 6.0 * s}, {ParamKey::h, 10.0 * s}},
             "#d5e8f0",
             "#1a1a1a",
             1.0);
     } else if (container == "vial") {
         children.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, -6.0 * s}, {ParamKey::y, -24.0 * s}, {ParamKey::w, 12.0 * s}, {ParamKey::h, 28.0 * s}},
             "#d5e8f0",
             "#1a1a1a",
             1.5);
         children.emplace_back(
-            "rect",
+            ShapeType::Rect,
+            Params{{ParamKey::x, -4.0 * s}, {ParamKey::y, -16.0 * s}, {ParamKey::w, 8.0 * s}, {ParamKey::h, 18.0 * s}},
+            liquid_color,
+            std::nullopt,
+            0.0);
+    } else if (container == "vial") {
+        children.emplace_back(
+            ShapeType::Rect,
+            Params{{ParamKey::x, -6.0 * s}, {ParamKey::y, -24.0 * s}, {ParamKey::w, 12.0 * s}, {ParamKey::h, 28.0 * s}},
+            "#d5e8f0",
+            "#1a1a1a",
+            1.5);
+        children.emplace_back(
+            ShapeType::Rect,
             Params{{ParamKey::x, -4.0 * s}, {ParamKey::y, -16.0 * s}, {ParamKey::w, 8.0 * s}, {ParamKey::h, 18.0 * s}},
             liquid_color,
             std::nullopt,
             0.0);
     } else {  // jar
         children.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, -12.0 * s}, {ParamKey::y, -18.0 * s}, {ParamKey::w, 24.0 * s}, {ParamKey::h, 22.0 * s}},
             "#d5e8f0",
             "#1a1a1a",
             1.5);
         children.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, -10.0 * s}, {ParamKey::y, -14.0 * s}, {ParamKey::w, 20.0 * s}, {ParamKey::h, 16.0 * s}},
             liquid_color,
             std::nullopt,
             0.0);
         children.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, -14.0 * s}, {ParamKey::y, -22.0 * s}, {ParamKey::w, 28.0 * s}, {ParamKey::h, 5.0 * s}},
             "#7f8c8d",
             "#1a1a1a",
@@ -409,7 +422,7 @@ std::shared_ptr<GraphicObject> create_potion(
     }
 
     return std::make_shared<GraphicObject>(
-        "group",
+        ShapeType::Group,
         Params{},
         std::nullopt,
         std::nullopt,
@@ -443,7 +456,7 @@ std::shared_ptr<GraphicObject> create_chest(
     std::vector<GraphicObject> children;
 
     children.emplace_back(
-        "rect",
+        ShapeType::Rect,
         Params{{ParamKey::x, -w / 2.0}, {ParamKey::y, -h / 2.0}, {ParamKey::w, w}, {ParamKey::h, h}},
         main_c,
         "#1a1a1a",
@@ -451,27 +464,27 @@ std::shared_ptr<GraphicObject> create_chest(
 
     if (state == "open") {
         children.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, -w / 2.0}, {ParamKey::y, -h / 2.0 - h * 0.5}, {ParamKey::w, w}, {ParamKey::h, h * 0.4}},
             dark_c,
             "#1a1a1a",
             1.5);
         children.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, -w / 2.0 + 4.0}, {ParamKey::y, -h / 2.0 + 2.0}, {ParamKey::w, w - 8.0}, {ParamKey::h, h * 0.4}},
             "#f9e79f",
             std::nullopt,
             0.0);
     } else {
         children.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, -w / 2.0}, {ParamKey::y, -h / 2.0 - h * 0.3}, {ParamKey::w, w}, {ParamKey::h, h * 0.35}},
             dark_c,
             "#1a1a1a",
             1.5);
         if (state == "locked") {
             children.emplace_back(
-                "ellipse",
+                ShapeType::Ellipse,
                 Params{{ParamKey::cx, 0.0}, {ParamKey::cy, -h * 0.15}, {ParamKey::rx, 4.0 * s}, {ParamKey::ry, 4.0 * s}},
                 "#f1c40f",
                 "#1a1a1a",
@@ -480,14 +493,14 @@ std::shared_ptr<GraphicObject> create_chest(
     }
 
     children.emplace_back(
-        "line",
+        ShapeType::Line,
         Params{{ParamKey::x1, -w / 2.0}, {ParamKey::y1, 0.0}, {ParamKey::x2, w / 2.0}, {ParamKey::y2, 0.0}},
         std::nullopt,
         "#1a1a1a",
         1.5);
 
     return std::make_shared<GraphicObject>(
-        "group",
+        ShapeType::Group,
         Params{},
         std::nullopt,
         std::nullopt,
@@ -515,21 +528,21 @@ std::shared_ptr<GraphicObject> create_generic_item(
 
     if (shape == "circle") {
         children.emplace_back(
-            "ellipse",
+            ShapeType::Ellipse,
             Params{{ParamKey::cx, 0.0}, {ParamKey::cy, 0.0}, {ParamKey::rx, 16.0}, {ParamKey::ry, 16.0}},
             color,
             outline ? std::optional<std::string>(outline_color) : std::nullopt,
             ow);
     } else if (shape == "rect") {
         children.emplace_back(
-            "rect",
+            ShapeType::Rect,
             Params{{ParamKey::x, -16.0}, {ParamKey::y, -16.0}, {ParamKey::w, 32.0}, {ParamKey::h, 32.0}},
             color,
             outline ? std::optional<std::string>(outline_color) : std::nullopt,
             ow);
     } else if (shape == "diamond") {
         children.emplace_back(
-            "polygon",
+            ShapeType::Polygon,
             Params{{ParamKey::points, make_points({0.0, -18.0, 18.0, 0.0, 0.0, 18.0, -18.0, 0.0})}},
             color,
             outline ? std::optional<std::string>(outline_color) : std::nullopt,
@@ -549,7 +562,7 @@ std::shared_ptr<GraphicObject> create_generic_item(
     }
 
     return std::make_shared<GraphicObject>(
-        "group",
+        ShapeType::Group,
         Params{},
         std::nullopt,
         std::nullopt,

@@ -19,7 +19,7 @@ EyeParts make_eye_shoujo(double cx, double cy, double size,
     double eh = 18.0 * size;
 
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, cx}, {ParamKey::cy, cy}, {ParamKey::rx, ew}, {ParamKey::ry, eh}},
         "#FFFFFF",
         "#1a1a1a",
@@ -27,7 +27,7 @@ EyeParts make_eye_shoujo(double cx, double cy, double size,
 
     double iris_r = ew * 0.7;
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, cx}, {ParamKey::cy, cy + 2.0}, {ParamKey::rx, iris_r}, {ParamKey::ry, iris_r * 1.1}},
         color,
         "#1a1a1a",
@@ -35,18 +35,18 @@ EyeParts make_eye_shoujo(double cx, double cy, double size,
 
     double pupil_r = iris_r * 0.5;
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, cx}, {ParamKey::cy, cy + 2.0}, {ParamKey::rx, pupil_r}, {ParamKey::ry, pupil_r}},
         "#0a0a0a");
 
     if (highlight) {
         double hl_r = ew * 0.3;
         parts.emplace_back(
-            "ellipse",
+            ShapeType::Ellipse,
             Params{{ParamKey::cx, cx - ew * 0.2}, {ParamKey::cy, cy - eh * 0.2}, {ParamKey::rx, hl_r}, {ParamKey::ry, hl_r}},
             "#FFFFFF");
         parts.emplace_back(
-            "ellipse",
+            ShapeType::Ellipse,
             Params{{ParamKey::cx, cx + ew * 0.25}, {ParamKey::cy, cy + eh * 0.15}, {ParamKey::rx, hl_r * 0.5}, {ParamKey::ry, hl_r * 0.5}},
             "#FFFFFF");
     }
@@ -60,33 +60,33 @@ EyeParts make_eye_shounen(double cx, double cy, double size,
     double eh = 10.0 * size;
 
     parts.emplace_back(
-        "rect",
+        ShapeType::Rect,
         Params{{ParamKey::x, cx - ew}, {ParamKey::y, cy - eh / 2.0}, {ParamKey::w, ew * 2.0}, {ParamKey::h, eh}},
         "#FFFFFF",
         "#1a1a1a",
         2.0);
 
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, cx}, {ParamKey::cy, cy}, {ParamKey::rx, ew * 0.5}, {ParamKey::ry, eh * 0.45}},
         color,
         "#1a1a1a",
         1.0);
 
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, cx}, {ParamKey::cy, cy}, {ParamKey::rx, ew * 0.25}, {ParamKey::ry, eh * 0.3}},
         "#0a0a0a");
 
     if (highlight) {
         parts.emplace_back(
-            "ellipse",
+            ShapeType::Ellipse,
             Params{{ParamKey::cx, cx - ew * 0.2}, {ParamKey::cy, cy - eh * 0.15}, {ParamKey::rx, ew * 0.15}, {ParamKey::ry, ew * 0.15}},
             "#FFFFFF");
     }
 
     parts.emplace_back(
-        "line",
+        ShapeType::Line,
         Params{{ParamKey::x1, cx - ew}, {ParamKey::y1, cy - eh - 4.0}, {ParamKey::x2, cx + ew * 0.8}, {ParamKey::y2, cy - eh - 2.0}},
         std::nullopt,
         "#1a1a1a",
@@ -100,23 +100,23 @@ EyeParts make_eye_round(double cx, double cy, double size,
     double r = 10.0 * size;
 
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, cx}, {ParamKey::cy, cy}, {ParamKey::rx, r}, {ParamKey::ry, r}},
         "#1a1a1a");
 
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, cx}, {ParamKey::cy, cy + 1.0}, {ParamKey::rx, r * 0.7}, {ParamKey::ry, r * 0.7}},
         color);
 
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, cx}, {ParamKey::cy, cy + 1.0}, {ParamKey::rx, r * 0.35}, {ParamKey::ry, r * 0.35}},
         "#0a0a0a");
 
     if (highlight) {
         parts.emplace_back(
-            "ellipse",
+            ShapeType::Ellipse,
             Params{{ParamKey::cx, cx - r * 0.3}, {ParamKey::cy, cy - r * 0.3}, {ParamKey::rx, r * 0.35}, {ParamKey::ry, r * 0.35}},
             "#FFFFFF");
     }
@@ -130,25 +130,25 @@ EyeParts make_eye_sharp(double cx, double cy, double size,
     double eh = 5.0 * size;
 
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, cx}, {ParamKey::cy, cy}, {ParamKey::rx, ew}, {ParamKey::ry, eh}},
         "#FFFFFF",
         "#1a1a1a",
         2.5);
 
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, cx}, {ParamKey::cy, cy}, {ParamKey::rx, ew * 0.4}, {ParamKey::ry, eh * 0.85}},
         color);
 
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, cx}, {ParamKey::cy, cy}, {ParamKey::rx, ew * 0.2}, {ParamKey::ry, eh * 0.6}},
         "#0a0a0a");
 
     if (highlight) {
         parts.emplace_back(
-            "ellipse",
+            ShapeType::Ellipse,
             Params{{ParamKey::cx, cx - ew * 0.15}, {ParamKey::cy, cy - eh * 0.3}, {ParamKey::rx, ew * 0.1}, {ParamKey::ry, ew * 0.1}},
             "#FFFFFF");
     }
@@ -162,21 +162,21 @@ EyeParts make_eye_sleepy(double cx, double cy, double size,
     double eh = 4.0 * size;
 
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, cx}, {ParamKey::cy, cy + eh}, {ParamKey::rx, ew}, {ParamKey::ry, eh * 2.0}},
         "#FFFFFF",
         "#1a1a1a",
         1.5);
 
     parts.emplace_back(
-        "line",
+        ShapeType::Line,
         Params{{ParamKey::x1, cx - ew}, {ParamKey::y1, cy}, {ParamKey::x2, cx + ew}, {ParamKey::y2, cy}},
         std::nullopt,
         "#1a1a1a",
         2.5);
 
     parts.emplace_back(
-        "ellipse",
+        ShapeType::Ellipse,
         Params{{ParamKey::cx, cx}, {ParamKey::cy, cy + eh * 0.5}, {ParamKey::rx, ew * 0.35}, {ParamKey::ry, eh * 0.7}},
         color);
 
@@ -189,7 +189,7 @@ EyeParts make_eye_closed(double cx, double cy, double size,
     double ew = 12.0 * size;
 
     parts.emplace_back(
-        "line",
+        ShapeType::Line,
         Params{{ParamKey::x1, cx - ew}, {ParamKey::y1, cy}, {ParamKey::x2, cx + ew}, {ParamKey::y2, cy}},
         std::nullopt,
         "#1a1a1a",
@@ -197,7 +197,7 @@ EyeParts make_eye_closed(double cx, double cy, double size,
 
     for (double dx : {-ew * 0.7, 0.0, ew * 0.7}) {
         parts.emplace_back(
-            "line",
+            ShapeType::Line,
             Params{{ParamKey::x1, cx + dx}, {ParamKey::y1, cy}, {ParamKey::x2, cx + dx}, {ParamKey::y2, cy - 4.0 * size}},
             std::nullopt,
             "#1a1a1a",
@@ -269,7 +269,7 @@ std::shared_ptr<GraphicObject> create_eyes(
         for (double cx : {left_cx, right_cx}) {
             for (double dx : {-10.0 * size, 0.0, 10.0 * size}) {
                 all_children.emplace_back(
-                    "line",
+                    ShapeType::Line,
                     Params{
                         {ParamKey::x1, cx + dx},
                         {ParamKey::y1, -12.0 * size},
@@ -283,7 +283,7 @@ std::shared_ptr<GraphicObject> create_eyes(
     }
 
     return std::make_shared<GraphicObject>(
-        "group",
+        ShapeType::Group,
         Params{},
         std::nullopt,
         std::nullopt,

@@ -18,6 +18,7 @@ add_library(pml_backend_skia
     skia_backend.cpp
     skia_backend_atlas.cpp
     skia_backend_draw.cpp
+    skia_backend_mesh3d.cpp
     skia_backend_png.cpp
     skia_backend_filter.cpp
     texture_blend.cpp

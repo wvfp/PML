@@ -17,7 +17,7 @@ namespace {
 // ---- Constructor ----------------------------------------------------------------------------------------------------------------------------
 
 GraphicObject::GraphicObject(
-    std::string shape_type_,
+    ShapeType shape_type_,
     Params params_,
     std::optional<std::string> fill_,
     std::optional<std::string> stroke_,
@@ -26,7 +26,7 @@ GraphicObject::GraphicObject(
     std::vector<GraphicObject> children_,
     std::unordered_map<std::string, Value> metadata_
 )
-    : shape_type(std::move(shape_type_))
+    : shape_type(shape_type_)
     , params(std::move(params_))
     , fill(std::move(fill_))
     , stroke(std::move(stroke_))
@@ -55,6 +55,14 @@ GraphicObject GraphicObject::with_fill(std::string color) const
     return result;
 }
 
+GraphicObject GraphicObject::with_fill_gradient(Gradient g) const
+{
+    GraphicObject result = *this;
+    result.fill_gradient = std::move(g);
+    result.fill = std::nullopt;  // gradient takes precedence
+    return result;
+}
+
 GraphicObject GraphicObject::with_stroke(std::string color) const
 {
     GraphicObject result = *this;
@@ -76,11 +84,35 @@ GraphicObject GraphicObject::with_param(ParamKey key, Value value) const
     return result;
 }
 
-// ---- Streaming --------------------------------------------------------------------------------------------------------------------------------
+// ── to_string(ShapeType) ──────────────────────────────────────────────────────
+
+std::string to_string(ShapeType type) {
+    switch (type) {
+    case ShapeType::Circle:        return "circle";
+    case ShapeType::Rect:          return "rect";
+    case ShapeType::Ellipse:       return "ellipse";
+    case ShapeType::Line:          return "line";
+    case ShapeType::Polygon:       return "polygon";
+    case ShapeType::Path:          return "path";
+    case ShapeType::Text:          return "text";
+    case ShapeType::Image:         return "image";
+    case ShapeType::Group:         return "group";
+    case ShapeType::Mesh3D:        return "mesh3d";
+    case ShapeType::RoughCircle:   return "rough_circle";
+    case ShapeType::RoughRect:     return "rough_rect";
+    case ShapeType::RoughEllipse:  return "rough_ellipse";
+    case ShapeType::RoughLine:     return "rough_line";
+    case ShapeType::RoughPolygon:  return "rough_polygon";
+    case ShapeType::RoughPath:     return "rough_path";
+    }
+    return "unknown";
+}
+
+// ── Streaming ────────────────────────────────────────────────────────────────
 
 std::ostream& operator<<(std::ostream& os, const GraphicObject& obj)
 {
-    os << "<GraphicObject " << obj.shape_type;
+    os << "<GraphicObject " << to_string(obj.shape_type);
     if (obj.fill.has_value()) {
         os << " fill=" << *obj.fill;
     }

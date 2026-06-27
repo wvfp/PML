@@ -42,14 +42,14 @@ namespace {
         return obj;
     }
 
-    if (obj.shape_type == "group") {
+    if (obj.shape_type == ShapeType::Group) {
         std::vector<GraphicObject> styled_children;
         styled_children.reserve(obj.children.size());
         for (const auto& child : obj.children) {
             styled_children.push_back(apply_style_to_object(child, style));
         }
         return GraphicObject(
-            "group",
+            ShapeType::Group,
             obj.params,
             obj.fill,
             obj.stroke,
@@ -223,7 +223,7 @@ std::shared_ptr<GraphicObject> create_character(
     PaletteManager::instance().set_active(nullptr);
 
     return std::make_shared<GraphicObject>(
-        "group",
+        ShapeType::Group,
         Params{},
         std::nullopt,
         std::nullopt,

@@ -17,9 +17,12 @@ add_library(pml_evaluator
     shape_builtins.cpp
     object_style_builtins.cpp
     color_builtins.cpp
+    gradient_builtins.cpp
+    clip_builtins.cpp
     tilemap_builtins.cpp
     render_channels_builtins.cpp
     multi_texture_builtins.cpp
+    name_builtins.cpp
     texture_builtins.cpp
     texture_map_builtins.cpp
     perturb_builtins.cpp

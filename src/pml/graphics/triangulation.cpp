@@ -34,8 +34,7 @@ namespace {
 // ---- Helper: collect contour points from a GraphicObject ----------------------------------------
 
 std::vector<Vec2> collect_contour(const GraphicObject& obj) {
-    const std::string& st = obj.shape_type;
-    if (st == "polygon") {
+    if (obj.shape_type == ShapeType::Polygon) {
         std::vector<Vec2> result;
         auto* pts_param = obj.params.find(ParamKey::points);
         if (pts_param) {
@@ -73,7 +72,7 @@ std::vector<Vec2> collect_contour(const GraphicObject& obj) {
         }
         return result;
     }
-    if (st == "path") {
+    if (obj.shape_type == ShapeType::Path) {
         std::vector<Vec2> result;
         auto* cmds_param = obj.params.find(ParamKey::path_commands);
         if (!cmds_param) return result;
@@ -159,7 +158,7 @@ std::vector<Vec2> collect_contour(const GraphicObject& obj) {
         }
         return result;
     }
-    if (st == "rect") {
+    if (obj.shape_type == ShapeType::Rect) {
         auto param_d = [](const GraphicObject& o, ParamKey k, double d) {
             auto* v = o.params.find(k);
             if (!v) return d;
@@ -173,7 +172,7 @@ std::vector<Vec2> collect_contour(const GraphicObject& obj) {
         double y = param_d(obj, ParamKey::y, 0.0);
         return std::vector<Vec2>{{x, y}, {x + w, y}, {x + w, y + h}, {x, y + h}};
     }
-    if (st == "ellipse" || st == "circle") {
+    if (obj.shape_type == ShapeType::Ellipse || obj.shape_type == ShapeType::Circle) {
         auto param_d = [](const GraphicObject& o, ParamKey k, double d) {
             auto* v = o.params.find(k);
             if (!v) return d;
@@ -183,9 +182,9 @@ std::vector<Vec2> collect_contour(const GraphicObject& obj) {
         };
         double cx = param_d(obj, ParamKey::cx, 0.0);
         double cy = param_d(obj, ParamKey::cy, 0.0);
-        double rx = (st == "circle") ? param_d(obj, ParamKey::r, 50.0)
+        double rx = (obj.shape_type == ShapeType::Circle) ? param_d(obj, ParamKey::r, 50.0)
                                      : param_d(obj, ParamKey::rx, 50.0);
-        double ry = (st == "circle") ? param_d(obj, ParamKey::r, 50.0)
+        double ry = (obj.shape_type == ShapeType::Circle) ? param_d(obj, ParamKey::r, 50.0)
                                      : param_d(obj, ParamKey::ry, 50.0);
         std::vector<Vec2> pts;
         // Subdivision scales with radius: more segments for larger circles.
@@ -326,7 +325,7 @@ Result<TriangulatedMesh> triangulate_shape(const GraphicObject& obj) {
     auto contour = collect_contour(obj);
     if (contour.empty()) {
         return std::unexpected(
-            pml::type_error("triangulate_shape: shape type '" + obj.shape_type +
+            pml::type_error("triangulate_shape: shape type '" + to_string(obj.shape_type) +
                             "' is not closed or has no contour")
         );
     }

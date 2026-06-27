@@ -9,6 +9,7 @@
 #include <type_traits>
 
 #include "texture.h"  // for TextureBox
+#include "../graphics/gradient.h"  // for Gradient
 
 namespace pml {
 
@@ -345,6 +346,10 @@ Value::Value(std::shared_ptr<TextureBox> v)
     : tag_(Tag::Object)
     , box_(std::make_shared<Box>(Box{Box::Kind::Texture, std::move(v)})) {}
 
+Value::Value(std::shared_ptr<Gradient> v)
+    : tag_(Tag::Object)
+    , box_(std::make_shared<Box>(Box{Box::Kind::Gradient, std::move(v)})) {}
+
 // ---- Kind helpers ----------------------------------------------------------------------------------------------------------------------------
 
 Box::Kind Value::box_kind() const noexcept {
@@ -428,6 +433,10 @@ bool Value::is_image_filter() const noexcept {
 
 bool Value::is_texture() const noexcept {
     return tag_ == Tag::Object && box_kind() == Box::Kind::Texture;
+}
+
+bool Value::is_gradient() const noexcept {
+    return tag_ == Tag::Object && box_kind() == Box::Kind::Gradient;
 }
 
 // ---- Object accessors --------------------------------------------------------------------------------------------------------------------
@@ -532,6 +541,11 @@ const std::shared_ptr<ImageFilter>* Value::as_image_filter() const noexcept {
 const std::shared_ptr<TextureBox>* Value::as_texture() const noexcept {
     if (!is_texture()) return nullptr;
     return std::get_if<std::shared_ptr<TextureBox>>(&box_->data);
+}
+
+const std::shared_ptr<Gradient>* Value::as_gradient() const noexcept {
+    if (!is_gradient()) return nullptr;
+    return std::get_if<std::shared_ptr<Gradient>>(&box_->data);
 }
 
 // ---- Equality ------------------------------------------------------------------------------------------------------------------------------------
@@ -650,6 +664,8 @@ std::string value_to_string(const Value& v) {
     if (v.is_layer()) return "<layer>";
     if (v.is_composition()) return "<composition>";
     if (v.is_image_filter()) return "<filter>";
+    if (v.is_texture()) return "<Texture>";
+    if (v.is_gradient()) return "<Gradient>";
 
     return "<unknown>";
 }

@@ -9,7 +9,9 @@
 #include "canvas_builtins.h"
 
 #include "builtins_helpers.h"
+#include "clip_builtins.h"
 #include "color_builtins.h"
+#include "gradient_builtins.h"
 #include "error.h"
 #include "kwargs.h"
 #include "object_style_builtins.h"
@@ -22,6 +24,7 @@ using pml::kwargs::parse_kwargs;
 using pml::kwargs::value_to_opt_string;
 #include "../graphics/canvas.h"
 #include "../graphics/objects.h"
+#include "../layer/blend_mode.h"
 
 #include <memory>
 #include <string>
@@ -109,15 +112,30 @@ static Result<Value> builtin_sprite_canvas(const std::vector<Value>& args, Envir
 // Add a GraphicObject to a Canvas.
 
 static Result<Value> builtin_add(const std::vector<Value>& args, Environment& /*env*/) {
-    if (args.size() < 1 || args.size() > 2) {
+    if (args.size() < 1) {
         return std::unexpected(arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
     }
 
     std::shared_ptr<Canvas> target_canvas;
     std::shared_ptr<GraphicObject> target_obj;
+    size_t pos_count = 0;
 
-    if (args.size() == 1) {
-        // (add obj) — use current canvas
+    if (args.size() >= 2 && args[0].is_canvas()) {
+        // (add canvas obj ...)
+        const auto* canvas_ptr = args[0].as_canvas();
+        if (!canvas_ptr || !*canvas_ptr) {
+            return std::unexpected(type_error("add: first argument must be a Canvas"));
+        }
+        target_canvas = *canvas_ptr;
+
+        const auto* go_ptr = args[1].as_graphic_object();
+        if (!go_ptr || !*go_ptr) {
+            return std::unexpected(type_error("add: second argument must be a GraphicObject"));
+        }
+        target_obj = *go_ptr;
+        pos_count = 2;
+    } else {
+        // (add obj ...) — use current canvas
         const auto* go_ptr = args[0].as_graphic_object();
         if (!go_ptr || !*go_ptr) {
             return std::unexpected(type_error("add: argument must be a GraphicObject"));
@@ -133,19 +151,19 @@ static Result<Value> builtin_add(const std::vector<Value>& args, Environment& /*
                              std::nullopt});
         }
         target_canvas = current_canvas;
-    } else {
-        // (add canvas obj)
-        const auto* canvas_ptr = args[0].as_canvas();
-        if (!canvas_ptr || !*canvas_ptr) {
-            return std::unexpected(type_error("add: first argument must be a Canvas"));
-        }
-        target_canvas = *canvas_ptr;
+        pos_count = 1;
+    }
 
-        const auto* go_ptr = args[1].as_graphic_object();
-        if (!go_ptr || !*go_ptr) {
-            return std::unexpected(type_error("add: second argument must be a GraphicObject"));
+    // Parse optional keyword arguments
+    auto kwargs = parse_kwargs(args, pos_count);
+    auto blend_it = kwargs.find("blend-mode");
+    if (blend_it != kwargs.end()) {
+        if (auto bm_str = value_to_opt_string(blend_it->second)) {
+            if (auto bm = blend_mode_from_keyword(*bm_str)) {
+                target_obj = std::make_shared<GraphicObject>(*target_obj);
+                target_obj->blend_mode = *bm;
+            }
         }
-        target_obj = *go_ptr;
     }
 
     target_canvas->add(*target_obj);
@@ -164,13 +182,15 @@ void register_canvas_builtins(std::shared_ptr<Environment> env) {
     def(env, "canvas", builtin_canvas, true);               // accepts :bg
     def(env, "sprite-canvas", builtin_sprite_canvas, true); // accepts :bg, :anchor, :padding
     def(env, "clear-canvas", builtin_clear_canvas);
-    def(env, "add", builtin_add);
+    def(env, "add", builtin_add, true);
 
     // ---- Sub-module registrations --------------------------------------------------------------------------------
     register_shape_builtins(env);          // circle, rect, ellipse, line, polygon, text, group
     register_object_style_builtins(env);   // fill, stroke, no-fill, no-stroke, stroke-width,
                                            // with-transform, translate-object, rotate-object, scale-object
     register_color_builtins(env);          // color/rgb, color/rgba
+    register_gradient_builtins(env);       // linear, radial
+    register_clip_builtins(env);           // with-clip
 }
 
 } // namespace pml

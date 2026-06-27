@@ -61,7 +61,7 @@ std::shared_ptr<GraphicObject> create_body(
 
     // Torso center at origin
     GraphicObject torso(
-        "rect", Params{{ParamKey::x, -torso_w / 2.0}, {ParamKey::y, 0.0}, {ParamKey::w, torso_w}, {ParamKey::h, torso_h}},
+        ShapeType::Rect, Params{{ParamKey::x, -torso_w / 2.0}, {ParamKey::y, 0.0}, {ParamKey::w, torso_w}, {ParamKey::h, torso_h}},
         skin,
         "#1a1a1a",
         2.0,
@@ -75,7 +75,7 @@ std::shared_ptr<GraphicObject> create_body(
     double neck_w = torso_w * 0.35;
     double neck_h = height * 0.06;
     GraphicObject neck(
-        "rect", Params{{ParamKey::x, -neck_w / 2.0}, {ParamKey::y, -neck_h}, {ParamKey::w, neck_w}, {ParamKey::h, neck_h}},
+        ShapeType::Rect, Params{{ParamKey::x, -neck_w / 2.0}, {ParamKey::y, -neck_h}, {ParamKey::w, neck_w}, {ParamKey::h, neck_h}},
         skin,
         "#1a1a1a",
         1.5);
@@ -83,7 +83,7 @@ std::shared_ptr<GraphicObject> create_body(
     // Shoulders (ellipses at top of torso)
     double shoulder_r = torso_w * 0.18;
     GraphicObject left_shoulder(
-        "ellipse", Params{{ParamKey::cx, -torso_w / 2.0},
+        ShapeType::Ellipse, Params{{ParamKey::cx, -torso_w / 2.0},
          {ParamKey::cy, torso_h * 0.08},
          {ParamKey::rx, shoulder_r},
          {ParamKey::ry, shoulder_r * 0.8}},
@@ -91,7 +91,7 @@ std::shared_ptr<GraphicObject> create_body(
         "#1a1a1a",
         1.5);
     GraphicObject right_shoulder(
-        "ellipse", Params{{ParamKey::cx, torso_w / 2.0},
+        ShapeType::Ellipse, Params{{ParamKey::cx, torso_w / 2.0},
          {ParamKey::cy, torso_h * 0.08},
          {ParamKey::rx, shoulder_r},
          {ParamKey::ry, shoulder_r * 0.8}},
@@ -100,7 +100,7 @@ std::shared_ptr<GraphicObject> create_body(
         1.5);
 
     return std::make_shared<GraphicObject>(
-        "group",
+        ShapeType::Group,
         Params{},
         std::nullopt,
         std::nullopt,

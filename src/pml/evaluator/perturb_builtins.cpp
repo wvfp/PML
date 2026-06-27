@@ -220,6 +220,7 @@ static Result<Value> builtin_perturb_polygon(
     std::optional<std::string> fill_color;
     std::optional<std::string> stroke_color;
     double stroke_width = kw_double(kw, "stroke-width", 1.0);
+    double opacity = kw_double(kw, "opacity", 1.0);
 
     auto fill_it = kw.find("fill");
     if (fill_it != kw.end()) {
@@ -231,8 +232,9 @@ static Result<Value> builtin_perturb_polygon(
     }
 
     auto obj = std::make_shared<GraphicObject>(
-        "polygon", std::move(params),
+        ShapeType::Polygon, std::move(params),
         fill_color, stroke_color, stroke_width);
+    obj->opacity = opacity;
 
     return Value(std::move(obj));
 }

@@ -106,4 +106,21 @@ namespace pml::kwargs {
     return default_val;
 }
 
+/// Extract a boolean keyword argument, falling back to `default_val`.
+/// Accepts: the keyword `true`, non-zero int/double as true.
+[[nodiscard]] inline bool kw_bool(
+    const std::unordered_map<std::string, Value>& kwargs,
+    const std::string& key,
+    bool default_val)
+{
+    auto it = kwargs.find(key);
+    if (it == kwargs.end()) return default_val;
+    if (const auto* kw = it->second.as_keyword()) {
+        return kw->name == "true";
+    }
+    if (it->second.is_int()) return it->second.int_val() != 0;
+    if (it->second.is_double()) return it->second.double_val() != 0.0;
+    return default_val;
+}
+
 }  // namespace pml::kwargs

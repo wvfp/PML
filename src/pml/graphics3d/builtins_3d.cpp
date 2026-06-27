@@ -36,7 +36,7 @@ const GraphicObject& get_material(
 
 GraphicObject make_default_material(double size, const std::string& color) {
     return GraphicObject(
-        "rect",
+        ShapeType::Rect,
         Params{{"x", Value(0.0)}, {"y", Value(0.0)},
                {"w", Value(size)}, {"h", Value(size)}},
         color,
@@ -46,7 +46,7 @@ GraphicObject make_default_material(double size, const std::string& color) {
 
 Result<GraphicObject> extract_mesh3d_object(const Value& v, const std::string& fn_name) {
     const auto* go = v.as_graphic_object();
-    if (!go || (*go)->shape_type != "mesh3d") {
+    if (!go || (*go)->shape_type != ShapeType::Mesh3D) {
         return std::unexpected(type_error(
             fn_name + ": expected mesh3d graphic object"));
     }
@@ -81,7 +81,7 @@ Result<Value> make_mesh3d_value(std::shared_ptr<Mesh3D> mesh, std::shared_ptr<Tr
     Params params;
     params.set("mesh", Value(mesh));
     params.set("transform", Value(transform));
-    GraphicObject obj("mesh3d", params, std::nullopt, std::nullopt, 0.0);
+    GraphicObject obj(ShapeType::Mesh3D, params, std::nullopt, std::nullopt, 0.0);
     return Value(std::make_shared<GraphicObject>(std::move(obj)));
 }
 

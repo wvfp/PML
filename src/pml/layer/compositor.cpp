@@ -18,7 +18,7 @@ namespace {
 [[nodiscard]] GraphicObject wrap_leaf(
     const std::shared_ptr<GraphicObject>& leaf,
     const LayerProperties& props) {
-    GraphicObject group("group");
+    GraphicObject group(ShapeType::Group);
     group.children.push_back(*leaf);
     group.transform = layer_transform(props);
     return group;

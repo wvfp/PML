@@ -18,6 +18,7 @@ using pml::kwargs::kw_string;
 using pml::kwargs::parse_kwargs;
 using pml::kwargs::value_to_opt_string;
 #include "../graphics/canvas.h"
+#include "../graphics/gradient.h"
 #include "../graphics/objects.h"
 #include "../graphics/path_types.h"
 #include "../graphics/rough.h"
@@ -145,6 +146,22 @@ void apply_blend_and_stroke(
     }
 }
 
+/// Apply :fill-gradient kwarg if present (takes precedence over :fill).
+void apply_fill_gradient(
+    const std::shared_ptr<GraphicObject>& obj,
+    const std::unordered_map<std::string, Value>& kwargs)
+{
+    auto fg_it = kwargs.find("fill-gradient");
+    if (fg_it != kwargs.end()) {
+        if (const auto* grad_ptr = fg_it->second.as_gradient()) {
+            if (*grad_ptr) {
+                obj->fill_gradient = **grad_ptr;
+                obj->fill = std::nullopt;
+            }
+        }
+    }
+}
+
 } // anonymous namespace
 
 // ==========================================================================================================================================================================================================================================═
@@ -166,6 +183,7 @@ static Result<Value> builtin_circle(const std::vector<Value>& args, Environment&
     std::optional<std::string> fill_color;
     std::optional<std::string> stroke_color;
     double sw = kw_double(kwargs, "stroke-width", 1.0);
+    double opacity = kw_double(kwargs, "opacity", 1.0);
 
     auto fill_it = kwargs.find("fill");
     if (fill_it != kwargs.end()) {
@@ -179,7 +197,7 @@ static Result<Value> builtin_circle(const std::vector<Value>& args, Environment&
     // Resolve rough-style params
     auto rough = resolve_rough_params(kwargs);
 
-    std::string shape = rough.rough_stroke ? "rough_circle" : "circle";
+    ShapeType shape = rough.rough_stroke ? ShapeType::RoughCircle : ShapeType::Circle;
 
     auto obj = std::make_shared<GraphicObject>(
         shape,
@@ -191,6 +209,7 @@ static Result<Value> builtin_circle(const std::vector<Value>& args, Environment&
         fill_color ? std::optional<std::string>(*fill_color) : std::nullopt,
         stroke_color ? std::optional<std::string>(*stroke_color) : std::nullopt,
         sw);
+    obj->opacity = opacity;
 
     if (rough.rough_stroke) {
         obj->metadata["roughness"] = Value(rough.params.roughness);
@@ -202,6 +221,7 @@ static Result<Value> builtin_circle(const std::vector<Value>& args, Environment&
     }
 
     apply_blend_and_stroke(obj, kwargs);
+    apply_fill_gradient(obj, kwargs);
 
     return Value(std::move(obj));
 }
@@ -223,6 +243,7 @@ static Result<Value> builtin_rect(const std::vector<Value>& args, Environment& /
     std::optional<std::string> stroke_color;
     double sw = kw_double(kwargs, "stroke-width", 1.0);
     double rx = kw_double(kwargs, "rx", 0.0);
+    double opacity = kw_double(kwargs, "opacity", 1.0);
 
     auto fill_it = kwargs.find("fill");
     if (fill_it != kwargs.end()) {
@@ -245,7 +266,7 @@ static Result<Value> builtin_rect(const std::vector<Value>& args, Environment& /
     // Resolve rough-style params
     auto rough = resolve_rough_params(kwargs);
 
-    std::string shape = rough.rough_stroke ? "rough_rect" : "rect";
+    ShapeType shape = rough.rough_stroke ? ShapeType::RoughRect : ShapeType::Rect;
 
     auto obj = std::make_shared<GraphicObject>(
         shape,
@@ -253,6 +274,7 @@ static Result<Value> builtin_rect(const std::vector<Value>& args, Environment& /
         fill_color ? std::optional<std::string>(*fill_color) : std::nullopt,
         stroke_color ? std::optional<std::string>(*stroke_color) : std::nullopt,
         sw);
+    obj->opacity = opacity;
 
     if (rough.rough_stroke) {
         obj->metadata["roughness"] = Value(rough.params.roughness);
@@ -264,6 +286,7 @@ static Result<Value> builtin_rect(const std::vector<Value>& args, Environment& /
     }
 
     apply_blend_and_stroke(obj, kwargs);
+    apply_fill_gradient(obj, kwargs);
 
     return Value(std::move(obj));
 }
@@ -284,6 +307,7 @@ static Result<Value> builtin_ellipse(const std::vector<Value>& args, Environment
     std::optional<std::string> fill_color;
     std::optional<std::string> stroke_color;
     double sw = kw_double(kwargs, "stroke-width", 1.0);
+    double opacity = kw_double(kwargs, "opacity", 1.0);
 
     auto fill_it = kwargs.find("fill");
     if (fill_it != kwargs.end()) {
@@ -297,7 +321,7 @@ static Result<Value> builtin_ellipse(const std::vector<Value>& args, Environment
     // Resolve rough-style params
     auto rough = resolve_rough_params(kwargs);
 
-    std::string shape = rough.rough_stroke ? "rough_ellipse" : "ellipse";
+    ShapeType shape = rough.rough_stroke ? ShapeType::RoughEllipse : ShapeType::Ellipse;
 
     auto obj = std::make_shared<GraphicObject>(
         shape,
@@ -310,6 +334,7 @@ static Result<Value> builtin_ellipse(const std::vector<Value>& args, Environment
         fill_color ? std::optional<std::string>(*fill_color) : std::nullopt,
         stroke_color ? std::optional<std::string>(*stroke_color) : std::nullopt,
         sw);
+    obj->opacity = opacity;
 
     if (rough.rough_stroke) {
         obj->metadata["roughness"] = Value(rough.params.roughness);
@@ -321,6 +346,7 @@ static Result<Value> builtin_ellipse(const std::vector<Value>& args, Environment
     }
 
     apply_blend_and_stroke(obj, kwargs);
+    apply_fill_gradient(obj, kwargs);
 
     return Value(std::move(obj));
 }
@@ -340,6 +366,7 @@ static Result<Value> builtin_line(const std::vector<Value>& args, Environment& /
     auto kwargs = parse_kwargs(args, 4);
     std::optional<std::string> stroke_color;
     double sw = kw_double(kwargs, "stroke-width", 1.0);
+    double opacity = kw_double(kwargs, "opacity", 1.0);
 
     auto stroke_it = kwargs.find("stroke");
     if (stroke_it != kwargs.end()) {
@@ -349,7 +376,7 @@ static Result<Value> builtin_line(const std::vector<Value>& args, Environment& /
     // Resolve rough-style params (lines have no fill, so only stroke roughness)
     auto rough = resolve_rough_params(kwargs);
 
-    std::string shape = rough.rough_stroke ? "rough_line" : "line";
+    ShapeType shape = rough.rough_stroke ? ShapeType::RoughLine : ShapeType::Line;
 
     auto obj = std::make_shared<GraphicObject>(
         shape,
@@ -362,6 +389,7 @@ static Result<Value> builtin_line(const std::vector<Value>& args, Environment& /
         std::nullopt, // lines don't have fill
         stroke_color ? std::optional<std::string>(*stroke_color) : std::nullopt,
         sw);
+    obj->opacity = opacity;
 
     if (rough.rough_stroke) {
         obj->metadata["roughness"] = Value(rough.params.roughness);
@@ -404,6 +432,7 @@ static Result<Value> builtin_polygon(const std::vector<Value>& args, Environment
     std::optional<std::string> fill_color;
     std::optional<std::string> stroke_color;
     double sw = kw_double(kwargs, "stroke-width", 1.0);
+    double opacity = kw_double(kwargs, "opacity", 1.0);
 
     auto fill_it = kwargs.find("fill");
     if (fill_it != kwargs.end()) {
@@ -417,7 +446,7 @@ static Result<Value> builtin_polygon(const std::vector<Value>& args, Environment
     // Resolve rough-style params
     auto rough = resolve_rough_params(kwargs);
 
-    std::string shape = rough.rough_stroke ? "rough_polygon" : "polygon";
+    ShapeType shape = rough.rough_stroke ? ShapeType::RoughPolygon : ShapeType::Polygon;
 
     auto obj = std::make_shared<GraphicObject>(
         shape,
@@ -427,6 +456,7 @@ static Result<Value> builtin_polygon(const std::vector<Value>& args, Environment
         fill_color ? std::optional<std::string>(*fill_color) : std::nullopt,
         stroke_color ? std::optional<std::string>(*stroke_color) : std::nullopt,
         sw);
+    obj->opacity = opacity;
 
     if (rough.rough_stroke) {
         obj->metadata["roughness"] = Value(rough.params.roughness);
@@ -438,6 +468,7 @@ static Result<Value> builtin_polygon(const std::vector<Value>& args, Environment
     }
 
     apply_blend_and_stroke(obj, kwargs);
+    apply_fill_gradient(obj, kwargs);
 
     // ---- Edge-perturbation kwargs ------------------------------------------------------------------------─
     // Parse optional edge-perturbation parameters. If ANY edge-* or
@@ -503,6 +534,7 @@ static Result<Value> builtin_text(const std::vector<Value>& args, Environment& /
     auto kwargs = parse_kwargs(args, 3);
     std::optional<std::string> fill_color;
     double font_size = kw_double(kwargs, "font-size", 16.0);
+    double opacity = kw_double(kwargs, "opacity", 1.0);
 
     auto fill_it = kwargs.find("fill");
     if (fill_it != kwargs.end()) {
@@ -529,13 +561,15 @@ static Result<Value> builtin_text(const std::vector<Value>& args, Environment& /
         params.set(ParamKey::align, Value(std::move(*align)));
     }
 
-    auto obj = std::make_shared<GraphicObject>("text",
+    auto obj = std::make_shared<GraphicObject>(ShapeType::Text,
                                                std::move(params),
                                                fill_color ? std::optional<std::string>(*fill_color)
                                                           : std::nullopt,
                                                std::nullopt, // text typically has no stroke
                                                1.0);
+    obj->opacity = opacity;
     apply_blend_and_stroke(obj, kwargs);
+    apply_fill_gradient(obj, kwargs);
     return Value(std::move(obj));
 }
 
@@ -572,6 +606,7 @@ static Result<Value> builtin_path(const std::vector<Value>& args, Environment& /
     std::optional<std::string> fill_color;
     std::optional<std::string> stroke_color;
     double sw = kw_double(kwargs, "stroke-width", 1.0);
+    double opacity = kw_double(kwargs, "opacity", 1.0);
 
     auto fill_it = kwargs.find("fill");
     if (fill_it != kwargs.end()) {
@@ -651,7 +686,7 @@ static Result<Value> builtin_path(const std::vector<Value>& args, Environment& /
     // Resolve rough-style params
     auto rough = resolve_rough_params(kwargs);
 
-    std::string shape = rough.rough_stroke ? "rough_path" : "path";
+    ShapeType shape = rough.rough_stroke ? ShapeType::RoughPath : ShapeType::Path;
 
     auto obj = std::make_shared<GraphicObject>(
         shape,
@@ -659,6 +694,7 @@ static Result<Value> builtin_path(const std::vector<Value>& args, Environment& /
         fill_color ? std::optional<std::string>(*fill_color) : std::nullopt,
         stroke_color ? std::optional<std::string>(*stroke_color) : std::nullopt,
         sw);
+    obj->opacity = opacity;
 
     if (rough.rough_stroke) {
         obj->metadata["roughness"] = Value(rough.params.roughness);
@@ -670,6 +706,7 @@ static Result<Value> builtin_path(const std::vector<Value>& args, Environment& /
     }
 
     apply_blend_and_stroke(obj, kwargs);
+    apply_fill_gradient(obj, kwargs);
 
     return Value(std::move(obj));
 }
@@ -683,24 +720,47 @@ static Result<Value> builtin_group(const std::vector<Value>& args, Environment& 
         return std::unexpected(arity_error(SourceLocation{}, 1, 0));
     }
 
-    std::vector<GraphicObject> children;
-    children.reserve(args.size());
+    // Check for trailing keyword arguments (e.g. :blend-mode)
+    std::optional<BlendMode> group_blend;
+    size_t child_count = args.size();
 
-    for (const auto& arg : args) {
-        const auto* go_ptr = arg.as_graphic_object();
+    if (child_count >= 2 && args[child_count - 2].is_keyword()) {
+        auto kw = args[child_count - 2].as_keyword();
+        if (kw->name == "blend-mode") {
+            if (auto bm_str = value_to_opt_string(args[child_count - 1])) {
+                if (auto bm = blend_mode_from_keyword(*bm_str)) {
+                    group_blend = *bm;
+                }
+            }
+            child_count -= 2;
+        }
+    }
+
+    if (child_count == 0) {
+        return std::unexpected(arity_error(SourceLocation{}, 1, 0));
+    }
+
+    std::vector<GraphicObject> children;
+    children.reserve(child_count);
+
+    for (size_t i = 0; i < child_count; ++i) {
+        const auto* go_ptr = args[i].as_graphic_object();
         if (!go_ptr || !*go_ptr) {
             return std::unexpected(type_error("group: all arguments must be GraphicObjects"));
         }
         children.push_back(**go_ptr);
     }
 
-    auto obj = std::make_shared<GraphicObject>("group",
+    auto obj = std::make_shared<GraphicObject>(ShapeType::Group,
                                                Params{},
                                                std::nullopt,
                                                std::nullopt,
                                                1.0,
                                                AffineTransform::identity(),
                                                std::move(children));
+    if (group_blend) {
+        obj->blend_mode = *group_blend;
+    }
     return Value(std::move(obj));
 }
 
@@ -722,7 +782,7 @@ void register_shape_builtins(std::shared_ptr<Environment> env) {
     def(env, "path", builtin_path, true);       // accepts :fill, :stroke, :stroke-width, :d
 
     // ---- Group builtin ----------------------------------------------------------------------------------------------------─
-    def(env, "group", builtin_group);
+    def(env, "group", builtin_group, true);
 }
 
 } // namespace pml

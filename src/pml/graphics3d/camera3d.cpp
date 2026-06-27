@@ -1,10 +1,16 @@
 #include "camera3d.h"
 
+#include "pml/api/context.h"
+
 namespace pml {
 
 Camera3D& current_camera() noexcept {
-    static Camera3D cam;
-    return cam;
+    auto* ctx = PMLContext::current_ptr();
+    if (ctx && ctx->camera) {
+        return *ctx->camera;
+    }
+    thread_local Camera3D fallback;
+    return fallback;
 }
 
 void reset_camera() noexcept {

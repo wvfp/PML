@@ -5,7 +5,7 @@
 using namespace pml;
 
 static std::shared_ptr<GraphicObject> dummy_shape() {
-    return std::make_shared<GraphicObject>("circle");
+    return std::make_shared<GraphicObject>(pml::ShapeType::Circle);
 }
 
 TEST(LayerTest, LeafHasNoChildren) {

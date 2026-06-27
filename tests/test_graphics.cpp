@@ -137,8 +137,8 @@ TEST(AffineTransformTest, OperatorStarCompose) {
 // ============================================================================
 
 TEST(GraphicObjectTest, Creation) {
-    pml::GraphicObject obj("circle", pml::Params{{pml::ParamKey::r, pml::Value(int64_t{50})}}, "#ff0000");
-    EXPECT_EQ(obj.shape_type, "circle");
+    pml::GraphicObject obj(pml::ShapeType::Circle, pml::Params{{pml::ParamKey::r, pml::Value(int64_t{50})}}, "#ff0000");
+    EXPECT_EQ(obj.shape_type, pml::ShapeType::Circle);
     EXPECT_EQ(obj.fill.value_or(""), "#ff0000");
     EXPECT_TRUE(obj.params.contains(pml::ParamKey::r));
     const pml::Value* v = obj.params.find(pml::ParamKey::r);
@@ -147,13 +147,13 @@ TEST(GraphicObjectTest, Creation) {
 }
 
 TEST(GraphicObjectTest, UniqueId) {
-    pml::GraphicObject obj1("rect");
-    pml::GraphicObject obj2("rect");
+    pml::GraphicObject obj1(pml::ShapeType::Rect);
+    pml::GraphicObject obj2(pml::ShapeType::Rect);
     EXPECT_NE(obj1.id, obj2.id);
 }
 
 TEST(GraphicObjectTest, WithTransformReturnsNewObject) {
-    pml::GraphicObject obj("circle", pml::Params{{pml::ParamKey::r, pml::Value(int64_t{10})}}, "#00ff00");
+    pml::GraphicObject obj(pml::ShapeType::Circle, pml::Params{{pml::ParamKey::r, pml::Value(int64_t{10})}}, "#00ff00");
     auto t = pml::AffineTransform::translate(100.0, 200.0);
 
     auto transformed = obj.with_transform(t);
@@ -166,33 +166,33 @@ TEST(GraphicObjectTest, WithTransformReturnsNewObject) {
     // with_transform preserves identity (same logical object, different transform)
     EXPECT_EQ(transformed.id, obj.id);
     // But the shape type and fill are preserved
-    EXPECT_EQ(transformed.shape_type, "circle");
+    EXPECT_EQ(transformed.shape_type, pml::ShapeType::Circle);
     EXPECT_EQ(transformed.fill.value_or(""), "#00ff00");
 }
 
 TEST(GraphicObjectTest, WithFillReturnsNewObject) {
-    pml::GraphicObject obj("rect", {}, "#ff0000");
+    pml::GraphicObject obj(pml::ShapeType::Rect, {}, "#ff0000");
     auto modified = obj.with_fill("#0000ff");
     EXPECT_EQ(obj.fill.value_or(""), "#ff0000");
     EXPECT_EQ(modified.fill.value_or(""), "#0000ff");
 }
 
 TEST(GraphicObjectTest, WithStrokeReturnsNewObject) {
-    pml::GraphicObject obj("rect", {}, "#ff0000", "#000000");
+    pml::GraphicObject obj(pml::ShapeType::Rect, {}, "#ff0000", "#000000");
     auto modified = obj.with_stroke("#ffffff");
     EXPECT_EQ(obj.stroke.value_or(""), "#000000");
     EXPECT_EQ(modified.stroke.value_or(""), "#ffffff");
 }
 
 TEST(GraphicObjectTest, ChildrenComposition) {
-    pml::GraphicObject child1("circle", {{"radius", int64_t{5}}});
-    pml::GraphicObject child2("circle", {{"radius", int64_t{10}}});
-    pml::GraphicObject group("group", {}, std::nullopt, std::nullopt, 1.0,
+    pml::GraphicObject child1(pml::ShapeType::Circle, {{"radius", int64_t{5}}});
+    pml::GraphicObject child2(pml::ShapeType::Circle, {{"radius", int64_t{10}}});
+    pml::GraphicObject group(pml::ShapeType::Group, {}, std::nullopt, std::nullopt, 1.0,
                               pml::AffineTransform::identity(),
                               {child1, child2});
     EXPECT_EQ(group.children.size(), 2);
-    EXPECT_EQ(group.children[0].shape_type, "circle");
-    EXPECT_EQ(group.children[1].shape_type, "circle");
+    EXPECT_EQ(group.children[0].shape_type, pml::ShapeType::Circle);
+    EXPECT_EQ(group.children[1].shape_type, pml::ShapeType::Circle);
 }
 
 // ============================================================================
@@ -219,22 +219,22 @@ TEST(CanvasTest, SpriteCanvas) {
 
 TEST(CanvasTest, AddObject) {
     pml::Canvas canvas(100, 100);
-    pml::GraphicObject obj("circle", pml::Params{{pml::ParamKey::r, pml::Value(int64_t{20})}}, "#ff0000");
+    pml::GraphicObject obj(pml::ShapeType::Circle, pml::Params{{pml::ParamKey::r, pml::Value(int64_t{20})}}, "#ff0000");
     canvas.add(obj);
     EXPECT_EQ(canvas.objects.size(), 1);
-    EXPECT_EQ(canvas.objects[0].shape_type, "circle");
+    EXPECT_EQ(canvas.objects[0].shape_type, pml::ShapeType::Circle);
 }
 
 TEST(CanvasTest, AddMultipleObjects) {
     pml::Canvas canvas(100, 100);
-    canvas.add(pml::GraphicObject("circle"));
-    canvas.add(pml::GraphicObject("rect"));
-    canvas.add(pml::GraphicObject("line"));
+    canvas.add(pml::GraphicObject(pml::ShapeType::Circle));
+    canvas.add(pml::GraphicObject(pml::ShapeType::Rect));
+    canvas.add(pml::GraphicObject(pml::ShapeType::Line));
     EXPECT_EQ(canvas.objects.size(), 3);
     // Objects are added in z-order (last on top)
-    EXPECT_EQ(canvas.objects[0].shape_type, "circle");
-    EXPECT_EQ(canvas.objects[1].shape_type, "rect");
-    EXPECT_EQ(canvas.objects[2].shape_type, "line");
+    EXPECT_EQ(canvas.objects[0].shape_type, pml::ShapeType::Circle);
+    EXPECT_EQ(canvas.objects[1].shape_type, pml::ShapeType::Rect);
+    EXPECT_EQ(canvas.objects[2].shape_type, pml::ShapeType::Line);
 }
 
 // ============================================================================

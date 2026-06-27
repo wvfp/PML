@@ -160,6 +160,40 @@ void register_arithmetic_builtins(std::shared_ptr<Environment> env) {
         }
     });
 
+    // (mod n divisor) — alias for modulo
+    def("mod", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 2) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+        if (!is_number(args[0]) || !is_number(args[1])) {
+            return std::unexpected(type_error("mod expected numeric arguments"));
+        }
+        if (has_float(args)) {
+            double a = to_double(args[0]);
+            double b = to_double(args[1]);
+            if (b == 0) {
+                return std::unexpected(general_error("mod: division by zero"));
+            }
+            double r = std::fmod(a, b);
+            if (r != 0 && ((r < 0) != (b < 0))) {
+                r += b;
+            }
+            return Value(r);
+        } else {
+            int64_t a = to_int64(args[0]);
+            int64_t b = to_int64(args[1]);
+            if (b == 0) {
+                return std::unexpected(general_error("mod: division by zero"));
+            }
+            int64_t r = a % b;
+            if (r != 0 && ((r < 0) != (b < 0))) {
+                r += b;
+            }
+            return Value(r);
+        }
+    });
+
     def("remainder", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
         if (args.size() != 2) {
             return std::unexpected(
@@ -180,6 +214,32 @@ void register_arithmetic_builtins(std::shared_ptr<Environment> env) {
             int64_t b = to_int64(args[1]);
             if (b == 0) {
                 return std::unexpected(general_error("remainder: division by zero"));
+            }
+            return Value(a % b);
+        }
+    });
+
+    // (rem n divisor) — alias for remainder
+    def("rem", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 2) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+        if (!is_number(args[0]) || !is_number(args[1])) {
+            return std::unexpected(type_error("rem expected numeric arguments"));
+        }
+        if (has_float(args)) {
+            double a = to_double(args[0]);
+            double b = to_double(args[1]);
+            if (b == 0) {
+                return std::unexpected(general_error("rem: division by zero"));
+            }
+            return Value(std::fmod(a, b));
+        } else {
+            int64_t a = to_int64(args[0]);
+            int64_t b = to_int64(args[1]);
+            if (b == 0) {
+                return std::unexpected(general_error("rem: division by zero"));
             }
             return Value(a % b);
         }
@@ -667,6 +727,71 @@ void register_arithmetic_builtins(std::shared_ptr<Environment> env) {
         if (limit == 1) return Value(static_cast<int64_t>(0));
         std::uniform_int_distribution<int64_t> dist(0, limit - 1);
         return Value(dist(s_rng));
+    });
+
+    // ==================================================================================================================================================================================================================═
+    // Bitwise operations
+    // ==================================================================================================================================================================================================================═
+
+    def("bit-and", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 2) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+        if (!is_integer(args[0]) || !is_integer(args[1])) {
+            return std::unexpected(type_error("bit-and: expected integer arguments"));
+        }
+        return Value(to_int64(args[0]) & to_int64(args[1]));
+    });
+
+    def("bit-or", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 2) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+        if (!is_integer(args[0]) || !is_integer(args[1])) {
+            return std::unexpected(type_error("bit-or: expected integer arguments"));
+        }
+        return Value(to_int64(args[0]) | to_int64(args[1]));
+    });
+
+    def("bit-xor", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 2) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+        if (!is_integer(args[0]) || !is_integer(args[1])) {
+            return std::unexpected(type_error("bit-xor: expected integer arguments"));
+        }
+        return Value(to_int64(args[0]) ^ to_int64(args[1]));
+    });
+
+    def("bit-not", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 1) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        if (!is_integer(args[0])) {
+            return std::unexpected(type_error("bit-not: expected integer argument"));
+        }
+        return Value(~to_int64(args[0]));
+    });
+
+    def("bit-shift", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 2) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+        if (!is_integer(args[0]) || !is_integer(args[1])) {
+            return std::unexpected(type_error("bit-shift: expected integer arguments"));
+        }
+        int64_t val = to_int64(args[0]);
+        int64_t cnt = to_int64(args[1]);
+        // Clamp shift count to [0, 63] to avoid UB on signed overflow
+        if (cnt >= 63) return Value(static_cast<int64_t>(0));
+        if (cnt <= -63) return Value(static_cast<int64_t>(0));
+        if (cnt >= 0) return Value(val << cnt);
+        return Value(val >> (-cnt));
     });
 }
 

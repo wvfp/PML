@@ -167,6 +167,9 @@ static Result<Value> texture_map_proc(const std::vector<Value>& args,
     // :edge-blend — edge blend radius in pixels (default 0)
     double edge_blend = pml::kwargs::kw_double(kwargs, "edge-blend", 0.0);
 
+    // :perspective-correction — enable perspective texture mapping (default false)
+    bool perspective_correction = pml::kwargs::kw_bool(kwargs, "perspective-correction", false);
+
     // Build the texture param Value from the source TextureBox.
     Value tex_value(source_tex);
 
@@ -194,6 +197,11 @@ static Result<Value> texture_map_proc(const std::vector<Value>& args,
         }
         auto uv_val = Value(std::make_shared<ValueList>(std::move(uv_list)));
         go = go.with_param(ParamKey::uv_vertices, uv_val);
+    }
+
+    // Store perspective-correction flag.
+    if (perspective_correction) {
+        go = go.with_param(ParamKey::perspective_correction, Value(1.0));
     }
 
     return Value(std::make_shared<GraphicObject>(std::move(go)));

@@ -26,8 +26,11 @@ namespace pml {
 // include dependencies between core/graphics/animation/sprites.
 class AssetCache;
 class CallStack;
+class Camera3D;
 class Canvas;
 class Composition;
+class ModuleLoader;
+class NameRegistry;
 class SourceManager;
 class Timeline;
 class StyleRegistry;
@@ -56,11 +59,21 @@ class PMLContext {
     std::unique_ptr<AssetCache> assets;       ///< Loaded image asset cache
     std::unique_ptr<class TextureCache> texture_cache; ///< Baked texture LRU cache
 
+    // ---- Name registry ----------------------------------------------------------------------------------
+    std::unique_ptr<NameRegistry> name_registry; ///< Named object registry (F9)
+
     // ---- Per-runtime call stack & source cache --------------------------------------------------
     /// Call stack for error reporting (pushed/popped during function application).
     std::unique_ptr<CallStack> call_stack;
     /// Source file cache for error snippet display.
     std::unique_ptr<SourceManager> source_manager;
+
+    // ---- Per-runtime 3D camera & module loader --------------------------------------------------
+    std::unique_ptr<class Camera3D> camera;       ///< 3D camera state (perspective/orthographic)
+    std::shared_ptr<ModuleLoader> module_loader;  ///< Module loading with caching
+
+    // ---- Macro expansion state ------------------------------------------------------------------
+    int macro_depth = 0; ///< Macro expansion recursion depth (reset per execute())
 
     std::vector<std::shared_ptr<Composition>> compositions; ///< Registered compositions
     std::vector<std::string> output_files;                  ///< Paths written by this runtime

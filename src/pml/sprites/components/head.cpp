@@ -48,23 +48,23 @@ std::shared_ptr<GraphicObject> create_head(
     constexpr double head_w = 56.0;
     constexpr double head_h = 64.0;
 
-    GraphicObject head("ellipse");
+    GraphicObject head(ShapeType::Ellipse);
 
     if (shape == "oval" || shape == "heart") {
         head = GraphicObject(
-            "ellipse", Params{{ParamKey::cx, 0.0}, {ParamKey::cy, 0.0}, {ParamKey::rx, head_w / 2.0}, {ParamKey::ry, head_h / 2.0}},
+            ShapeType::Ellipse, Params{{ParamKey::cx, 0.0}, {ParamKey::cy, 0.0}, {ParamKey::rx, head_w / 2.0}, {ParamKey::ry, head_h / 2.0}},
             skin,
             "#1a1a1a",
             2.0);
     } else if (shape == "round") {
         head = GraphicObject(
-            "ellipse", Params{{ParamKey::cx, 0.0}, {ParamKey::cy, 0.0}, {ParamKey::rx, head_w / 2.0}, {ParamKey::ry, head_w / 2.0}},
+            ShapeType::Ellipse, Params{{ParamKey::cx, 0.0}, {ParamKey::cy, 0.0}, {ParamKey::rx, head_w / 2.0}, {ParamKey::ry, head_w / 2.0}},
             skin,
             "#1a1a1a",
             2.0);
     } else {  // square, angular, fallback
         head = GraphicObject(
-            "rect", Params{{ParamKey::x, -head_w / 2.0},
+            ShapeType::Rect, Params{{ParamKey::x, -head_w / 2.0},
              {ParamKey::y, -head_h / 2.0},
              {ParamKey::w, head_w},
              {ParamKey::h, head_h}},
@@ -80,7 +80,7 @@ std::shared_ptr<GraphicObject> create_head(
         double ear_r = 6.0;
         for (double dx : {-head_w / 2.0 - ear_r, head_w / 2.0 + ear_r}) {
             children.emplace_back(
-                "ellipse",
+                ShapeType::Ellipse,
                 Params{
                     {ParamKey::cx, dx}, {ParamKey::cy, -4.0}, {ParamKey::rx, ear_r}, {ParamKey::ry, ear_r * 1.2}},
                 skin,
@@ -92,7 +92,7 @@ std::shared_ptr<GraphicObject> create_head(
                  {-head_w / 2.0 - 2.0, -1.0},
                  {head_w / 2.0 + 2.0, 1.0}}) {
             children.emplace_back(
-                "polygon",
+                ShapeType::Polygon,
                 Params{
                     {ParamKey::points,
                      make_polygon_points({dx, -4.0,
@@ -107,7 +107,7 @@ std::shared_ptr<GraphicObject> create_head(
                  {-head_w / 2.0 + 4.0, -1.0},
                  {head_w / 2.0 - 4.0, 1.0}}) {
             children.emplace_back(
-                "polygon",
+                ShapeType::Polygon,
                 Params{
                     {ParamKey::points,
                      make_polygon_points({dx - 6.0 * flip, -head_h / 2.0 + 4.0,
@@ -121,7 +121,7 @@ std::shared_ptr<GraphicObject> create_head(
     // ears == "none" → no ear shapes
 
     return std::make_shared<GraphicObject>(
-        "group",
+        ShapeType::Group,
         Params{},
         std::nullopt,
         std::nullopt,

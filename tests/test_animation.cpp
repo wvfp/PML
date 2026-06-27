@@ -309,7 +309,7 @@ TEST_F(TimelineTest, StateToString) {
 // ==========================================================================================================================================================================================================================================═
 
 TEST(ApplyModifications, ChangeXParam) {
-    pml::GraphicObject obj("circle", pml::Params{{pml::ParamKey::x, pml::Value(int64_t(10))}});
+    pml::GraphicObject obj(pml::ShapeType::Circle, pml::Params{{pml::ParamKey::x, pml::Value(int64_t(10))}});
 
     std::unordered_map<std::string, pml::Value> mods = {{"x", pml::Value(50.0)}};
     auto result = pml::_apply_modifications(obj, mods);
@@ -326,7 +326,7 @@ TEST(ApplyModifications, ChangeXParam) {
 }
 
 TEST(ApplyModifications, ChangeTransformTx) {
-    pml::GraphicObject obj("rect", {});
+    pml::GraphicObject obj(pml::ShapeType::Rect, {});
 
     std::unordered_map<std::string, pml::Value> mods = {{"transform.tx", pml::Value(30.0)}};
     auto result = pml::_apply_modifications(obj, mods);
@@ -336,7 +336,7 @@ TEST(ApplyModifications, ChangeTransformTx) {
 }
 
 TEST(ApplyModifications, ChangeTransformTy) {
-    pml::GraphicObject obj("rect", {});
+    pml::GraphicObject obj(pml::ShapeType::Rect, {});
 
     std::unordered_map<std::string, pml::Value> mods = {{"transform.ty", pml::Value(40.0)}};
     auto result = pml::_apply_modifications(obj, mods);
@@ -345,7 +345,7 @@ TEST(ApplyModifications, ChangeTransformTy) {
 }
 
 TEST(ApplyModifications, OriginalUnchanged) {
-    pml::GraphicObject obj("circle", pml::Params{{pml::ParamKey::x, pml::Value(int64_t(10))}});
+    pml::GraphicObject obj(pml::ShapeType::Circle, pml::Params{{pml::ParamKey::x, pml::Value(int64_t(10))}});
     double orig_e = obj.transform.e;
 
     std::unordered_map<std::string, pml::Value> mods = {{"x", pml::Value(99.0)}, {"transform.tx", pml::Value(5.0)}};
@@ -359,20 +359,20 @@ TEST(ApplyModifications, OriginalUnchanged) {
 }
 
 TEST(ApplyModifications, EmptyMods) {
-    pml::GraphicObject obj("circle", pml::Params{{pml::ParamKey::x, pml::Value(int64_t(10))}});
+    pml::GraphicObject obj(pml::ShapeType::Circle, pml::Params{{pml::ParamKey::x, pml::Value(int64_t(10))}});
 
     std::unordered_map<std::string, pml::Value> mods;
     auto result = pml::_apply_modifications(obj, mods);
 
     // With empty mods, result should match original
-    EXPECT_EQ(result.shape_type, "circle");
+    EXPECT_EQ(result.shape_type, pml::ShapeType::Circle);
     const pml::Value* v = result.params.find(pml::ParamKey::x);
     ASSERT_NE(v, nullptr);
     EXPECT_EQ(v->int_val(), 10);
 }
 
 TEST(ApplyModifications, ChangeFill) {
-    pml::GraphicObject obj("circle", {}, "#ff0000");
+    pml::GraphicObject obj(pml::ShapeType::Circle, {}, "#ff0000");
 
     // String fill values update the fill field directly.
     std::unordered_map<std::string, pml::Value> mods = {{"fill", pml::Value(std::string("#00ff00"))}};
@@ -383,7 +383,7 @@ TEST(ApplyModifications, ChangeFill) {
 }
 
 TEST(ApplyModifications, ChangeStroke) {
-    pml::GraphicObject obj("circle", {}, std::nullopt, "#000000");
+    pml::GraphicObject obj(pml::ShapeType::Circle, {}, std::nullopt, "#000000");
 
     std::unordered_map<std::string, pml::Value> mods = {{"stroke", pml::Value(std::string("#ffffff"))}};
     auto result = pml::_apply_modifications(obj, mods);
