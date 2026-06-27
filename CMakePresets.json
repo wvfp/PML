@@ -43,7 +43,7 @@
         "name": "debug-linux",
         "displayName": "Debug (Linux ARM64)",
         "description": "Debug build for Linux ARM64. Uses pre-built Skia in third_party/skia.",
-        "generator": "Unix Makefiles",
+        "generator": "Ninja",
         "binaryDir": "${sourceDir}/build/debug",
         "cacheVariables": {
           "CMAKE_BUILD_TYPE": "Debug",
@@ -62,7 +62,7 @@
         "name": "release-linux",
         "displayName": "Release (Linux ARM64)",
         "description": "Release build for Linux ARM64. Uses pre-built Skia in third_party/skia.",
-        "generator": "Unix Makefiles",
+        "generator": "Ninja",
         "binaryDir": "${sourceDir}/build/release",
         "cacheVariables": {
           "CMAKE_BUILD_TYPE": "Release",

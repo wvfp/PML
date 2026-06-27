@@ -1,6 +1,7 @@
 ﻿cmake_minimum_required(VERSION 3.28)
 include(FetchContent)
 include(CheckIncludeFileCXX)
+find_package(PkgConfig QUIET)
 project(pml-cpp
     VERSION 0.1.0
     DESCRIPTION "PML C++23 鈥?Lisp-style DSL for code-to-image generation"
@@ -259,6 +260,14 @@ if(NOT EXISTS "${PML_SKIA_OUT}/skia.lib" AND NOT EXISTS "${PML_SKIA_OUT}/libskia
             target_compile_definitions(skia_headers INTERFACE
                 PML_SKIA_USE_FONTCONFIG=1
             )
+            # Skia's prebuilt libskia.a references FreeType + FontConfig symbols;
+            # link the system shared libraries to satisfy them at link time.
+            # Probe here, but link AFTER all skia static libs (see pml_skia_deps below).
+            if(PkgConfig_FOUND)
+                pkg_check_modules(PML_FONTCONFIG IMPORTED_TARGET fontconfig)
+            endif()
+            # Note: PML_FONTCONFIG is linked below in pml_skia_deps, AFTER skia::*
+            # static libs, to satisfy left-to-right static archive resolution.
         else()
             message(WARNING "fontconfig not found — Skia text rendering will use empty font manager (no system fonts)")
             target_compile_definitions(skia_headers INTERFACE
@@ -299,6 +308,15 @@ if(NOT EXISTS "${PML_SKIA_OUT}/skia.lib" AND NOT EXISTS "${PML_SKIA_OUT}/libskia
         skia::sksg skia::skshaper skia::svg skia::skottie skia::skresources
         skia::jsonreader skia::expat skia::bentleyottmann
     )
+    # ── System deps (must come AFTER skia static libs) ─────────────────────────
+    # GNU ld resolves static archives left-to-right: by the time libskia.a is
+    # processed, it pulls in SkFontHost_FreeType_common.o whose FT_* and Fc_*
+    # symbols must already be resolvable.  Shared libs placed before the static
+    # archive can be skipped with --as-needed (default on modern Linux), so we
+    # link freetype + fontconfig AFTER all skia .a files.
+    if(PkgConfig_FOUND AND PML_FONTCONFIG_FOUND)
+        target_link_libraries(pml_skia_deps INTERFACE PkgConfig::PML_FONTCONFIG)
+    endif()
     if(WIN32)
         target_link_libraries(pml_skia_deps INTERFACE
             gdi32.lib user32.lib ole32.lib oleaut32.lib uuid.lib

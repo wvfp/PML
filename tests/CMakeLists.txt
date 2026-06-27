@@ -35,17 +35,21 @@ target_link_libraries(pml-tests PRIVATE
     pml_animation
     pml_skeleton
     pml_module
-    pml_api
 )
 
 # Pixel-level shader/blend-mode regression tests need the Skia backend.
 # pml_backend_skia uses pml_backend_gif for animated GIF export.
+# IMPORTANT: pml_api must come AFTER all backends since libpml_backend_skia.a
+# (textured_draw.cpp.o) references TextureCache symbols from pml_api. GNU ld
+# resolves static archives left-to-right, so the consumer must appear before
+# the provider in the link line.
 if(PML_USE_SKIA AND TARGET pml_backend_skia)
     target_link_libraries(pml-tests PRIVATE pml_backend_skia)
     if(TARGET pml_backend_gif)
         target_link_libraries(pml-tests PRIVATE pml_backend_gif)
     endif()
 endif()
+target_link_libraries(pml-tests PRIVATE pml_api)
 
 # ---- Builtins smoke test (standalone, no GTest) ------------------------------------------------------------
 add_executable(pml-builtins-smoke
