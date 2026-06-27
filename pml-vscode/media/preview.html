@@ -257,6 +257,36 @@
       text-align: center;
       color: var(--vscode-descriptionForeground, #888);
     }
+
+    /* ── Render History ──────────────────────────────────────── */
+    .history-nav {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding: 4px 8px;
+    }
+    .history-nav button {
+      background: var(--vscode-button-background, #0e639c);
+      color: var(--vscode-button-foreground, #fff);
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      padding: 4px 12px;
+      font-size: 16px;
+      line-height: 1;
+    }
+    .history-nav button:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+    .history-nav .history-label {
+      font-size: 12px;
+      color: var(--vscode-descriptionForeground, #888);
+      min-width: 32px;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -281,6 +311,10 @@
       var prevState = api.getState();
       if (prevState && prevState.html) {
         document.getElementById('app').innerHTML = prevState.html;
+        if (prevState.history) {
+          renderHistory = prevState.history;
+          historyIndex = prevState.index || renderHistory.length - 1;
+        }
       }
 
       // ── Message handler ──────────────────────────────────────────
@@ -307,7 +341,9 @@
           setContent(app, buildEmpty());
           return;
         }
+        pushHistory(msg.files);
         var html = '<div class="state-render">';
+        html += '<div class="history-nav" id="history-nav"></div>';
         html += '<div id="zoom-container" style="overflow:hidden;position:relative;width:100%;cursor:grab;">';
         html += '<div id="zoom-target" style="transform-origin:0 0;">';
         html += buildRenderHtml(msg.files);
@@ -316,6 +352,7 @@
         html += '</div>';
         setContent(app, html);
         attachThumbnailClickHandlers(app);
+        updateHistoryUI();
         setTimeout(zoomToFit, 100);
       }
 
@@ -491,6 +528,54 @@
           '</div>';
       }
 
+      // ── Render History ──────────────────────────────────────────
+      var renderHistory = [];
+      var historyIndex = -1;
+      var MAX_HISTORY = 5;
+
+      function pushHistory(files) {
+        renderHistory.push({
+          files: files,
+          timestamp: new Date().toLocaleTimeString(),
+        });
+        if (renderHistory.length > MAX_HISTORY) renderHistory.shift();
+        historyIndex = renderHistory.length - 1;
+      }
+
+      function navigateHistory(delta) {
+        var newIndex = historyIndex + delta;
+        if (newIndex < 0 || newIndex >= renderHistory.length) return;
+        historyIndex = newIndex;
+        var entry = renderHistory[historyIndex];
+        if (!entry) return;
+        var html = '<div class="state-render">';
+        html += '<div class="history-nav" id="history-nav"></div>';
+        html += '<div id="zoom-container" style="overflow:hidden;position:relative;width:100%;cursor:grab;">';
+        html += '<div id="zoom-target" style="transform-origin:0 0;">';
+        html += buildRenderHtml(entry.files);
+        html += '</div></div>';
+        html += buildZoomControls();
+        html += '</div>';
+        setContent(document.getElementById('app'), html);
+        attachThumbnailClickHandlers(document.getElementById('app'));
+        updateHistoryUI();
+        setTimeout(function () { zoomReset(); }, 50);
+      }
+
+      function updateHistoryUI() {
+        var container = document.getElementById('history-nav');
+        if (!container) return;
+        if (renderHistory.length <= 1) {
+          container.style.display = 'none';
+          return;
+        }
+        container.style.display = 'flex';
+        container.innerHTML =
+          '<button onclick="navigateHistory(-1)" ' + (historyIndex <= 0 ? 'disabled' : '') + '>‹</button>' +
+          '<span class="history-label">' + (historyIndex + 1) + '/' + renderHistory.length + '</span>' +
+          '<button onclick="navigateHistory(1)" ' + (historyIndex >= renderHistory.length - 1 ? 'disabled' : '') + '>›</button>';
+      }
+
       // ── Zoom & Pan ──────────────────────────────────────────────
       var zoomState = { scale: 1, panX: 0, panY: 0 };
       var isPanning = false, panStart = { x: 0, y: 0 };
@@ -601,7 +686,7 @@
       function setContent(container, html) {
         container.innerHTML = html;
         // Persist to VSCode state so the WebView survives rehydration
-        api.setState({ html: html });
+        api.setState({ html: html, history: renderHistory, index: historyIndex });
       }
 
       function escapeHtml(str) {
