@@ -4,6 +4,10 @@
   "description": "Side-by-side preview for PML (Picture Markup Language) files",
   "version": "0.1.0",
   "publisher": "pml",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wvfp/PML.git"
+  },
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
