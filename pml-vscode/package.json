@@ -61,8 +61,24 @@
         "command": "pml.previewSide",
         "title": "Open PML Preview to the Side",
         "category": "PML"
+      },
+      {
+        "command": "pml.toggleAutoRender",
+        "title": "Toggle Live/Manual Render Mode",
+        "category": "PML"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "PML",
+      "properties": {
+        "pml.preview.autoRender": {
+          "type": "string",
+          "enum": ["live", "manual"],
+          "default": "live",
+          "description": "PML preview render mode: live (render on each keystroke) or manual (render only on save)"
+        }
+      }
+    }
   },
   "scripts": {
     "compile": "tsc -p ./tsconfig.json",

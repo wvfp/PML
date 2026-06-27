@@ -190,15 +190,20 @@ export class PMLPreviewProvider implements vscode.CustomReadonlyEditorProvider<P
     if (existingSub) existingSub.dispose();
 
     const changeSub = vscode.workspace.onDidChangeTextDocument(event => {
+      const mode = vscode.workspace.getConfiguration('pml').get<string>('preview.autoRender');
       const changedKey = event.document.uri.fsPath.toLowerCase();
       if (changedKey === fileKey) {
-        this._debouncedRender(document, webviewPanel, tempDir);
+        if (mode !== 'manual') {
+          this._debouncedRender(document, webviewPanel, tempDir);
+        }
         return;
       }
-      // Imported file changed — re-render this preview
+      // Imported file changed — re-render this preview (respect mode)
       const deps = this._dependencyGraph.get(fileKey);
       if (deps && deps.has(changedKey)) {
-        this._debouncedRender(document, webviewPanel, tempDir);
+        if (mode !== 'manual') {
+          this._debouncedRender(document, webviewPanel, tempDir);
+        }
       }
     });
     const saveSub = vscode.workspace.onDidSaveTextDocument(doc => {

@@ -74,6 +74,37 @@ export function activate(context: vscode.ExtensionContext) {
   statusBarItem.show();
   context.subscriptions.push(statusBarItem);
 
+  // ── Live/Manual render mode toggle ─────────────────────────────────────────
+  const liveToggle = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Right, 99,
+  );
+
+  function updateLiveToggle() {
+    const mode = vscode.workspace.getConfiguration('pml').get('preview.autoRender');
+    if (mode === 'manual') {
+      liveToggle.text = '$(debug-pause) Manual';
+      liveToggle.tooltip = 'Render on save only | Click for Live mode';
+    } else {
+      liveToggle.text = '$(sync) Live';
+      liveToggle.tooltip = 'Render on keystroke (500ms debounce) | Click for Manual mode';
+    }
+  }
+
+  updateLiveToggle();
+  liveToggle.command = 'pml.toggleAutoRender';
+  liveToggle.show();
+  context.subscriptions.push(liveToggle);
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('pml.toggleAutoRender', () => {
+      const current = vscode.workspace.getConfiguration('pml').get('preview.autoRender');
+      const next = current === 'manual' ? 'live' : 'manual';
+      vscode.workspace.getConfiguration('pml').update('preview.autoRender', next, true);
+      updateLiveToggle();
+      vscode.window.showInformationMessage(`PML preview mode: ${next}`);
+    }),
+  );
+
   // ── Code completion provider ───────────────────────────────────────────────
   registerCompletionProvider(context);
 
