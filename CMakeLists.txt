@@ -1,5 +1,6 @@
 ﻿cmake_minimum_required(VERSION 3.28)
 include(FetchContent)
+include(CheckIncludeFileCXX)
 project(pml-cpp
     VERSION 0.1.0
     DESCRIPTION "PML C++23 鈥?Lisp-style DSL for code-to-image generation"
@@ -221,13 +222,13 @@ if(PML_BUILD_SKIA)
     if(NOT EXISTS "${PML_SKIA_DIR}/include")
         message(FATAL_ERROR "PML_SKIA_DIR=${PML_SKIA_DIR} has no include/ subdir")
     endif()
-    if(NOT EXISTS "${PML_SKIA_OUT}/skia.lib" AND NOT EXISTS "${PML_SKIA_OUT}/libskia.a")
+if(NOT EXISTS "${PML_SKIA_OUT}/skia.lib" AND NOT EXISTS "${PML_SKIA_OUT}/libskia.a")
         message(FATAL_ERROR "PML_SKIA_OUT=${PML_SKIA_OUT} has neither skia.lib (Windows) nor libskia.a (Linux)")
     endif()
 
     add_library(skia_headers INTERFACE)
     target_include_directories(skia_headers INTERFACE
-        ${PML_SKIA_DIR}              # skia headers use include/core/鈥?paths
+        ${PML_SKIA_DIR}              # skia headers use include/core/… paths
         ${PML_SKIA_OUT}/gen          # skia.h
     )
     target_compile_definitions(skia_headers INTERFACE
@@ -235,6 +236,36 @@ if(PML_BUILD_SKIA)
         SK_GAMMA_APPLY_TO_A8=0
         SK_SUPPORT_LEGACY_PNG_WRITEBUFFER=0
     )
+
+    # ── Skia font manager backend (per platform) ──────────────────────────────
+    # Recent Skia removed SkFontMgr::RefDefault(). Each platform has its own
+    # factory function. Detect which one is available and set PML_SKIA_USE_*
+    # so the source only does #if defined(PML_SKIA_USE_DWRITE) etc.
+    if(WIN32)
+        # Windows: DirectWrite (SkTypeface_win.h)
+        target_compile_definitions(skia_headers INTERFACE
+            PML_SKIA_USE_DWRITE=1
+        )
+    elseif(APPLE)
+        # macOS: CoreText (SkFontMgr_mac_ct.h)
+        target_compile_definitions(skia_headers INTERFACE
+            PML_SKIA_USE_CORETEXT=1
+        )
+    else()
+        # Linux/Unix: fontconfig (SkFontMgr_fontconfig.h)
+        # Probe for fontconfig header; if missing, fall back to empty font manager.
+        check_include_file_cxx("fontconfig/fontconfig.h" PML_HAVE_FONTCONFIG)
+        if(PML_HAVE_FONTCONFIG)
+            target_compile_definitions(skia_headers INTERFACE
+                PML_SKIA_USE_FONTCONFIG=1
+            )
+        else()
+            message(WARNING "fontconfig not found — Skia text rendering will use empty font manager (no system fonts)")
+            target_compile_definitions(skia_headers INTERFACE
+                PML_SKIA_USE_EMPTY=1
+            )
+        endif()
+    endif()
 
     # Pick lib prefix & extension per platform
     if(WIN32)

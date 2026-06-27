@@ -18,6 +18,17 @@
 #include "pml/core/texture.h"
 #include "textured_draw.h"
 
+// ── Skia font manager backend ────────────────────────────────────────────
+// Platform-specific header for the font manager factory. The active
+// PML_SKIA_USE_* macro is set by CMake based on platform detection.
+#if defined(PML_SKIA_USE_DWRITE)
+    #include "include/ports/SkTypeface_win.h"
+#elif defined(PML_SKIA_USE_FONTCONFIG)
+    #include "include/ports/SkFontMgr_fontconfig.h"
+#elif defined(PML_SKIA_USE_CORETEXT)
+    #include "include/ports/SkFontMgr_mac_ct.h"
+#endif
+
 namespace pml {
 
 // ==========================================================================================================================================================================================================================================═
@@ -396,10 +407,15 @@ Result<void> draw_text(SkCanvas* canvas, const GraphicObject& obj,
         paint.setColor(SK_ColorBLACK);
     }
 
-#ifdef _WIN32
+#if defined(PML_SKIA_USE_DWRITE)
     sk_sp<SkFontMgr> font_mgr = SkFontMgr_New_DirectWrite();
+#elif defined(PML_SKIA_USE_FONTCONFIG)
+    sk_sp<SkFontMgr> font_mgr = SkFontMgr_New_FontConfig(nullptr, nullptr);
+#elif defined(PML_SKIA_USE_CORETEXT)
+    sk_sp<SkFontMgr> font_mgr = SkFontMgr_New_CoreText(nullptr);
 #else
-    sk_sp<SkFontMgr> font_mgr = SkFontMgr::RefDefault();
+    // Safe fallback: empty font manager (no system fonts, but compiles everywhere)
+    sk_sp<SkFontMgr> font_mgr = SkFontMgr::RefEmpty();
 #endif
 
     sk_sp<SkTypeface> typeface = font_mgr->matchFamilyStyle(nullptr, SkFontStyle());
