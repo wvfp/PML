@@ -153,9 +153,15 @@ auto Parser::parse_list() -> Result<Expr> {
 
     // Unmatched '(' — missing closing ')'
     if (at_end()) {
+        // Provide context: show the last successfully parsed expression location
+        std::string hint;
+        if (!items.empty()) {
+            const auto& last_loc = item_locs.back();
+            hint = std::format(" (last complete sub-expression at line {})", last_loc.line);
+        }
         return std::unexpected(syntax_error(
             list_loc,
-            "Unmatched '(' -- expected closing ')'"
+            std::format("Unmatched '(' at line {} -- expected closing ')'", list_loc.line) + hint
         ));
     }
 

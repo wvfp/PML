@@ -685,6 +685,234 @@ void register_shader_builtins(std::shared_ptr<Environment> env) {
 
         return Value(static_cast<int64_t>(*new_handle));
     });
+
+    // ---- (shader-uniforms shader-handle) ----------------------------------------------------
+    // Introspect a compiled shader's uniform declarations.
+    // Returns a list of (name type offset size) entries.
+    def("shader-uniforms", [](const std::vector<Value>& args,
+                               Environment& /*env*/) -> Result<Value> {
+        if (args.size() != 1) {
+            return std::unexpected(arity_error(
+                SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        int64_t handle = 0;
+        if (args[0].is_int()) {
+            handle = args[0].int_val();
+        } else if (args[0].is_double()) {
+            handle = static_cast<int64_t>(args[0].double_val());
+        } else {
+            return std::unexpected(type_error(
+                "shader-uniforms: argument must be a shader handle"));
+        }
+
+        RenderBackend& backend = BackendRegistry::instance().active();
+        auto uniforms = backend.get_shader_uniforms(static_cast<uint64_t>(handle));
+        if (!uniforms) return std::unexpected(std::move(uniforms.error()));
+
+        // Build a PML list: ((name type offset size) ...)
+        std::vector<Value> entries;
+        entries.reserve(uniforms->size());
+        for (const auto& u : *uniforms) {
+            std::vector<Value> entry;
+            entry.push_back(Value(u.name));
+            entry.push_back(Value(u.type_name));
+            entry.push_back(Value(static_cast<int64_t>(u.offset)));
+            entry.push_back(Value(static_cast<int64_t>(u.size_in_bytes)));
+            entries.push_back(Value(std::make_shared<ValueList>(std::move(entry))));
+        }
+        return Value(std::make_shared<ValueList>(std::move(entries)));
+    });
+
+    // ---- (shader-validate shader-handle uniform-data) --------------------------------------
+    // Pre-check that uniform-data is compatible with the shader's declared uniforms.
+    // Returns :ok on success, or an error description on mismatch.
+    def("shader-validate", [](const std::vector<Value>& args,
+                               Environment& /*env*/) -> Result<Value> {
+        if (args.size() != 2) {
+            return std::unexpected(arity_error(
+                SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+
+        int64_t handle = 0;
+        if (args[0].is_int()) {
+            handle = args[0].int_val();
+        } else if (args[0].is_double()) {
+            handle = static_cast<int64_t>(args[0].double_val());
+        } else {
+            return std::unexpected(type_error(
+                "shader-validate: first argument must be a shader handle"));
+        }
+
+        auto uniform_str = value_to_opt_string(args[1]);
+        if (!uniform_str) {
+            return std::unexpected(type_error(
+                "shader-validate: second argument must be a uniform data string"));
+        }
+
+        RenderBackend& backend = BackendRegistry::instance().active();
+        auto uniforms = backend.get_shader_uniforms(static_cast<uint64_t>(handle));
+        if (!uniforms) return std::unexpected(std::move(uniforms.error()));
+
+        size_t expected = 0;
+        for (const auto& u : *uniforms) {
+            expected += u.size_in_bytes;
+        }
+
+        if (uniform_str->size() != expected) {
+            std::string detail;
+            for (const auto& u : *uniforms) {
+                if (!detail.empty()) detail += ", ";
+                detail += u.name + ":" + std::to_string(u.size_in_bytes);
+            }
+            return std::unexpected(general_error(std::format(
+                "shader-validate: uniform size mismatch: "
+                "expected {} bytes, got {} bytes. Declared uniforms: [{}]",
+                expected, uniform_str->size(), detail)));
+        }
+
+        return Value(Keyword{":ok"});
+    });
+
+    // ---- (compose-with-child wrapper-sksl child-handle) ------------------------------------
+    // Compose an existing shader as the `src` child of a new SkSL wrapper.
+    // The wrapper SkSL must declare `uniform shader src;` as a child slot.
+    def("compose-with-child", [](const std::vector<Value>& args,
+                                  Environment& /*env*/) -> Result<Value> {
+        if (args.size() != 2) {
+            return std::unexpected(arity_error(
+                SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+
+        auto wrapper_src = value_to_opt_string(args[0]);
+        if (!wrapper_src) {
+            return std::unexpected(type_error(
+                "compose-with-child: first argument must be a SkSL string"));
+        }
+
+        uint64_t child_handle = 0;
+        if (args[1].is_int()) {
+            child_handle = static_cast<uint64_t>(args[1].int_val());
+        } else if (args[1].is_double()) {
+            child_handle = static_cast<uint64_t>(args[1].double_val());
+        } else {
+            return std::unexpected(type_error(
+                "compose-with-child: second argument must be a shader handle"));
+        }
+
+        RenderBackend& backend = BackendRegistry::instance().active();
+        auto result = backend.compose_with_child_shader(child_handle, *wrapper_src);
+        if (!result) return std::unexpected(std::move(result.error()));
+
+        return Value(static_cast<int64_t>(*result));
+    });
+
+    // ---- (compose-with-children wrapper-sksl children-list [:uniforms data]) ---------------
+    // Compose multiple child shaders with a wrapper SkSL and optional uniforms.
+    // children-list is a list of shader handles.
+    def_kw("compose-with-children", [](const std::vector<Value>& args,
+                                        Environment& /*env*/) -> Result<Value> {
+        if (args.size() < 2) {
+            return std::unexpected(arity_error(
+                SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+
+        auto wrapper_src = value_to_opt_string(args[0]);
+        if (!wrapper_src) {
+            return std::unexpected(type_error(
+                "compose-with-children: first argument must be a SkSL string"));
+        }
+
+        // Parse children list from second argument
+        const auto* children_list = args[1].as_list();
+        if (!children_list || !*children_list) {
+            return std::unexpected(type_error(
+                "compose-with-children: second argument must be a list of shader handles"));
+        }
+
+        std::vector<uint64_t> handles;
+        for (const auto& v : (*children_list)->elements) {
+            if (v.is_int()) {
+                handles.push_back(static_cast<uint64_t>(v.int_val()));
+            } else if (v.is_double()) {
+                handles.push_back(static_cast<uint64_t>(v.double_val()));
+            } else {
+                return std::unexpected(type_error(
+                    "compose-with-children: each element in children list "
+                    "must be a shader handle"));
+            }
+        }
+
+        // Parse optional :uniforms keyword
+        std::vector<uint8_t> uniform_data;
+        auto kwargs = pml::kwargs::parse_kwargs(args, 2);
+        auto uniforms_it = kwargs.find("uniforms");
+        if (uniforms_it != kwargs.end()) {
+            auto ustr = value_to_opt_string(uniforms_it->second);
+            if (!ustr) {
+                return std::unexpected(type_error(
+                    "compose-with-children: :uniforms must be a string from make-uniforms"));
+            }
+            uniform_data.assign(ustr->begin(), ustr->end());
+        }
+
+        RenderBackend& backend = BackendRegistry::instance().active();
+        auto result = backend.compose_with_child_shaders(handles, *wrapper_src, uniform_data);
+        if (!result) return std::unexpected(std::move(result.error()));
+
+        return Value(static_cast<int64_t>(*result));
+    });
+
+    // ---- (eval-shader shader-handle x y) --------------------------------------------------
+    // Sample a shader at pixel coordinate (x, y) and return (r g b a).
+    // Creates a temporary 1×1 render target and evaluates the shader.
+    def("eval-shader", [](const std::vector<Value>& args,
+                           Environment& /*env*/) -> Result<Value> {
+        if (args.size() != 3) {
+            return std::unexpected(arity_error(
+                SourceLocation{}, 3, static_cast<int>(args.size())));
+        }
+
+        uint64_t handle = 0;
+        if (args[0].is_int()) {
+            handle = static_cast<uint64_t>(args[0].int_val());
+        } else if (args[0].is_double()) {
+            handle = static_cast<uint64_t>(args[0].double_val());
+        } else {
+            return std::unexpected(type_error(
+                "eval-shader: first argument must be a shader handle"));
+        }
+
+        double x = 0.0, y = 0.0;
+        if (args[1].is_double()) {
+            x = args[1].double_val();
+        } else if (args[1].is_int()) {
+            x = static_cast<double>(args[1].int_val());
+        } else {
+            return std::unexpected(type_error(
+                "eval-shader: second argument must be a number (x)"));
+        }
+        if (args[2].is_double()) {
+            y = args[2].double_val();
+        } else if (args[2].is_int()) {
+            y = static_cast<double>(args[2].int_val());
+        } else {
+            return std::unexpected(type_error(
+                "eval-shader: third argument must be a number (y)"));
+        }
+
+        RenderBackend& backend = BackendRegistry::instance().active();
+        auto result = backend.eval_shader(handle,
+            static_cast<float>(x), static_cast<float>(y));
+        if (!result) return std::unexpected(std::move(result.error()));
+
+        // Return as (r g b a) list
+        std::vector<Value> color;
+        color.push_back(Value(static_cast<double>((*result)[0])));
+        color.push_back(Value(static_cast<double>((*result)[1])));
+        color.push_back(Value(static_cast<double>((*result)[2])));
+        color.push_back(Value(static_cast<double>((*result)[3])));
+        return Value(std::make_shared<ValueList>(std::move(color)));
+    });
 }
 
 }  // namespace pml

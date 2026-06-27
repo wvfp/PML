@@ -568,6 +568,23 @@ auto SkiaBackend::create_shader_with_uniforms(uint64_t shader_handle,
             "skia create_shader_with_uniforms: invalid shader handle"));
     }
 
+    auto& effect = it->second;
+
+    // Validate uniform data size against the SkSL declaration
+    size_t expected_size = effect->uniformSize();
+    if (uniform_data.size() != expected_size) {
+        // Build detailed diagnostic: list all uniforms
+        std::string detail;
+        for (const auto& u : effect->uniforms()) {
+            if (!detail.empty()) detail += ", ";
+            detail += std::string(u.name) + ":" + std::to_string(u.sizeInBytes());
+        }
+        return std::unexpected(general_error(std::format(
+            "skia create_shader_with_uniforms: uniform size mismatch: "
+            "expected {} bytes, got {} bytes. Declared uniforms: [{}]",
+            expected_size, uniform_data.size(), detail)));
+    }
+
     sk_sp<SkData> data = SkData::MakeWithCopy(
         uniform_data.data(), uniform_data.size());
     if (!data) {
@@ -576,10 +593,12 @@ auto SkiaBackend::create_shader_with_uniforms(uint64_t shader_handle,
     }
 
     // Create a pre-baked shader with uniforms
-    sk_sp<SkShader> baked = it->second->makeShader(data, {}, nullptr);
+    sk_sp<SkShader> baked = effect->makeShader(data, {}, nullptr);
     if (!baked) {
-        return std::unexpected(general_error(
-            "skia create_shader_with_uniforms: failed to create shader with uniforms"));
+        return std::unexpected(general_error(std::format(
+            "skia create_shader_with_uniforms: failed to create shader with uniforms "
+            "(data size: {} bytes, expected: {} bytes)",
+            uniform_data.size(), expected_size)));
     }
 
     uint64_t handle = next_preshader_handle_++;
@@ -907,6 +926,78 @@ auto SkiaBackend::compose_with_child_shaders(
     uint64_t handle = next_preshader_handle_++;
     preshader_cache_[handle] = std::move(baked);
     return handle;
+}
+
+auto SkiaBackend::get_shader_uniforms(uint64_t shader_handle)
+    -> Result<std::vector<ShaderUniformInfo>>
+{
+    auto it = shader_cache_.find(shader_handle);
+    if (it == shader_cache_.end() || !it->second) {
+        return std::unexpected(general_error(
+            "skia get_shader_uniforms: invalid shader handle"));
+    }
+    auto& effect = it->second;
+
+    std::vector<ShaderUniformInfo> result;
+    for (const auto& u : effect->uniforms()) {
+        std::string type_name;
+        bool half_precision = (u.flags & SkRuntimeEffect::Uniform::kHalfPrecision_Flag);
+        switch (u.type) {
+            case SkRuntimeEffect::Uniform::Type::kFloat:  type_name = half_precision ? "half"   : "float";   break;
+            case SkRuntimeEffect::Uniform::Type::kFloat2: type_name = half_precision ? "half2"  : "float2";  break;
+            case SkRuntimeEffect::Uniform::Type::kFloat3: type_name = half_precision ? "half3"  : "float3";  break;
+            case SkRuntimeEffect::Uniform::Type::kFloat4: type_name = half_precision ? "half4"  : "float4";  break;
+            case SkRuntimeEffect::Uniform::Type::kFloat2x2: type_name = "float2x2"; break;
+            case SkRuntimeEffect::Uniform::Type::kFloat3x3: type_name = "float3x3"; break;
+            case SkRuntimeEffect::Uniform::Type::kFloat4x4: type_name = "float4x4"; break;
+            case SkRuntimeEffect::Uniform::Type::kInt:    type_name = "int";    break;
+            case SkRuntimeEffect::Uniform::Type::kInt2:   type_name = "int2";   break;
+            case SkRuntimeEffect::Uniform::Type::kInt3:   type_name = "int3";   break;
+            case SkRuntimeEffect::Uniform::Type::kInt4:   type_name = "int4";   break;
+            default:                                       type_name = "unknown"; break;
+        }
+        result.push_back(ShaderUniformInfo{
+            .name = std::string(u.name),
+            .type_name = std::move(type_name),
+            .offset = u.offset,
+            .size_in_bytes = u.sizeInBytes(),
+        });
+    }
+    return result;
+}
+
+auto SkiaBackend::eval_shader(uint64_t shader_handle, float x, float y)
+    -> Result<std::array<float, 4>>
+{
+    auto pit = preshader_cache_.find(shader_handle);
+    if (pit == preshader_cache_.end() || !pit->second) {
+        return std::unexpected(general_error(
+            "skia eval_shader: invalid shader handle"));
+    }
+    sk_sp<SkShader> shader = pit->second;
+
+    auto info = SkImageInfo::Make(1, 1, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
+    auto surface = SkSurfaces::Raster(info);
+    if (!surface) {
+        return std::unexpected(general_error(
+            "skia eval_shader: failed to create 1x1 surface"));
+    }
+
+    SkCanvas* canvas = surface->getCanvas();
+    canvas->translate(-x, -y);
+
+    SkPaint paint;
+    paint.setShader(std::move(shader));
+    canvas->drawRect(SkRect::MakeXYWH(x, y, 1.0f, 1.0f), paint);
+
+    SkPixmap pixmap;
+    if (!surface->peekPixels(&pixmap)) {
+        return std::unexpected(general_error(
+            "skia eval_shader: failed to read pixels"));
+    }
+    const float* pixel = reinterpret_cast<const float*>(pixmap.addr());
+
+    return std::array<float, 4>{pixel[0], pixel[1], pixel[2], pixel[3]};
 }
 
 auto SkiaBackend::create_shader_with_children(

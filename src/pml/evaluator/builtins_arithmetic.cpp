@@ -261,6 +261,47 @@ void register_arithmetic_builtins(std::shared_ptr<Environment> env) {
         return Value(static_cast<int64_t>(a / b));
     });
 
+    // (div a b) — alias for quotient
+    def("div", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 2) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 2, static_cast<int>(args.size())));
+        }
+        if (!is_number(args[0]) || !is_number(args[1])) {
+            return std::unexpected(type_error("div expected numeric arguments"));
+        }
+        double a = to_double(args[0]);
+        double b = to_double(args[1]);
+        if (b == 0) {
+            return std::unexpected(general_error("div: division by zero"));
+        }
+        return Value(static_cast<int64_t>(a / b));
+    });
+
+    // (->double x) — explicit conversion to Double
+    def("->double", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 1) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        if (!is_number(args[0])) {
+            return std::unexpected(type_error("->double expected numeric argument"));
+        }
+        return Value(to_double(args[0]));
+    });
+
+    // (->int x) — explicit conversion to Int
+    def("->int", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
+        if (args.size() != 1) {
+            return std::unexpected(
+                arity_error(SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        if (!is_number(args[0])) {
+            return std::unexpected(type_error("->int expected numeric argument"));
+        }
+        return Value(to_int64(args[0]));
+    });
+
     def("abs", [](const std::vector<Value>& args, Environment&) -> Result<Value> {
         if (args.size() != 1) {
             return std::unexpected(

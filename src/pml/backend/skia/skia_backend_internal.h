@@ -443,6 +443,12 @@ private:
         const std::vector<uint8_t>& uniform_data = {})
         -> Result<uint64_t> override;
 
+    auto get_shader_uniforms(uint64_t shader_handle)
+        -> Result<std::vector<ShaderUniformInfo>> override;
+
+    auto eval_shader(uint64_t shader_handle, float x, float y)
+        -> Result<std::array<float, 4>> override;
+
     // ---- FilterBackend ------------------------------------------------------------------------------------------------
 
     [[nodiscard]] Result<void> apply_sk_image_filter(

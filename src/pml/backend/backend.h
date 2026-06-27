@@ -16,6 +16,7 @@
 #include "pml/core/types.h"
 #include "pml/filter/filter_backend.h"
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -60,6 +61,14 @@ struct Surface {
 struct ShaderChildInfo {
     int width{};   ///< Width of the child shader image in pixels
     int height{};  ///< Height of the child shader image in pixels
+};
+
+/// Describes a single uniform from a compiled shader (for introspection).
+struct ShaderUniformInfo {
+    std::string name;          ///< Uniform name as declared in SkSL
+    std::string type_name;     ///< Type as string ("float", "float2", "int", etc.)
+    size_t offset{};           ///< Byte offset in uniform data block
+    size_t size_in_bytes{};    ///< Size of this uniform in bytes
 };
 
 // ==========================================================================================================================================================================================================================================═
@@ -270,6 +279,31 @@ public:
             "bind_textures_to_shader not supported by this backend"));
     }
 
+    /// Get uniform descriptors for a compiled shader handle (introspection).
+    /// @param shader_handle  Handle from compile_shader
+    /// @return               List of uniform descriptors, or an error
+    virtual auto get_shader_uniforms(uint64_t shader_handle)
+        -> Result<std::vector<ShaderUniformInfo>>
+    {
+        (void)shader_handle;
+        return std::unexpected(general_error(
+            "shader introspection not supported by this backend"));
+    }
+
+    /// Evaluate a shader at a specific pixel coordinate and return its color.
+    /// Creates a temporary 1×1 render target and samples the shader at (x, y).
+    /// @param shader_handle  Handle from preshader_cache_
+    /// @param x, y           Pixel coordinate to sample
+    /// @return               (r g b a) as four floats, or an error
+    virtual auto eval_shader(uint64_t shader_handle, float x, float y)
+        -> Result<std::array<float, 4>>
+    {
+        (void)shader_handle;
+        (void)x;
+        (void)y;
+        return std::unexpected(general_error(
+            "eval_shader not supported by this backend"));
+    }
 };
 
 // ==========================================================================================================================================================================================================================================═

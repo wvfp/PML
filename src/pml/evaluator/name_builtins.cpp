@@ -87,9 +87,9 @@ static Result<Value> builtin_find(const std::vector<Value>& args,
 }
 
 // ==========================================================================================================================================================================================================================================═
-// remove — delete a named object from the registry
+// remove-name — delete a named object from the registry
 // ==========================================================================================================================================================================================================================================═
-//   (remove <name-string>) → bool (true if existed)
+//   (remove-name <name-string>) → bool (true if existed)
 
 static Result<Value> builtin_remove(const std::vector<Value>& args,
                                      Environment& /*env*/) {
@@ -183,7 +183,7 @@ void register_name_builtins(std::shared_ptr<Environment> env) {
 
     def("name", builtin_name);
     def("lookup", builtin_find);
-    def("remove", builtin_remove);
+    def("remove-name", builtin_remove);
     def("set-property", builtin_set_property, true);
 }
 

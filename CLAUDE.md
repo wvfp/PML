@@ -75,12 +75,19 @@ pml_core → pml_frontend → pml_evaluator → pml_graphics → pml_api
 ## Language Quirks
 
 - `let` = sequential bindings (use `let-par` for parallel)
-- No `while`/`for` — use recursion or `map`/`for-each`
+- No `while`/`for` — use `dotimes`:
+  - `(dotimes (i n) body...)` — iterate 0 to n-1
+- Explicit type conversion: `(->double x)`, `(->int x)`
+- Integer division: `(div a b)` (alias for `quotient`)
 - `add` order = z-order (later = above)
 - `set-backend!` must precede `canvas`
 - `render` output format from file extension (`.png`/`.gif`)
 - Module imports resolve relative to the importing file, not CWD
 - Macro system: `defmacro`, `macroexpand`, `gensym`, quasiquote/unquote
+- Shader introspection: `(shader-uniforms handle)` lists all uniform names/types/sizes
+- Shader pre-validation: `(shader-validate handle uniform-data)` checks size compatibility
+- Shader composition: `(compose-with-child wrapper-sksl child)` / `(compose-with-children wrapper-sksl (list ...) :uniforms ...)` — GPU-side pipeline assembly
+- Shader sampling: `(eval-shader handle x y)` returns `(r g b a)` for debugging
 
 ## Error Handling & Memory
 

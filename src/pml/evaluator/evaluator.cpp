@@ -907,6 +907,54 @@ Result<EvalResult> eval_unless(
     return Value(nullptr);  // condition true → nil
 }
 
+// ---- dotimes: (dotimes (var count) body...) ---------------------------------------
+
+Result<EvalResult> eval_dotimes(
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation /*call_site*/) {
+    if (expr.size() < 3) {
+        return std::unexpected(general_error(
+            "dotimes expects at least 2 arguments (binding spec and body)"));
+    }
+
+    const auto* bindings = get_list(expr[1]);
+    if (!bindings || bindings->size() != 2) {
+        return std::unexpected(type_error(
+            "dotimes: first argument must be a list of (var count)"));
+    }
+
+    auto var_name = extract_symbol_name((*bindings)[0]);
+    if (!var_name) {
+        return std::unexpected(type_error(
+            "dotimes: first element of binding spec must be a symbol"));
+    }
+
+    auto count_val = eval_to_value((*bindings)[1], env);
+    if (!count_val) return std::unexpected(count_val.error());
+
+    int64_t count = 0;
+    if (count_val->is_int()) {
+        count = count_val->int_val();
+    } else if (count_val->is_double()) {
+        count = static_cast<int64_t>(count_val->double_val());
+    } else {
+        return std::unexpected(type_error(
+            "dotimes: count must be a number"));
+    }
+
+    for (int64_t i = 0; i < count; ++i) {
+        auto iter_env = std::make_shared<Environment>(env);
+        iter_env->define(*var_name, Value(i));
+
+        for (size_t j = 2; j < expr.size(); ++j) {
+            auto val = eval_to_value(expr[j], iter_env);
+            if (!val) return std::unexpected(val.error());
+        }
+    }
+
+    return Value(nullptr);
+}
+
 // ---- case: (case <key> (<value> <expr>...) ... (else <expr>...)) ----------------─
 
 Result<EvalResult> eval_case(
@@ -1946,6 +1994,7 @@ std::unordered_map<std::string, SpecialForm>& get_mutable_special_forms() {
         {"gensym", eval_gensym},
         {"when", eval_when},
         {"unless", eval_unless},
+        {"dotimes", eval_dotimes},
         {"case", eval_case},
         {"with-exception-handler", eval_with_exception_handler},
     };
