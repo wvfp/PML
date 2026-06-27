@@ -17,7 +17,7 @@
 (print "(->double 5) =" (->double 5))            ;; → 5.0
 (print "(->int 3.14) =" (->int 3.14))            ;; → 3
 
-;; ---- Phase 3: dotimes (迭代) ----
+;; ---- Phase 3: dotimes / for (迭代) ----
 (print "=== dotimes ===")
 (let ((sum 0))
   ;; 0 到 4 求和
@@ -25,6 +25,12 @@
     (set! sum (+ sum i))
     (print "i =" i ", cumulative sum =" sum))
   (print "sum 0..4 =" sum))
+
+(print "=== for ===")
+(for (i 0 5)
+  (print "for i =" i))
+(for (i 0 10 3)
+  (print "for step 3 i =" i))
 
 ;; ---- 可视化：用 dotimes 画一排圆 ----
 (add (rect 0 0 400 300 :fill "#16213e"))

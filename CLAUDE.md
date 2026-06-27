@@ -75,8 +75,9 @@ pml_core → pml_frontend → pml_evaluator → pml_graphics → pml_api
 ## Language Quirks
 
 - `let` = sequential bindings (use `let-par` for parallel)
-- No `while`/`for` — use `dotimes`:
+- No `while`/`for` — use `dotimes` or `for`:
   - `(dotimes (i n) body...)` — iterate 0 to n-1
+  - `(for (i start end [step]) body...)` — numeric for loop, start inclusive, end exclusive
 - Explicit type conversion: `(->double x)`, `(->int x)`
 - Integer division: `(div a b)` (alias for `quotient`)
 - `add` order = z-order (later = above)

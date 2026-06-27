@@ -955,6 +955,72 @@ Result<EvalResult> eval_dotimes(
     return Value(nullptr);
 }
 
+// ---- for: (for (var start end [step]) body...) ---------------------------------------
+
+Result<EvalResult> eval_for(
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation /*call_site*/) {
+    if (expr.size() < 3) {
+        return std::unexpected(general_error(
+            "for expects at least 2 arguments (binding spec and body)"));
+    }
+
+    const auto* bindings = get_list(expr[1]);
+    if (!bindings || bindings->size() < 3) {
+        return std::unexpected(type_error(
+            "for: first argument must be a list of (var start end [step])"));
+    }
+
+    auto var_name = extract_symbol_name((*bindings)[0]);
+    if (!var_name) {
+        return std::unexpected(type_error(
+            "for: first element of binding spec must be a symbol"));
+    }
+
+    auto start_val = eval_to_value((*bindings)[1], env);
+    if (!start_val) return std::unexpected(start_val.error());
+
+    auto end_val = eval_to_value((*bindings)[2], env);
+    if (!end_val) return std::unexpected(end_val.error());
+
+    auto to_int = [](const Value& v) -> Result<int64_t> {
+        if (v.is_int()) return v.int_val();
+        if (v.is_double()) return static_cast<int64_t>(v.double_val());
+        return std::unexpected(type_error("for: start/end/step must be numbers"));
+    };
+
+    auto start_i = to_int(*start_val);
+    if (!start_i) return std::unexpected(start_i.error());
+    auto end_i = to_int(*end_val);
+    if (!end_i) return std::unexpected(end_i.error());
+
+    int64_t step = 1;
+    if (bindings->size() >= 4) {
+        auto step_val = eval_to_value((*bindings)[3], env);
+        if (!step_val) return std::unexpected(step_val.error());
+        auto step_i = to_int(*step_val);
+        if (!step_i) return std::unexpected(step_i.error());
+        step = *step_i;
+        if (step == 0) return std::unexpected(general_error("for: step must not be zero"));
+    }
+
+    auto cmp = [step](int64_t v, int64_t end) {
+        return step > 0 ? v < end : v > end;
+    };
+
+    for (int64_t i = *start_i; cmp(i, *end_i); i += step) {
+        auto iter_env = std::make_shared<Environment>(env);
+        iter_env->define(*var_name, Value(i));
+
+        for (size_t j = 2; j < expr.size(); ++j) {
+            auto val = eval_to_value(expr[j], iter_env);
+            if (!val) return std::unexpected(val.error());
+        }
+    }
+
+    return Value(nullptr);
+}
+
 // ---- case: (case <key> (<value> <expr>...) ... (else <expr>...)) ----------------─
 
 Result<EvalResult> eval_case(
@@ -1995,6 +2061,7 @@ std::unordered_map<std::string, SpecialForm>& get_mutable_special_forms() {
         {"when", eval_when},
         {"unless", eval_unless},
         {"dotimes", eval_dotimes},
+        {"for", eval_for},
         {"case", eval_case},
         {"with-exception-handler", eval_with_exception_handler},
     };
