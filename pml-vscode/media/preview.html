@@ -221,6 +221,42 @@
         height: 60px;
       }
     }
+
+    /* ── Zoom & Pan ──────────────────────────────────────────── */
+    .zoom-controls {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      display: flex;
+      gap: 4px;
+      background: var(--vscode-sideBar-background, #252526);
+      border: 1px solid var(--vscode-widget-border, #333);
+      border-radius: 6px;
+      padding: 4px;
+      z-index: 100;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+    .zoom-controls:hover { opacity: 1; }
+    .zoom-controls button {
+      background: transparent;
+      border: none;
+      color: var(--vscode-foreground, #ccc);
+      cursor: pointer;
+      padding: 4px 8px;
+      font-size: 13px;
+      border-radius: 3px;
+    }
+    .zoom-controls button:hover {
+      background: var(--vscode-toolbar-hoverBackground, #333);
+    }
+    .zoom-controls .zoom-label {
+      padding: 4px 6px;
+      font-size: 11px;
+      min-width: 40px;
+      text-align: center;
+      color: var(--vscode-descriptionForeground, #888);
+    }
   </style>
 </head>
 <body>
@@ -271,8 +307,16 @@
           setContent(app, buildEmpty());
           return;
         }
-        setContent(app, '<div class="state-render">' + buildRenderHtml(msg.files) + '</div>');
+        var html = '<div class="state-render">';
+        html += '<div id="zoom-container" style="overflow:hidden;position:relative;width:100%;cursor:grab;">';
+        html += '<div id="zoom-target" style="transform-origin:0 0;">';
+        html += buildRenderHtml(msg.files);
+        html += '</div></div>';
+        html += buildZoomControls();
+        html += '</div>';
+        setContent(app, html);
         attachThumbnailClickHandlers(app);
+        setTimeout(zoomToFit, 100);
       }
 
       // ── Build render HTML (shared between render and error handlers) ──
@@ -390,10 +434,18 @@
         // Render any files that were successfully produced before the error
         if (msg.files && msg.files.length > 0) {
           html += '<hr style="margin:16px 0;border-color:var(--vscode-widget-border,#333)">';
+          html += '<div id="zoom-container" style="overflow:hidden;position:relative;width:100%;cursor:grab;">';
+          html += '<div id="zoom-target" style="transform-origin:0 0;">';
           html += buildRenderHtml(msg.files);
+          html += '</div></div>';
+          html += buildZoomControls();
         }
 
         setContent(app, html);
+        if (msg.files && msg.files.length > 0) {
+          attachThumbnailClickHandlers(app);
+          setTimeout(zoomToFit, 100);
+        }
       }
 
       // ── Image load error handler ──────────────────────────────────
@@ -427,6 +479,123 @@
           '<p>The PML file produced no output.</p>' +
           '</div>';
       }
+
+      // ── Zoom controls builder ──────────────────────────────────
+      function buildZoomControls() {
+        return '<div class="zoom-controls">' +
+          '<button onclick="zoomToFit()" title="适应宽度">⊞</button>' +
+          '<button onclick="zoomReset()" title="重置">⟲</button>' +
+          '<button onclick="zoomIn()" title="放大">＋</button>' +
+          '<button onclick="zoomOut()" title="缩小">−</button>' +
+          '<span class="zoom-label">100%</span>' +
+          '</div>';
+      }
+
+      // ── Zoom & Pan ──────────────────────────────────────────────
+      var zoomState = { scale: 1, panX: 0, panY: 0 };
+      var isPanning = false, panStart = { x: 0, y: 0 };
+      var ZOOM_MIN = 0.1, ZOOM_MAX = 10;
+
+      function applyTransform() {
+        var target = document.getElementById('zoom-target');
+        if (!target) return;
+        target.style.transform = 'translate(' + zoomState.panX + 'px,' + zoomState.panY + 'px) scale(' + zoomState.scale + ')';
+        updateZoomLabel();
+      }
+
+      function updateZoomLabel() {
+        var label = document.querySelector('.zoom-label');
+        if (label) label.textContent = Math.round(zoomState.scale * 100) + '%';
+      }
+
+      function zoomIn() {
+        zoomState.scale = Math.min(ZOOM_MAX, zoomState.scale * 1.2);
+        applyTransform();
+      }
+
+      function zoomOut() {
+        zoomState.scale = Math.max(ZOOM_MIN, zoomState.scale / 1.2);
+        applyTransform();
+      }
+
+      // Wheel zoom (centered on mouse position)
+      function setupZoomWheel() {
+        var zc = document.getElementById('zoom-container');
+        if (!zc) return;
+        zc.addEventListener('wheel', function (e) {
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            var rect = this.getBoundingClientRect();
+            var mx = e.clientX - rect.left, my = e.clientY - rect.top;
+            var delta = -e.deltaY * 0.001;
+            var newScale = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoomState.scale * (1 + delta)));
+            var ratio = newScale / zoomState.scale;
+            zoomState.panX = mx - (mx - zoomState.panX) * ratio;
+            zoomState.panY = my - (my - zoomState.panY) * ratio;
+            zoomState.scale = newScale;
+            applyTransform();
+          }
+        }, { passive: true });
+      }
+
+      // Drag to pan
+      function setupZoomPan() {
+        var zc = document.getElementById('zoom-container');
+        if (!zc) return;
+        zc.addEventListener('mousedown', function (e) {
+          if (e.button === 0) {
+            isPanning = true;
+            panStart.x = e.clientX - zoomState.panX;
+            panStart.y = e.clientY - zoomState.panY;
+            this.style.cursor = 'grabbing';
+          }
+        });
+        document.addEventListener('mousemove', function (e) {
+          if (isPanning) {
+            zoomState.panX = e.clientX - panStart.x;
+            zoomState.panY = e.clientY - panStart.y;
+            applyTransform();
+          }
+        });
+        document.addEventListener('mouseup', function () {
+          if (isPanning) {
+            isPanning = false;
+            var zc = document.getElementById('zoom-container');
+            if (zc) zc.style.cursor = 'grab';
+          }
+        });
+      }
+
+      // Fit to container width
+      function zoomToFit() {
+        var img = document.getElementById('preview-main-img');
+        if (!img) return;
+        var zc = document.getElementById('zoom-container');
+        if (!zc) return;
+        var cw = zc.clientWidth - 40;
+        var iw = img.naturalWidth || img.width || 1;
+        zoomState.scale = Math.min(cw / iw, 1);
+        zoomState.panX = 0;
+        zoomState.panY = 0;
+        applyTransform();
+        setupZoomWheel();
+        setupZoomPan();
+      }
+
+      // Reset zoom to 100%
+      function zoomReset() {
+        zoomState.scale = 1; zoomState.panX = 0; zoomState.panY = 0;
+        applyTransform();
+        setupZoomWheel();
+        setupZoomPan();
+      }
+
+      // Keyboard shortcut: Ctrl+0 to reset
+      document.addEventListener('keydown', function (e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+          zoomReset();
+        }
+      });
 
       // ── Helpers ───────────────────────────────────────────────────
       function setContent(container, html) {
