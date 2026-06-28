@@ -42,6 +42,10 @@ struct Gradient {
     double start_angle{0.0};
     double end_angle{360.0};
 
+    /// Edge behaviour when gradient coords extend beyond 0–1.
+    /// One of "clamp", "repeat", "mirror", or "decal".
+    std::string tile_mode{"clamp"};
+
     /// Colour stops along the gradient.
     std::vector<GradientStop> stops;
 };

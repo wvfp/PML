@@ -24,6 +24,7 @@
 namespace pml {
 
 using pml::kwargs::kw_double;
+using pml::kwargs::kw_string;
 using pml::kwargs::parse_kwargs;
 using pml::kwargs::value_to_opt_string;
 
@@ -102,6 +103,7 @@ Result<Value> builtin_linear(const std::vector<Value>& args, Environment& /*env*
     double y1 = kw_double(kwargs, "y1", 0.0);
     double x2 = kw_double(kwargs, "x2", 0.0);
     double y2 = kw_double(kwargs, "y2", 1.0);
+    std::string tm = kw_string(kwargs, "tile-mode", "clamp");
 
     auto grad = std::make_shared<Gradient>();
     grad->type = GradientType::Linear;
@@ -109,6 +111,7 @@ Result<Value> builtin_linear(const std::vector<Value>& args, Environment& /*env*
     grad->y1 = y1;
     grad->x2 = x2;
     grad->y2 = y2;
+    grad->tile_mode = tm;
     grad->stops = std::move(*stops);
 
     return Value(std::move(grad));
@@ -128,12 +131,14 @@ Result<Value> builtin_radial(const std::vector<Value>& args, Environment& /*env*
     double cx = kw_double(kwargs, "cx", 0.5);
     double cy = kw_double(kwargs, "cy", 0.5);
     double r  = kw_double(kwargs, "r", 0.5);
+    std::string tm = kw_string(kwargs, "tile-mode", "clamp");
 
     auto grad = std::make_shared<Gradient>();
     grad->type = GradientType::Radial;
     grad->cx = cx;
     grad->cy = cy;
     grad->r = r;
+    grad->tile_mode = tm;
     grad->stops = std::move(*stops);
 
     return Value(std::move(grad));
@@ -154,6 +159,7 @@ Result<Value> builtin_sweep(const std::vector<Value>& args, Environment& /*env*/
     double cy  = kw_double(kwargs, "cy", 0.5);
     double sa  = kw_double(kwargs, "start-angle", 0.0);
     double ea  = kw_double(kwargs, "end-angle", 360.0);
+    std::string tm = kw_string(kwargs, "tile-mode", "clamp");
 
     auto grad = std::make_shared<Gradient>();
     grad->type = GradientType::Sweep;
@@ -161,6 +167,7 @@ Result<Value> builtin_sweep(const std::vector<Value>& args, Environment& /*env*/
     grad->cy = cy;
     grad->start_angle = sa;
     grad->end_angle = ea;
+    grad->tile_mode = tm;
     grad->stops = std::move(*stops);
 
     return Value(std::move(grad));

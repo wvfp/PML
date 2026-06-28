@@ -124,10 +124,20 @@ inline void configure_fill_paint(
                 std::clamp(stop.position, 0.0, 1.0)));
         }
 
+        // Resolve tile mode from gradient's string field
+        SkTileMode tile_mode = SkTileMode::kClamp;
+        if (g.tile_mode == "repeat") {
+            tile_mode = SkTileMode::kRepeat;
+        } else if (g.tile_mode == "mirror") {
+            tile_mode = SkTileMode::kMirror;
+        } else if (g.tile_mode == "decal") {
+            tile_mode = SkTileMode::kDecal;
+        }
+
         SkGradient::Colors grad_colors(
             SkSpan(colors.data(), n),
             SkSpan(positions.data(), n),
-            SkTileMode::kClamp);
+            tile_mode);
 
         sk_sp<SkShader> grad_shader;
         if (g.type == GradientType::Radial) {
