@@ -25,6 +25,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -351,8 +352,8 @@ auto parse_svg_path(const std::string& svg_path) -> Result<std::vector<PathComma
 
 // Render a single frame of a canvas to a freshly-created surface.
 // Shared by static render() and animation render.
-[[nodiscard]] static Result<std::unique_ptr<Surface>> render_frame(RenderBackend& backend,
-                                                                   const Canvas& canvas) {
+Result<std::unique_ptr<Surface>> render_frame(RenderBackend& backend,
+                                               const Canvas& canvas) {
     // Update global 3D camera to match the canvas. By default, orthographic
     // size equals canvas height so that world units map 1:1 to screen pixels.
     if (canvas.height > 0) {
@@ -464,6 +465,37 @@ static void apply_skin_bindings_to_canvas(Canvas& canvas) {
             auto it = obj_mods.find(obj.id);
             if (it != obj_mods.end()) {
                 obj = _apply_modifications(obj, it->second);
+            }
+        }
+
+        // Process shader uniform animations: evaluate at time t, create new
+        // shader handles with baked uniform values, and update any canvas
+        // object that references the animated base shader.
+        if (!timeline->uniform_animations.empty()) {
+            for (const auto& ua : timeline->uniform_animations) {
+                if (t > ua.duration) continue;
+                double progress = ua.duration > 0.0
+                    ? std::clamp(t / ua.duration, 0.0, 1.0) : 1.0;
+                double val = ua.from_value + (ua.to_value - ua.from_value)
+                             * ua.easing(progress);
+
+                std::vector<uint8_t> data(4 + ua.uniform_offset, 0);
+                float fval = static_cast<float>(val);
+                std::memcpy(data.data() + ua.uniform_offset, &fval, 4);
+
+                auto new_handle = backend.create_shader_with_uniforms(
+                    ua.base_shader_handle, data);
+                if (!new_handle) continue;
+
+                uint64_t nh = *new_handle;
+                for (auto& obj : canvas->objects) {
+                    auto* sp = obj.params.find(ParamKey::shader);
+                    if (sp && sp->is_int() &&
+                        static_cast<uint64_t>(sp->int_val()) == ua.base_shader_handle) {
+                        obj = obj.with_param(ParamKey::shader,
+                            Value(static_cast<int64_t>(nh)));
+                    }
+                }
             }
         }
 

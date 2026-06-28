@@ -558,6 +558,68 @@ auto SkiaBackend::create_noise_shader(NoiseType type,
     return handle;
 }
 
+auto SkiaBackend::create_image_shader(const std::string& path)
+    -> Result<uint64_t>
+{
+    // Load image: try libpng first, fall back to SkCodec.
+    auto png_result = load_png_with_libpng(path);
+    sk_sp<SkImage> image;
+    if (png_result) {
+        auto* skia_surf = static_cast<SkiaSurface*>(png_result->get());
+        image = SkImages::RasterFromBitmap(skia_surf->bitmap);
+        if (!image) {
+            return std::unexpected(general_error(
+                std::format("skia: failed to create image from PNG: {}", path)));
+        }
+    } else {
+        auto data = SkData::MakeFromFileName(path.c_str());
+        if (!data) {
+            return std::unexpected(resource_error(
+                std::format("skia: cannot read image file: {}", path)));
+        }
+        auto codec = SkCodec::MakeFromData(std::move(data));
+        if (!codec) {
+            return std::unexpected(resource_error(
+                std::format("skia: cannot decode image format: {}", path)));
+        }
+
+        SkImageInfo info = codec->getInfo().makeColorType(kN32_SkColorType)
+                                              .makeAlphaType(kPremul_SkAlphaType);
+        SkBitmap bitmap;
+        if (!bitmap.tryAllocPixels(info)) {
+            return std::unexpected(resource_error(
+                "skia: failed to allocate image pixels"));
+        }
+
+        SkCodec::Result decode_result = codec->getPixels(
+            info, bitmap.getPixels(), bitmap.rowBytes());
+        if (decode_result != SkCodec::kSuccess
+            && decode_result != SkCodec::kIncompleteInput) {
+            return std::unexpected(resource_error(
+                std::format("skia: image decode failed with code {}",
+                            static_cast<int>(decode_result))));
+        }
+        image = SkImages::RasterFromBitmap(bitmap);
+        if (!image) {
+            return std::unexpected(general_error(
+                std::format("skia: failed to create image from decoded bitmap: {}", path)));
+        }
+    }
+
+    // Create shader from image with clamp wrap and linear filtering.
+    auto shader = image->makeShader(
+        SkTileMode::kClamp, SkTileMode::kClamp,
+        SkSamplingOptions(SkFilterMode::kLinear));
+    if (!shader) {
+        return std::unexpected(general_error(
+            std::format("skia: failed to create shader from image: {}", path)));
+    }
+
+    uint64_t handle = next_preshader_handle_++;
+    preshader_cache_[handle] = std::move(shader);
+    return handle;
+}
+
 auto SkiaBackend::create_shader_with_uniforms(uint64_t shader_handle,
                                               const std::vector<uint8_t>& uniform_data)
     -> Result<uint64_t>
@@ -958,6 +1020,62 @@ auto SkiaBackend::get_shader_uniforms(uint64_t shader_handle)
         });
     }
     return result;
+}
+
+auto SkiaBackend::get_shader_children(uint64_t shader_handle)
+    -> Result<std::vector<ShaderChildSlotInfo>>
+{
+    auto it = shader_cache_.find(shader_handle);
+    if (it == shader_cache_.end() || !it->second) {
+        return std::unexpected(general_error(
+            "skia get_shader_children: invalid shader handle"));
+    }
+    auto& effect = it->second;
+
+    std::vector<ShaderChildSlotInfo> result;
+    for (const auto& c : effect->children()) {
+        std::string type_name;
+        switch (c.type) {
+            case SkRuntimeEffect::ChildType::kShader:      type_name = "shader";      break;
+            case SkRuntimeEffect::ChildType::kColorFilter: type_name = "colorfilter"; break;
+            case SkRuntimeEffect::ChildType::kBlender:     type_name = "blender";     break;
+            default:                                        type_name = "unknown";     break;
+        }
+        result.push_back(ShaderChildSlotInfo{
+            .name = std::string(c.name),
+            .type_name = std::move(type_name),
+            .index = c.index,
+        });
+    }
+    return result;
+}
+
+auto SkiaBackend::create_surface_shader(Surface& surface)
+    -> Result<uint64_t>
+{
+    auto* skia_surf = dynamic_cast<SkiaSurface*>(&surface);
+    if (!skia_surf) {
+        return std::unexpected(general_error(
+            "skia create_surface_shader: invalid surface type"));
+    }
+
+    auto image = SkImages::RasterFromBitmap(skia_surf->bitmap);
+    if (!image) {
+        return std::unexpected(general_error(
+            "skia create_surface_shader: failed to create image from surface"));
+    }
+
+    auto shader = image->makeShader(
+        SkTileMode::kClamp, SkTileMode::kClamp,
+        SkSamplingOptions(SkFilterMode::kLinear));
+    if (!shader) {
+        return std::unexpected(general_error(
+            "skia create_surface_shader: failed to create shader from image"));
+    }
+
+    uint64_t handle = next_preshader_handle_++;
+    preshader_cache_[handle] = std::move(shader);
+    return handle;
 }
 
 auto SkiaBackend::eval_shader(uint64_t shader_handle, float x, float y)

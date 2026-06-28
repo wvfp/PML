@@ -15,6 +15,9 @@
 #include "pml/backend/backend.h"
 #include "pml/backend/color_helpers.h"
 #include "pml/backend/registry.h"
+#include "pml/graphics/canvas.h"
+#include "pml/graphics/render.h"
+#include "pml/animation/timeline.h"
 #include "environment.h"
 #include "error.h"
 #include "kwargs.h"
@@ -417,6 +420,201 @@ void register_shader_builtins(std::shared_ptr<Environment> env) {
         return Value(static_cast<int64_t>(*result));
     });
 
+    // ---- (image-shader "path/to/image.png") -------------------------------------------------
+    // Load an image file (PNG, JPG, etc.) and create a shader from it.
+    // The returned shader handle can be used with apply-shader!, compose-with-child,
+    // or drawn via (rect ... :shader handle).
+    def("image-shader", [](const std::vector<Value>& args,
+                            Environment& /*env*/) -> Result<Value> {
+        if (args.size() != 1) {
+            return std::unexpected(arity_error(
+                SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        auto path = value_to_opt_string(args[0]);
+        if (!path || path->empty()) {
+            return std::unexpected(type_error(
+                "image-shader: argument must be a file path string"));
+        }
+
+        RenderBackend& backend = BackendRegistry::instance().active();
+        auto handle = backend.create_image_shader(*path);
+        if (!handle) return std::unexpected(std::move(handle.error()));
+
+        return Value(static_cast<int64_t>(*handle));
+    });
+
+    // ---- (canvas->shader) --------------------------------------------------------------------
+    // Capture the current canvas contents as a GPU shader.
+    // Returns a shader handle that can be used with compose-with-child or
+    // apply-shader!, enabling post-processing pipelines on rendered scenes.
+    def("canvas->shader", [](const std::vector<Value>& args,
+                              Environment& /*env*/) -> Result<Value> {
+        if (!args.empty()) {
+            return std::unexpected(arity_error(
+                SourceLocation{}, 0, static_cast<int>(args.size())));
+        }
+
+        auto canvas = get_current_canvas();
+        if (!canvas) {
+            return std::unexpected(general_error(
+                "canvas->shader: no active canvas"));
+        }
+
+        RenderBackend& backend = BackendRegistry::instance().active();
+        auto surface = render_frame(backend, *canvas);
+        if (!surface) return std::unexpected(std::move(surface.error()));
+
+        auto handle = backend.create_surface_shader(**surface);
+        if (!handle) return std::unexpected(std::move(handle.error()));
+
+        return Value(static_cast<int64_t>(*handle));
+    });
+
+    // ---- (uniform-animate shader-handle uniform-name from to duration [:ease 'linear]) ----
+    // Animate a shader uniform parameter using the animation timeline.
+    // Each frame, the interpolated uniform value is baked into a new shader
+    // handle, and any canvas object using the base shader is updated.
+    //
+    // The uniform name is matched against shader-uniforms introspection to
+    // determine the byte offset; currently only float uniforms are supported.
+    def_kw("uniform-animate", [](const std::vector<Value>& args,
+                                  Environment& /*env*/) -> Result<Value> {
+        if (args.size() < 4) {
+            return std::unexpected(arity_error(
+                SourceLocation{}, 4, static_cast<int>(args.size())));
+        }
+
+        // Parse shader handle (first positional arg).
+        uint64_t handle = 0;
+        if (args[0].is_int()) {
+            handle = static_cast<uint64_t>(args[0].int_val());
+        } else if (args[0].is_double()) {
+            handle = static_cast<uint64_t>(args[0].double_val());
+        } else {
+            return std::unexpected(type_error(
+                "uniform-animate: first argument must be a shader handle"));
+        }
+
+        // Parse uniform name (second positional arg).
+        auto uniform_name = value_to_opt_string(args[1]);
+        if (!uniform_name || uniform_name->empty()) {
+            return std::unexpected(type_error(
+                "uniform-animate: second argument must be a uniform name string"));
+        }
+
+        // Parse from/to values (third and fourth positional args).
+        auto val_to_double = [](const Value& v) -> std::optional<double> {
+            if (v.is_double()) return v.double_val();
+            if (v.is_int()) return static_cast<double>(v.int_val());
+            return std::nullopt;
+        };
+        auto from_v = val_to_double(args[2]);
+        auto to_v = val_to_double(args[3]);
+        if (!from_v || !to_v) {
+            return std::unexpected(type_error(
+                "uniform-animate: from and to values must be numbers"));
+        }
+
+        // Parse optional duration (5th positional) or default to 1.0.
+        double duration = 1.0;
+        if (args.size() >= 5) {
+            auto dur_v = val_to_double(args[4]);
+            if (!dur_v || *dur_v <= 0.0) {
+                return std::unexpected(type_error(
+                    "uniform-animate: duration must be a positive number"));
+            }
+            duration = *dur_v;
+        }
+
+        // Parse optional :ease keyword.
+        auto kwargs = pml::kwargs::parse_kwargs(args, 5);
+        auto ease_name = pml::kwargs::kw_string(kwargs, "ease", "linear");
+        EasingFn easing = get_easing(ease_name);
+
+        // Look up uniform offset via shader-uniforms introspection.
+        RenderBackend& backend = BackendRegistry::instance().active();
+        auto uniforms = backend.get_shader_uniforms(handle);
+        if (!uniforms) {
+            return std::unexpected(std::move(uniforms.error()));
+        }
+
+        size_t offset = 0;
+        bool found = false;
+        for (const auto& u : *uniforms) {
+            if (u.name == *uniform_name) {
+                offset = u.offset;
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            return std::unexpected(type_error(
+                std::format("uniform-animate: uniform '{}' not found on shader",
+                            *uniform_name)));
+        }
+
+        // Register the uniform animation on the timeline.
+        auto timeline = get_or_create_timeline();
+        timeline->uniform_animations.push_back({
+            .base_shader_handle = handle,
+            .uniform_offset = offset,
+            .from_value = *from_v,
+            .to_value = *to_v,
+            .duration = static_cast<float>(duration),
+            .easing = std::move(easing),
+        });
+
+        return args[0]; // Return the base shader handle
+    });
+
+    // ---- (sksl-type-size "type-name") ----------------------------------------------------
+    // Return the byte size of an SkSL type for uniform data construction.
+    // This matches the sizes reported by shader-uniforms introspection.
+    // Returns the size in bytes, or an error for unknown types.
+    def("sksl-type-size", [](const std::vector<Value>& args,
+                              Environment& /*env*/) -> Result<Value> {
+        if (args.size() != 1) {
+            return std::unexpected(arity_error(
+                SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        auto type_name = value_to_opt_string(args[0]);
+        if (!type_name) {
+            return std::unexpected(type_error(
+                "sksl-type-size: argument must be a type name string"));
+        }
+
+        static const struct { const char* name; int size; } type_sizes[] = {
+            {"float",   4},
+            {"float2",  8},
+            {"float3", 12},
+            {"float4", 16},
+            {"half",    2},
+            {"half2",   4},
+            {"half3",   6},
+            {"half4",   8},
+            {"int",     4},
+            {"int2",    8},
+            {"int3",   12},
+            {"int4",   16},
+            {"bool",    1},
+            {"float2x2", 16},
+            {"float3x3", 36},
+            {"float4x4", 64},
+            {"int2x2", 16},
+            {"int3x3", 36},
+            {"int4x4", 64},
+        };
+
+        for (const auto& entry : type_sizes) {
+            if (*type_name == entry.name) {
+                return Value(static_cast<int64_t>(entry.size));
+            }
+        }
+
+        return std::unexpected(type_error(
+            std::format("sksl-type-size: unknown type '{}'", *type_name)));
+    });
+
     // ---- (make-uniforms float1 float2 ...) ------------------------------------------------
     // Create a raw byte vector from floating-point values for SkSL uniforms.
     // SkSL uniforms are laid out as 4-byte aligned floats.
@@ -718,6 +916,43 @@ void register_shader_builtins(std::shared_ptr<Environment> env) {
             entry.push_back(Value(u.type_name));
             entry.push_back(Value(static_cast<int64_t>(u.offset)));
             entry.push_back(Value(static_cast<int64_t>(u.size_in_bytes)));
+            entries.push_back(Value(std::make_shared<ValueList>(std::move(entry))));
+        }
+        return Value(std::make_shared<ValueList>(std::move(entries)));
+    });
+
+    // ---- (shader-children shader-handle) ---------------------------------------------------
+    // Introspect a compiled shader's `uniform shader` / `uniform colorFilter` /
+    // `uniform blender` child slot declarations.
+    // Returns a list of (name type index) entries.
+    def("shader-children", [](const std::vector<Value>& args,
+                               Environment& /*env*/) -> Result<Value> {
+        if (args.size() != 1) {
+            return std::unexpected(arity_error(
+                SourceLocation{}, 1, static_cast<int>(args.size())));
+        }
+        int64_t handle = 0;
+        if (args[0].is_int()) {
+            handle = args[0].int_val();
+        } else if (args[0].is_double()) {
+            handle = static_cast<int64_t>(args[0].double_val());
+        } else {
+            return std::unexpected(type_error(
+                "shader-children: argument must be a shader handle"));
+        }
+
+        RenderBackend& backend = BackendRegistry::instance().active();
+        auto children = backend.get_shader_children(static_cast<uint64_t>(handle));
+        if (!children) return std::unexpected(std::move(children.error()));
+
+        // Build a PML list: ((name type index) ...)
+        std::vector<Value> entries;
+        entries.reserve(children->size());
+        for (const auto& c : *children) {
+            std::vector<Value> entry;
+            entry.push_back(Value(c.name));
+            entry.push_back(Value(c.type_name));
+            entry.push_back(Value(static_cast<int64_t>(c.index)));
             entries.push_back(Value(std::make_shared<ValueList>(std::move(entry))));
         }
         return Value(std::make_shared<ValueList>(std::move(entries)));

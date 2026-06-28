@@ -79,6 +79,20 @@ using FrameHook = std::function<void(double)>;
 /// The value is a runtime Value (number or color string).
 using FrameResult = std::tuple<uint64_t, std::string, Value>;
 
+/// Describes a shader uniform animation: interpolates a float uniform
+/// on a compiled shader from @p from_value to @p to_value over @p duration
+/// seconds.  Each frame, the interpolated value is baked into a new shader
+/// handle via create_shader_with_uniforms, and any canvas object referencing
+/// the base handle gets updated to the new handle.
+struct UniformAnimInfo {
+    uint64_t base_shader_handle;  ///< Handle from compile_shader (shader_cache)
+    size_t uniform_offset;        ///< Byte offset in uniform data block
+    double from_value;
+    double to_value;
+    float duration;               ///< Duration in seconds
+    EasingFn easing;              ///< Easing function
+};
+
 // ==========================================================================================================================================================================================================================================═
 // Timeline — global animation manager
 // ==========================================================================================================================================================================================================================================═
@@ -96,6 +110,9 @@ class Timeline {
   public:
     /// Registered animations (reference semantics via shared_ptr).
     std::vector<std::shared_ptr<Animation>> animations;
+
+    /// Shader uniform animations (evaluated per frame during rendering).
+    std::vector<UniformAnimInfo> uniform_animations;
 
     /// Per-frame hooks called before each evaluated frame.
     std::vector<FrameHook> frame_hooks;

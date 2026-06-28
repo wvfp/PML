@@ -71,6 +71,13 @@ struct ShaderUniformInfo {
     size_t size_in_bytes{};    ///< Size of this uniform in bytes
 };
 
+/// Describes a single child shader slot from a compiled shader (for introspection).
+struct ShaderChildSlotInfo {
+    std::string name;          ///< Child slot name as declared in SkSL
+    std::string type_name;     ///< Type as string ("shader", "colorfilter", "blender")
+    int index{};               ///< Slot index for binding
+};
+
 // ==========================================================================================================================================================================================================================================═
 // RenderBackend — abstract base class
 // ==========================================================================================================================================================================================================================================═
@@ -191,6 +198,19 @@ public:
             "noise shaders not supported by this backend"));
     }
 
+    /// Create a shader from an image file (PNG, etc.).
+    /// The resulting shader can be used as a child shader input (e.g. with
+    /// compose-with-child) or drawn via (rect ... :shader handle).
+    /// @param path  Path to an image file
+    /// @return      Shader handle on success (preshader_cache)
+    virtual auto create_image_shader(const std::string& path)
+        -> Result<uint64_t>
+    {
+        (void)path;
+        return std::unexpected(general_error(
+            "image shaders not supported by this backend"));
+    }
+
     // ---- Shader Uniforms ----------------------------------------------------------------------------------------─
 
     /// Create a shader with uniform values bound.
@@ -288,6 +308,32 @@ public:
         (void)shader_handle;
         return std::unexpected(general_error(
             "shader introspection not supported by this backend"));
+    }
+
+    /// Get child shader slot descriptors for a compiled shader handle (introspection).
+    /// Returns information about each `uniform shader` / `uniform colorFilter` /
+    /// `uniform blender` declaration in the shader's SkSL source.
+    /// @param shader_handle  Handle from compile_shader
+    /// @return               List of child slot descriptors, or an error
+    virtual auto get_shader_children(uint64_t shader_handle)
+        -> Result<std::vector<ShaderChildSlotInfo>>
+    {
+        (void)shader_handle;
+        return std::unexpected(general_error(
+            "shader children introspection not supported by this backend"));
+    }
+
+    /// Create a shader from a rendered surface (for canvas->shader etc.).
+    /// Snapshots the surface contents into a GPU-accessible shader stored in
+    /// the preshader cache.
+    /// @param surface  The rendered surface to capture
+    /// @return         Shader handle (preshader_cache), or an error
+    virtual auto create_surface_shader(Surface& surface)
+        -> Result<uint64_t>
+    {
+        (void)surface;
+        return std::unexpected(general_error(
+            "create_surface_shader not supported by this backend"));
     }
 
     /// Evaluate a shader at a specific pixel coordinate and return its color.

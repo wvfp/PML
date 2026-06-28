@@ -15,8 +15,8 @@
 #include <string>
 #include <vector>
 
-// Forward-declare to avoid pulling in evaluator headers.
-namespace pml { class Environment; }
+// Forward-declare to avoid pulling in backend/evaluator headers.
+namespace pml { class Environment; struct Canvas; struct Surface; class RenderBackend; }
 
 namespace pml {
 
@@ -61,6 +61,19 @@ struct PathCommand {
 // ==========================================================================================================================================================================================================================================═
 // Render Functions
 // ==========================================================================================================================================================================================================================================═
+
+/// Render a single frame of a canvas to a freshly-created surface.
+///
+/// Used internally by render() and available for custom shader pipelines
+/// (e.g., canvas->shader). Creates a surface matching the canvas dimensions,
+/// draws all objects in z-order, and handles sprite centering and 3D camera
+/// setup.
+///
+/// @param backend  The rendering backend to use.
+/// @param canvas   The canvas to render.
+/// @return         A new surface containing the rendered frame, or an error.
+[[nodiscard]] auto render_frame(RenderBackend& backend, const Canvas& canvas)
+    -> Result<std::unique_ptr<Surface>>;
 
 /// Render the current canvas contents to a file.
 ///

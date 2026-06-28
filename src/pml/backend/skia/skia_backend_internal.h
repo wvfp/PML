@@ -448,6 +448,9 @@ private:
                             float lacunarity = 2.0f,
                             float persistence = 0.5f) -> Result<uint64_t> override;
 
+    auto create_image_shader(const std::string& path)
+        -> Result<uint64_t> override;
+
     auto create_shader_with_uniforms(uint64_t shader_handle,
                                      const std::vector<uint8_t>& uniform_data)
         -> Result<uint64_t> override;
@@ -477,8 +480,14 @@ private:
     auto get_shader_uniforms(uint64_t shader_handle)
         -> Result<std::vector<ShaderUniformInfo>> override;
 
+    auto get_shader_children(uint64_t shader_handle)
+        -> Result<std::vector<ShaderChildSlotInfo>> override;
+
     auto eval_shader(uint64_t shader_handle, float x, float y)
         -> Result<std::array<float, 4>> override;
+
+    auto create_surface_shader(Surface& surface)
+        -> Result<uint64_t> override;
 
     // ---- FilterBackend ------------------------------------------------------------------------------------------------
 
