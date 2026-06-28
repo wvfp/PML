@@ -226,7 +226,7 @@ PML/
 
 ## License
 
-MIT © PML Contributors
+MIT © wvfp
 
 ---
 
