@@ -200,3 +200,33 @@ TEST(StdlibLoad, KeywordAliasOpacity) {
     auto r = rt.execute("(rect 0 0 10 10 :op 0.5)");
     EXPECT_TRUE(r.success);
 }
+
+// ---- Implicit begin in let/let*/letrec/begin bodies ------------------------------------
+
+TEST(StdlibLoad, LetMultiBody) {
+    pml::PMLRuntime rt;
+    auto r = rt.execute("(let ((x 1)) (define y (+ x 1)) (+ x y))");
+    EXPECT_TRUE(r.success) << "error: " << (r.error.has_value() ? r.error->dump() : "none");
+    EXPECT_EQ(r.value.get<int64_t>(), 3);
+}
+
+TEST(StdlibLoad, LetStarMultiBody) {
+    pml::PMLRuntime rt;
+    auto r = rt.execute("(let* ((x 1) (y (+ x 1))) (define z 3) (+ x y z))");
+    EXPECT_TRUE(r.success) << "error: " << (r.error.has_value() ? r.error->dump() : "none");
+    EXPECT_EQ(r.value.get<int64_t>(), 6);
+}
+
+TEST(StdlibLoad, BeginMultiExpr) {
+    pml::PMLRuntime rt;
+    auto r = rt.execute("(begin (define x 1) (define y 2) (+ x y))");
+    EXPECT_TRUE(r.success) << "error: " << (r.error.has_value() ? r.error->dump() : "none");
+    EXPECT_EQ(r.value.get<int64_t>(), 3);
+}
+
+TEST(StdlibLoad, LetrecMultiBody) {
+    pml::PMLRuntime rt;
+    auto r = rt.execute("(letrec ((x 1) (y 2)) (define z 3) (+ x y z))");
+    EXPECT_TRUE(r.success) << "error: " << (r.error.has_value() ? r.error->dump() : "none");
+    EXPECT_EQ(r.value.get<int64_t>(), 6);
+}
