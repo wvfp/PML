@@ -27,11 +27,7 @@ namespace {
 
 /// Convert a numeric Value to double.
 [[nodiscard]] double value_to_double(const Value& v) {
-    if (v.is_int())
-        return static_cast<double>(v.int_val());
-    if (v.is_double())
-        return v.double_val();
-    return 0.0;
+    return v.to_double();
 }
 
 /// Parse a hex color string (#RGB, #RRGGBB, #RRGGBBAA) to 0xRRGGBB.

@@ -53,7 +53,7 @@ namespace {
 Expr value_to_expr(const Value& v) {
     if (v.is_nil()) return nullptr;
     if (v.is_int()) return v.int_val();
-    if (v.is_double()) return v.double_val();
+    if (v.is_double()) return v.to_double();
     if (v.is_bool()) return v.bool_val();
     if (const auto* s = v.as_string()) return *s;
     if (const auto* sym = v.as_symbol()) return *sym;

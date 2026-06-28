@@ -77,8 +77,7 @@ Result<EvalResult> define_texture_special(
     if (!eval_h) return std::unexpected(eval_h.error());
 
     auto to_int = [](const Value& v) -> int {
-        return v.is_int() ? static_cast<int>(v.int_val())
-             : v.is_double() ? static_cast<int>(v.double_val()) : 0;
+        return static_cast<int>(v.to_double());
     };
     int width = to_int(*eval_w);
     int height = to_int(*eval_h);
@@ -210,8 +209,7 @@ Result<Value> render_to_texture(const std::vector<Value>& args, Environment&) {
         return std::unexpected(arity_error(SourceLocation{}, 3, static_cast<int>(args.size())));
     }
     auto to_int = [](const Value& v) -> int {
-        return v.is_int() ? static_cast<int>(v.int_val())
-             : v.is_double() ? static_cast<int>(v.double_val()) : 0;
+        return static_cast<int>(v.to_double());
     };
     int width = to_int(args[0]);
     int height = to_int(args[1]);

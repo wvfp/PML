@@ -7,6 +7,7 @@
 
 #include "transform_builtins.h"
 
+#include "builtins_helpers.h"
 #include "error.h"
 #include "types.h"
 #include "../graphics/transform.h"
@@ -19,41 +20,6 @@
 namespace pml {
 
 namespace {
-
-// ---- Numeric extraction helpers ------------------------------------------------------------------------------------─
-
-/// Convert a Value to double. Assumes is_number(v) is true.
-[[nodiscard]] double to_double(const Value& v) {
-    if (v.is_int()) return static_cast<double>(v.int_val());
-    if (v.is_double()) return v.double_val();
-    return 0.0;  // unreachable
-}
-
-/// Expect exactly N args.
-[[nodiscard]] Result<void> expect_arity(
-    size_t expected, const std::vector<Value>& args, std::string_view name)
-{
-    if (args.size() != expected) {
-        return std::unexpected(arity_error(
-            SourceLocation{},
-            static_cast<int>(expected),
-            static_cast<int>(args.size())));
-    }
-    return {};
-}
-
-/// Expect at least min_args args.
-[[nodiscard]] Result<void> expect_min_arity(
-    size_t min_args, const std::vector<Value>& args, std::string_view name)
-{
-    if (args.size() < min_args) {
-        return std::unexpected(arity_error(
-            SourceLocation{},
-            static_cast<int>(min_args),
-            static_cast<int>(args.size())));
-    }
-    return {};
-}
 
 /// Expect that arg[index] is a number and return its double value.
 [[nodiscard]] Result<double> arg_as_double(

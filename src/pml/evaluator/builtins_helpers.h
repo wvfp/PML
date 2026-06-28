@@ -31,30 +31,22 @@ inline bool has_float(const std::vector<Value>& args) noexcept {
 
 /// Convert a numeric Value to double. Assumes is_number(v) is true.
 inline double to_double(const Value& v) {
-    if (v.is_int()) return static_cast<double>(v.int_val());
-    if (v.is_double()) return v.double_val();
-    return 0.0;  // unreachable for valid numeric values
+    return v.to_double();
 }
 
-/// Convert a Value to double. Assumes is_number(v).
+/// @deprecated Use to_double() instead. Kept for compatibility.
 inline double value_to_double(const Value& v) {
-    if (v.is_int()) return static_cast<double>(v.int_val());
-    if (v.is_double()) return v.double_val();
-    return 0.0;
+    return to_double(v);
 }
 
 /// Convert a numeric Value to int (for dimensions). Assumes is_number(v).
 inline int value_to_int(const Value& v) {
-    if (v.is_int()) return static_cast<int>(v.int_val());
-    if (v.is_double()) return static_cast<int>(v.double_val());
-    return 0;
+    return static_cast<int>(v.to_double());
 }
 
 /// Convert a numeric Value to int64_t. Assumes is_number(v) is true.
 inline int64_t to_int64(const Value& v) {
-    if (v.is_int()) return v.int_val();
-    if (v.is_double()) return static_cast<int64_t>(v.double_val());
-    return 0;  // unreachable for valid numeric values
+    return static_cast<int64_t>(v.to_double());
 }
 
 // ---- Arity checking helpers ------------------------------------------------------------------------------------------------─

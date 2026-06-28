@@ -96,16 +96,13 @@ UVParams stage_extract(const GraphicObject& obj) {
 
     if (const Value* mode_val = obj.params.find(ParamKey::uv_mode)) {
         if (mode_val->is_number()) {
-            p.uv_mode = mode_val->is_int()
-                ? static_cast<int>(mode_val->int_val())
-                : static_cast<int>(mode_val->double_val());
+            p.uv_mode = static_cast<int>(mode_val->to_double());
         }
     }
 
     auto val_to_int = [](const Value* v, int def) -> int {
         if (!v || !v->is_number()) return def;
-        return v->is_int() ? static_cast<int>(v->int_val())
-                           : static_cast<int>(v->double_val());
+        return static_cast<int>(v->to_double());
     };
 
     WrapMode wx = p.texture->wrap_x;
@@ -146,10 +143,8 @@ UVResult stage_solve_uv(const TriangulatedMesh& mesh, int uv_mode,
                 if (lst && *lst) {
                     const auto& elems = (*lst)->elements;
                     for (size_t i = 0; i + 1 < elems.size(); i += 2) {
-                        double u = elems[i].is_int()   ? static_cast<double>(elems[i].int_val())
-                                  : elems[i].is_double() ? elems[i].double_val() : 0.0;
-                        double v = elems[i+1].is_int() ? static_cast<double>(elems[i+1].int_val())
-                                  : elems[i+1].is_double() ? elems[i+1].double_val() : 0.0;
+                        double u = elems[i].to_double();
+                        double v = elems[i + 1].to_double();
                         explicit_uvs.push_back({u, v});
                     }
                 }
@@ -232,24 +227,16 @@ static bool correct_uv_for_perspective(
         };
         if (flat) {
             for (size_t i = 0; i + 1 < elems.size() && count < 4; i += 2) {
-                double x = elems[i].is_number()
-                    ? (elems[i].is_int() ? double(elems[i].int_val()) : elems[i].double_val())
-                    : 0.0;
-                double y = elems[i+1].is_number()
-                    ? (elems[i+1].is_int() ? double(elems[i+1].int_val()) : elems[i+1].double_val())
-                    : 0.0;
+                double x = elems[i].to_double();
+                double y = elems[i + 1].to_double();
                 push(x, y);
             }
         } else {
             for (size_t i = 0; i < elems.size() && count < 4; ++i) {
                 const auto* pair = elems[i].as_list();
                 if (!pair || !*pair || (*pair)->elements.size() < 2) continue;
-                double x = (*pair)->elements[0].is_number()
-                    ? ((*pair)->elements[0].is_int() ? double((*pair)->elements[0].int_val())
-                       : (*pair)->elements[0].double_val()) : 0.0;
-                double y = (*pair)->elements[1].is_number()
-                    ? ((*pair)->elements[1].is_int() ? double((*pair)->elements[1].int_val())
-                       : (*pair)->elements[1].double_val()) : 0.0;
+                double x = (*pair)->elements[0].to_double();
+                double y = (*pair)->elements[1].to_double();
                 push(x, y);
             }
         }

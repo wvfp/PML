@@ -639,8 +639,7 @@ auto SkiaBackend::bind_textures_to_shader(
 
             auto get_param_double = [&](ParamKey key, double def) -> double {
                 if (const Value* v = o.params.find(key)) {
-                    if (v->is_double()) return v->double_val();
-                    if (v->is_int()) return static_cast<double>(v->int_val());
+                    if (v->is_number()) return v->to_double();
                 }
                 return def;
             };
@@ -704,20 +703,17 @@ auto SkiaBackend::bind_textures_to_shader(
         if (obj.shape_type == ShapeType::Rect) {
             int w = 256, h = 256;
             if (const Value* v = obj.params.find(ParamKey::w)) {
-                if (v->is_int()) w = static_cast<int>(v->int_val());
-                else if (v->is_double()) w = static_cast<int>(v->double_val());
+                w = static_cast<int>(v->to_double());
             }
             if (const Value* v = obj.params.find(ParamKey::h)) {
-                if (v->is_int()) h = static_cast<int>(v->int_val());
-                else if (v->is_double()) h = static_cast<int>(v->double_val());
+                h = static_cast<int>(v->to_double());
             }
             return {std::max(1, w), std::max(1, h)};
         }
         if (obj.shape_type == ShapeType::Circle) {
             double r = 32.0;
             if (const Value* v = obj.params.find(ParamKey::r)) {
-                if (v->is_int()) r = static_cast<double>(v->int_val());
-                else if (v->is_double()) r = v->double_val();
+                r = v->to_double();
             }
             int size = std::max(1, static_cast<int>(std::ceil(r * 2.0)));
             return {size, size};
@@ -725,12 +721,10 @@ auto SkiaBackend::bind_textures_to_shader(
         if (obj.shape_type == ShapeType::Ellipse) {
             double rx = 32.0, ry = 32.0;
             if (const Value* v = obj.params.find(ParamKey::rx)) {
-                if (v->is_int()) rx = static_cast<double>(v->int_val());
-                else if (v->is_double()) rx = v->double_val();
+                rx = v->to_double();
             }
             if (const Value* v = obj.params.find(ParamKey::ry)) {
-                if (v->is_int()) ry = static_cast<double>(v->int_val());
-                else if (v->is_double()) ry = v->double_val();
+                ry = v->to_double();
             }
             int w = std::max(1, static_cast<int>(std::ceil(rx * 2.0)));
             int h = std::max(1, static_cast<int>(std::ceil(ry * 2.0)));

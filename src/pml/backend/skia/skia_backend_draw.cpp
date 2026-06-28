@@ -110,9 +110,7 @@ inline void apply_clip_for_stroke_align(
         const auto& elems = (*list)->elements;
         if (elems.size() < 4 || elems.size() % 2 != 0) return {};
         auto to_double = [](const Value& val) -> double {
-            if (val.is_int()) return static_cast<double>(val.int_val());
-            if (val.is_double()) return val.double_val();
-            return 0.0;
+            return val.to_double();
         };
         SkPathBuilder builder;
         builder.moveTo(static_cast<SkScalar>(to_double(elems[0])),
@@ -343,13 +341,7 @@ Result<void> draw_polygon(SkCanvas* canvas, const GraphicObject& obj,
     if (elems.size() < 4 || elems.size() % 2 != 0) return {};
 
     auto to_double = [](const Value& val) -> double {
-        if (val.is_int()) {
-            return static_cast<double>(val.int_val());
-        }
-        if (val.is_double()) {
-            return val.double_val();
-        }
-        return 0.0;
+        return val.to_double();
     };
 
     // Build initial vertex list
@@ -375,8 +367,8 @@ Result<void> draw_polygon(SkCanvas* canvas, const GraphicObject& obj,
         int edge_seed = 0;
         auto seed_it = obj.metadata.find("edge_seed");
         if (seed_it != obj.metadata.end()) {
-            if (seed_it->second.is_int()) edge_seed = seed_it->second.int_val();
-            else if (seed_it->second.is_double()) edge_seed = static_cast<int>(seed_it->second.double_val());
+            if (seed_it->second.is_int()) edge_seed = static_cast<int>(seed_it->second.int_val());
+            else if (seed_it->second.is_double()) edge_seed = static_cast<int>(seed_it->second.to_double());
         }
         config.seed = edge_seed;
 
@@ -402,7 +394,7 @@ Result<void> draw_polygon(SkCanvas* canvas, const GraphicObject& obj,
             if (subdiv_it->second.is_int()) {
                 config.edge_subdivisions = {static_cast<int>(subdiv_it->second.int_val())};
             } else if (subdiv_it->second.is_double()) {
-                config.edge_subdivisions = {static_cast<int>(subdiv_it->second.double_val())};
+                config.edge_subdivisions = {static_cast<int>(subdiv_it->second.to_double())};
             }
         } else {
             config.edge_subdivisions = {0};
@@ -678,8 +670,7 @@ double meta_double(const GraphicObject& obj, const std::string& key, double defa
 {
     auto it = obj.metadata.find(key);
     if (it == obj.metadata.end()) return default_val;
-    if (it->second.is_double()) return it->second.double_val();
-    if (it->second.is_int()) return static_cast<double>(it->second.int_val());
+    if (it->second.is_number()) return it->second.to_double();
     return default_val;
 }
 
@@ -705,9 +696,7 @@ std::vector<RoughPoint> polygon_to_rough_points(const GraphicObject& obj)
     if (elems.size() < 4 || elems.size() % 2 != 0) return pts;
     pts.reserve(elems.size() / 2);
     auto to_double = [](const Value& val) -> double {
-        if (val.is_int()) return static_cast<double>(val.int_val());
-        if (val.is_double()) return val.double_val();
-        return 0.0;
+        return val.to_double();
     };
     for (size_t i = 0; i + 1 < elems.size(); i += 2) {
         pts.push_back({to_double(elems[i]), to_double(elems[i + 1])});
@@ -1049,7 +1038,7 @@ parse_pml_path_commands(const Value& list_val)
         args.reserve(cmd_elems.size() - 1);
         for (size_t j = 1; j < cmd_elems.size(); ++j) {
             if (cmd_elems[j].is_double()) {
-                args.push_back(cmd_elems[j].double_val());
+                args.push_back(cmd_elems[j].to_double());
             } else if (cmd_elems[j].is_int()) {
                 args.push_back(static_cast<double>(cmd_elems[j].int_val()));
             } else {
@@ -1470,7 +1459,7 @@ Result<void> draw_object(SkCanvas* canvas, const GraphicObject& obj,
         if (shader_val->is_int()) {
             handle = shader_val->int_val();
         } else if (shader_val->is_double()) {
-            handle = static_cast<int64_t>(shader_val->double_val());
+            handle = static_cast<int64_t>(shader_val->to_double());
         }
         if (handle > 0) {
             local_shader = lookup(handle);

@@ -86,12 +86,8 @@ static std::vector<Vec2> read_uv_vertices(const Value& v) {
             const auto& p = (*pair)->elements;
             if (p.size() < 2) continue;
             if (p[0].is_number() && p[1].is_number()) {
-                double x = p[0].is_int()
-                    ? static_cast<double>(p[0].int_val())
-                    : p[0].double_val();
-                double y = p[1].is_int()
-                    ? static_cast<double>(p[1].int_val())
-                    : p[1].double_val();
+                double x = p[0].to_double();
+                double y = p[1].to_double();
                 result.push_back({x, y});
             }
         }
@@ -99,12 +95,8 @@ static std::vector<Vec2> read_uv_vertices(const Value& v) {
         // Flat: [x0 y0 x1 y1 ...]
         for (size_t i = 0; i + 1 < elements.size(); i += 2) {
             if (elements[i].is_number() && elements[i + 1].is_number()) {
-                double x = elements[i].is_int()
-                    ? static_cast<double>(elements[i].int_val())
-                    : elements[i].double_val();
-                double y = elements[i + 1].is_int()
-                    ? static_cast<double>(elements[i + 1].int_val())
-                    : elements[i + 1].double_val();
+                double x = elements[i].to_double();
+                double y = elements[i + 1].to_double();
                 result.push_back({x, y});
             }
         }

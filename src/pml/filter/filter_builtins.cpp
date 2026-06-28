@@ -29,9 +29,7 @@ namespace {
 using namespace pml::kwargs;
 
 static double to_double_value(const Value& v) {
-    if (v.is_double()) return v.double_val();
-    if (v.is_int()) return static_cast<double>(v.int_val());
-    return 0.0;
+    return v.to_double();
 }
 
 static std::optional<uint32_t> parse_color_kw(

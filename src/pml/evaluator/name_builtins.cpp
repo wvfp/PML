@@ -149,14 +149,14 @@ static Result<Value> builtin_set_property(const std::vector<Value>& args,
     if (auto opacity_val = kwargs.find("opacity"); opacity_val != kwargs.end()) {
         auto v = opacity_val->second;
         if (v.is_number()) {
-            double opacity = v.is_int() ? static_cast<double>(v.int_val()) : v.double_val();
+            double opacity = v.to_double();
             obj.opacity = opacity;
         }
     }
     if (auto sw_val = kwargs.find("stroke-width"); sw_val != kwargs.end()) {
         auto v = sw_val->second;
         if (v.is_number()) {
-            double sw = v.is_int() ? static_cast<double>(v.int_val()) : v.double_val();
+            double sw = v.to_double();
             obj.stroke_width = sw;
         }
     }

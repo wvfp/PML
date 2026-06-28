@@ -69,7 +69,7 @@ static Result<Value> builtin_color_rgba(const std::vector<Value>& args, Environm
     int alpha;
     if (args[3].is_double()) {
         // Float 0.0-1.0
-        double a = args[3].double_val();
+        double a = args[3].to_double();
         alpha = std::clamp(static_cast<int>(std::round(a * 255.0)), 0, 255);
     } else {
         alpha = std::clamp(value_to_int(args[3]), 0, 255);
