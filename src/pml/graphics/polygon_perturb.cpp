@@ -281,7 +281,16 @@ PerturbResult perturb_polygon(
 
         bool do_perturb = edge_mask[i] && edge_noise[i] > 0.0;
 
-        if (!do_perturb && edge_subdiv[i] <= 0) {
+        // Adaptive subdivision: when edge_subdiv[i] is 0 or negative,
+        // auto-compute subdivision count proportional to edge length
+        // (~1 subdivision per 8 pixels) so that long edges get enough
+        // sampling points for smooth noise perturbation.
+        int subdiv = edge_subdiv[i];
+        if (subdiv <= 0 && (do_perturb || edge_subdiv[i] < 0)) {
+            subdiv = std::max(1, static_cast<int>(std::ceil(len / 8.0)));
+        }
+
+        if (!do_perturb && subdiv <= 0) {
             // No perturbation, no subdivision: emit just endpoints.
             edges[i].push_back(p1);
             edges[i].push_back(p2);
@@ -292,9 +301,9 @@ PerturbResult perturb_polygon(
         std::vector<RoughPoint> seg_points;
         seg_points.push_back(p1);  // v[i]
 
-        if (edge_subdiv[i] > 0) {
+        if (subdiv > 0) {
             // Catmull-Rom subdivision points between p1 and p2.
-            auto sub_points = catmull_rom_subdivide(p0, p1, p2, p3, edge_subdiv[i]);
+            auto sub_points = catmull_rom_subdivide(p0, p1, p2, p3, subdiv);
             seg_points.insert(seg_points.end(), sub_points.begin(), sub_points.end());
         }
 

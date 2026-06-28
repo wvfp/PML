@@ -90,24 +90,55 @@ UVResult solve_harmonic_uv(
         return solve_planar_uv(mesh_vertices);
     }
 
-    // Build adjacency from triangle indices.
-    // For each vertex i: list of neighbour vertex indices j.
-    std::vector<std::vector<int>> adj(static_cast<size_t>(n));
-
-    auto add_edge = [&](uint32_t a, uint32_t b) {
-        if (a == b) return;
-        auto& na = adj[static_cast<size_t>(a)];
-        if (std::find(na.begin(), na.end(), static_cast<int>(b)) == na.end())
-            na.push_back(static_cast<int>(b));
-        auto& nb = adj[static_cast<size_t>(b)];
-        if (std::find(nb.begin(), nb.end(), static_cast<int>(a)) == nb.end())
-            nb.push_back(static_cast<int>(a));
+    // Build edge-to-opposite-vertex map for cotangent weight computation.
+    // For each directed triangle edge (a,b) in triangle (a,b,c), the opposite
+    // vertex is c.  An undirected edge {a,b} gets 1-2 opposite vertices
+    // (one per adjacent triangle).
+    struct EdgePair {
+        uint32_t first() const { return e0_; }
+        uint32_t second() const { return e1_; }
+        uint32_t e0_, e1_;
+    };
+    struct EdgeHash {
+        size_t operator()(const EdgePair& e) const {
+            return (static_cast<size_t>(e.first()) << 16) ^ e.second();
+        }
+    };
+    struct EdgeEq {
+        bool operator()(const EdgePair& a, const EdgePair& b) const {
+            return (a.first() == b.first() && a.second() == b.second());
+        }
     };
 
+    // Map from ordered (min, max) edge to [opposite vertices].
+    std::unordered_map<EdgePair, std::vector<uint32_t>, EdgeHash, EdgeEq> edge_opp;
+
+    auto add_tri_edge = [&](uint32_t a, uint32_t b, uint32_t c) {
+        uint32_t lo = std::min(a, b), hi = std::max(a, b);
+        edge_opp[EdgePair{lo, hi}].push_back(c);
+    };
     for (size_t i = 0; i + 2 < indices.size(); i += 3) {
-        add_edge(indices[i], indices[i + 1]);
-        add_edge(indices[i + 1], indices[i + 2]);
-        add_edge(indices[i + 2], indices[i]);
+        uint32_t a = indices[i], b = indices[i + 1], c = indices[i + 2];
+        add_tri_edge(a, b, c);
+        add_tri_edge(b, c, a);
+        add_tri_edge(c, a, b);
+    }
+    // Push all neighbours (allow duplicates), then sort+unique each list.
+    // This is O(E log deg) vs the previous O(E·deg) linear-scan-per-edge.
+    std::vector<std::vector<int>> adj(static_cast<size_t>(n));
+
+    for (size_t i = 0; i + 2 < indices.size(); i += 3) {
+        uint32_t a = indices[i], b = indices[i + 1], c = indices[i + 2];
+        adj[static_cast<size_t>(a)].push_back(static_cast<int>(b));
+        adj[static_cast<size_t>(a)].push_back(static_cast<int>(c));
+        adj[static_cast<size_t>(b)].push_back(static_cast<int>(a));
+        adj[static_cast<size_t>(b)].push_back(static_cast<int>(c));
+        adj[static_cast<size_t>(c)].push_back(static_cast<int>(a));
+        adj[static_cast<size_t>(c)].push_back(static_cast<int>(b));
+    }
+    for (auto& nb : adj) {
+        std::sort(nb.begin(), nb.end());
+        nb.erase(std::unique(nb.begin(), nb.end()), nb.end());
     }
 
     // Arc-length parameterise boundary vertices to unit square perimeter.
@@ -216,13 +247,40 @@ UVResult solve_harmonic_uv(
     std::vector<double> b_u(static_cast<size_t>(m), 0.0);
     std::vector<double> b_v(static_cast<size_t>(m), 0.0);
 
+    // Cotangent weight helper.
+    // Returns cot(θ) where θ is the angle at vertex c formed by (c→a) and (c→b).
+    auto cotangent = [&](const Vec2& a, const Vec2& b, const Vec2& c) -> double {
+        double dx1 = a.x - c.x, dy1 = a.y - c.y;
+        double dx2 = b.x - c.x, dy2 = b.y - c.y;
+        double dot = dx1 * dx2 + dy1 * dy2;
+        double cross = dx1 * dy2 - dy1 * dx2;
+        if (std::abs(cross) < 1e-30) return 1.0; // degenerate → uniform fallback
+        return dot / cross;
+    };
+
     for (int i = 0; i < m; ++i) {
         A.row_ptr[static_cast<size_t>(i)] = row;
         int vi = interior[static_cast<size_t>(i)];
         double diag = 0.0;
 
         for (int nj : adj[static_cast<size_t>(vi)]) {
-            double w = 1.0; // uniform weight
+            // Compute cotangent weight for edge (vi, nj).
+            auto edge_it = edge_opp.find(
+                EdgePair{static_cast<uint32_t>(std::min(vi, nj)),
+                         static_cast<uint32_t>(std::max(vi, nj))});
+            double w = 1.0; // fallback uniform weight
+            if (edge_it != edge_opp.end() && !edge_it->second.empty()) {
+                const auto& opps = edge_it->second;
+                w = cotangent(mesh_vertices[static_cast<size_t>(vi)],
+                              mesh_vertices[static_cast<size_t>(nj)],
+                              mesh_vertices[static_cast<size_t>(opps[0])]);
+                if (opps.size() > 1) {
+                    w += cotangent(mesh_vertices[static_cast<size_t>(vi)],
+                                   mesh_vertices[static_cast<size_t>(nj)],
+                                   mesh_vertices[static_cast<size_t>(opps[1])]);
+                }
+                w *= 0.5;
+            }
             if (is_boundary[static_cast<size_t>(nj)]) {
                 // Move to RHS.
                 b_u[static_cast<size_t>(i)] += w * fixed_uv[static_cast<size_t>(nj)].x;

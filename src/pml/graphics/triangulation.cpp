@@ -10,8 +10,10 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <numbers>
+#include <unordered_map>
 #include <vector>
 
 #include "poly2tri/poly2tri.h"
@@ -291,6 +293,21 @@ Result<TriangulatedMesh> triangulate_polygon(
         return idx;
     };
 
+    // Build a quantized-coordinate hash map for O(1) contour-vertex lookup.
+    // This replaces the O(N) linear scan over outer_contour per triangle vertex.
+    auto quantize = [](double v) -> int64_t {
+        return static_cast<int64_t>(v * 1e6);
+    };
+    auto contour_key = [&](const Vec2& pt) -> uint64_t {
+        return (static_cast<uint64_t>(quantize(pt.x)) << 32)
+             | static_cast<uint64_t>(quantize(pt.y)) & 0xFFFFFFFF;
+    };
+    std::unordered_map<uint64_t, int> contour_index;
+    contour_index.reserve(outer_contour.size());
+    for (size_t j = 0; j < outer_contour.size(); ++j) {
+        contour_index.emplace(contour_key(outer_contour[j]), static_cast<int>(j));
+    }
+
     std::vector<uint32_t> indices;
     indices.reserve(triangles.size() * 3);
 
@@ -298,13 +315,12 @@ Result<TriangulatedMesh> triangulate_polygon(
         if (!tri->IsInterior()) continue;  // skip exterior triangles
         for (int i = 0; i < 3; ++i) {
             p2t::Point* p = tri->GetPoint(i);
-            // Try to find original index (heuristic: if point is on contour)
+            // Look up contour index via quantized hash (O(1) average).
             int original_idx = -1;
-            for (size_t j = 0; j < outer_contour.size(); ++j) {
-                if (std::abs(p->x - outer_contour[j].x) < 1e-6 &&
-                    std::abs(p->y - outer_contour[j].y) < 1e-6) {
-                    original_idx = static_cast<int>(j);
-                    break;
+            {
+                auto it = contour_index.find(contour_key({p->x, p->y}));
+                if (it != contour_index.end()) {
+                    original_idx = it->second;
                 }
             }
             uint32_t idx = get_or_add_vertex(p, original_idx);
