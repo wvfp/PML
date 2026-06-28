@@ -253,6 +253,11 @@ nlohmann::json error_to_dict(const PMLException& e) {
 
 PMLRuntime::PMLRuntime()
     : m_env(std::make_shared<Environment>()) {
+    // Activate this runtime's context so that singleton-style accessors
+    // (StyleRegistry::instance(), ComponentRegistry::instance(), etc.) see
+    // this instance's state during init_global_env().
+    PMLContextScope ctx_scope(ctx_);
+
     // Initialize per-runtime mutable state (styles, palettes, etc.) so that
     // each PMLRuntime instance is isolated from others.
     ctx_.reset();

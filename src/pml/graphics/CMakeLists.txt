@@ -14,6 +14,7 @@ add_library(pml_graphics
     path_types.cpp
     triangulation.cpp
     uv_solver.cpp
+    texture_pipeline.cpp
 )
 
 target_include_directories(pml_graphics PUBLIC

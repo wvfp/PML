@@ -15,6 +15,7 @@ add_executable(pml-tests
     test_asset.cpp
     test_polygon_perturb.cpp
     test_stdlib_macros.cpp
+    test_texture_pipeline.cpp
     pml_builtins_smoke.cpp
 )
 

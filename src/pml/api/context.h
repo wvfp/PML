@@ -28,6 +28,7 @@ class AssetCache;
 class CallStack;
 class Camera3D;
 class Canvas;
+class ComponentRegistry;
 class Composition;
 class ModuleLoader;
 class NameRegistry;
@@ -54,6 +55,7 @@ class PMLContext {
     std::shared_ptr<Timeline> timeline;       ///< Active animation timeline
     std::unique_ptr<StyleRegistry> styles;    ///< Named style registry
     std::unique_ptr<PaletteManager> palettes; ///< Named palette registry + active palette
+    std::unique_ptr<ComponentRegistry> component_registry; ///< Sprite component registry
     std::unique_ptr<TilemapManager> tilemaps; ///< Named tilemap registry
     std::unique_ptr<TilesetManager> tilesets; ///< Named tileset registry
     std::unique_ptr<AssetCache> assets;       ///< Loaded image asset cache

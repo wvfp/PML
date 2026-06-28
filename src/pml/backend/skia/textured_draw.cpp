@@ -17,9 +17,10 @@
 #include <utility>
 
 #include "pml/core/texture.h"
-#include "pml/core/texture_cache.h"
+#include "pml/api/texture_cache.h"
 #include "pml/graphics/objects.h"
 #include "pml/graphics/texture_bake.h"
+#include "pml/graphics/texture_pipeline.h"
 #include "pml/graphics/triangulation.h"
 #include "pml/graphics/uv_solver.h"
 
@@ -72,88 +73,30 @@ std::shared_ptr<::SkImage> bake_graphic_object(
 }
 
 // ==========================================================================================================================================================================================================================================═
-// Pipeline stages (internal, for testability)
+// Pipeline stages — Skia-specific (baking, vertex building, drawing)
 // ==========================================================================================================================================================================================================================================═
 
 namespace {
 
-/// Stage 1: extract texture and UV-mode params from the GraphicObject.
-struct UVParams {
-    std::shared_ptr<TextureBox> texture;
-    int uv_mode{1};               // 0=planar, 1=harmonic, 2=explicit
-    SkTileMode tile_x{SkTileMode::kClamp};
-    SkTileMode tile_y{SkTileMode::kClamp};
-    SkSamplingOptions sampling{SkFilterMode::kLinear};
-};
-
-UVParams stage_extract(const GraphicObject& obj) {
-    UVParams p;
-    const Value* uv_val = obj.params.find(ParamKey::uv);
-    if (!uv_val) return p;
-    const auto* tex_ptr = uv_val->as_texture();
-    if (!tex_ptr || !*tex_ptr) return p;
-    p.texture = *tex_ptr;
-
-    if (const Value* mode_val = obj.params.find(ParamKey::uv_mode)) {
-        if (mode_val->is_number()) {
-            p.uv_mode = static_cast<int>(mode_val->to_double());
-        }
-    }
-
-    auto val_to_int = [](const Value* v, int def) -> int {
-        if (!v || !v->is_number()) return def;
-        return static_cast<int>(v->to_double());
-    };
-
-    WrapMode wx = p.texture->wrap_x;
-    WrapMode wy = p.texture->wrap_y;
-    FilterMode fm = p.texture->filter;
-    if (const Value* v = obj.params.find(ParamKey::wrap_x))
-        wx = static_cast<WrapMode>(val_to_int(v, static_cast<int>(wx)));
-    if (const Value* v = obj.params.find(ParamKey::wrap_y))
-        wy = static_cast<WrapMode>(val_to_int(v, static_cast<int>(wy)));
-    if (const Value* v = obj.params.find(ParamKey::filter))
-        fm = static_cast<FilterMode>(val_to_int(v, static_cast<int>(fm)));
-
-    p.tile_x = (wx == WrapMode::Repeat)  ? SkTileMode::kRepeat
-              : (wx == WrapMode::Mirror)  ? SkTileMode::kMirror : SkTileMode::kClamp;
-    p.tile_y = (wy == WrapMode::Repeat)  ? SkTileMode::kRepeat
-              : (wy == WrapMode::Mirror)  ? SkTileMode::kMirror : SkTileMode::kClamp;
-    p.sampling = (fm == FilterMode::Nearest)
+/// Convert WrapMode/FilterMode to Skia equivalents.
+static void skia_sampling_from_params(
+    const TexturePipelineParams& p,
+    SkTileMode& tile_x,
+    SkTileMode& tile_y,
+    SkSamplingOptions& sampling)
+{
+    tile_x = (p.wrap_x == WrapMode::Repeat)  ? SkTileMode::kRepeat
+            : (p.wrap_x == WrapMode::Mirror)  ? SkTileMode::kMirror : SkTileMode::kClamp;
+    tile_y = (p.wrap_y == WrapMode::Repeat)  ? SkTileMode::kRepeat
+            : (p.wrap_y == WrapMode::Mirror)  ? SkTileMode::kMirror : SkTileMode::kClamp;
+    sampling = (p.filter == FilterMode::Nearest)
         ? SkSamplingOptions(SkFilterMode::kNearest)
         : SkSamplingOptions(SkFilterMode::kLinear);
-    return p;
 }
 
 /// Stage 2: triangulate shape → mesh.
 Result<TriangulatedMesh> stage_triangulate(const GraphicObject& obj) {
     return triangulate_shape(obj);
-}
-
-/// Stage 3: solve UV coordinates from mesh.
-UVResult stage_solve_uv(const TriangulatedMesh& mesh, int uv_mode,
-                        const GraphicObject& obj) {
-    switch (uv_mode) {
-        case 0:
-            return solve_planar_uv(mesh.vertices);
-        case 2: {
-            std::vector<Vec2> explicit_uvs;
-            if (const Value* uvs_val = obj.params.find(ParamKey::uv_vertices)) {
-                const auto* lst = uvs_val->as_list();
-                if (lst && *lst) {
-                    const auto& elems = (*lst)->elements;
-                    for (size_t i = 0; i + 1 < elems.size(); i += 2) {
-                        double u = elems[i].to_double();
-                        double v = elems[i + 1].to_double();
-                        explicit_uvs.push_back({u, v});
-                    }
-                }
-            }
-            return apply_explicit_uv(explicit_uvs, mesh.vertices);
-        }
-        default:
-            return solve_harmonic_uv(mesh.vertices, mesh.indices, mesh.contour_map);
-    }
 }
 
 /// Stage 4: bake texture → SkImage.
@@ -277,25 +220,25 @@ static bool correct_uv_for_perspective(
 
 Result<void> draw_textured_object(SkCanvas* canvas, const GraphicObject& obj)
 {
-    // Stage 1: extract params
-    auto uv = stage_extract(obj);
-    if (!uv.texture) return {};
+    // Stage 1: extract params (Skia-agnostic)
+    auto params = pipeline_extract_params(obj);
+    if (!params.texture) return {};
 
     // Stage 2: triangulate
     auto mesh = stage_triangulate(obj);
     if (!mesh || mesh->vertices.empty() || mesh->indices.size() < 3) return {};
 
-    // Stage 3: solve UVs
-    auto uv_result = stage_solve_uv(*mesh, uv.uv_mode, obj);
+    // Stage 3: solve UVs (Skia-agnostic)
+    auto uv_result = pipeline_solve_uv(*mesh, params.uv_mode, obj);
     if (!uv_result.valid || uv_result.uvs.size() != mesh->vertices.size()) return {};
 
     // Stage 3b: perspective correction (explicit UV mode only)
-    if (uv.uv_mode == 2 && obj.params.find(ParamKey::perspective_correction)) {
+    if (params.uv_mode == 2 && obj.params.find(ParamKey::perspective_correction)) {
         correct_uv_for_perspective(uv_result, mesh->vertices, obj);
     }
 
     // Stage 4: bake texture
-    auto img = stage_bake(uv.texture);
+    auto img = stage_bake(params.texture);
     if (!img) return {};
 
     // Stage 5: build vertices
@@ -303,7 +246,10 @@ Result<void> draw_textured_object(SkCanvas* canvas, const GraphicObject& obj)
     if (!verts) return {};
 
     // Stage 6: create shader and draw
-    auto shader = img->makeShader(uv.tile_x, uv.tile_y, uv.sampling);
+    SkTileMode tile_x, tile_y;
+    SkSamplingOptions sampling;
+    skia_sampling_from_params(params, tile_x, tile_y, sampling);
+    auto shader = img->makeShader(tile_x, tile_y, sampling);
     if (!shader) return {};
 
     return stage_draw(canvas, verts, shader);

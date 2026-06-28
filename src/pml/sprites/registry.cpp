@@ -6,6 +6,7 @@
 
 #include "error.h"
 #include "objects.h"
+#include "pml/api/context.h"
 
 #include "components/body.h"
 #include "components/head.h"
@@ -29,8 +30,11 @@ namespace pml {
 // ==========================================================================================================================================================================================================================================═
 
 ComponentRegistry& ComponentRegistry::instance() {
-    static ComponentRegistry s_instance;
-    return s_instance;
+    auto& ctx = PMLContext::current();
+    if (!ctx.component_registry) {
+        ctx.component_registry = std::unique_ptr<ComponentRegistry>(new ComponentRegistry());
+    }
+    return *ctx.component_registry;
 }
 
 // ==========================================================================================================================================================================================================================================═

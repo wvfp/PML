@@ -10,11 +10,12 @@
 #include "pml/graphics/name_registry.h"
 #include "pml/sprites/style.h"
 #include "pml/sprites/palette.h"
+#include "pml/sprites/registry.h"
 #include "pml/graphics/tilemap.h"
 #include "pml/graphics/tileset.h"
 #include "pml/core/call_stack.h"
 #include "pml/core/source_manager.h"
-#include "pml/core/texture_cache.h"
+#include "pml/api/texture_cache.h"
 #include "pml/graphics3d/camera3d.h"
 #include "pml/module/module_loader.h"
 

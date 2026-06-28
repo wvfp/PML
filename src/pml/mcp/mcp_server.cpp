@@ -530,6 +530,9 @@ static nlohmann::json field_spec_to_json(const std::string& name, const FieldSpe
 }
 
 nlohmann::json MCPServer::tool_list_components(const nlohmann::json& args) {
+    // Activate the runtime context so ComponentRegistry::instance() resolves
+    // to this server's per-runtime registry (populated during construction).
+    PMLContextScope ctx_scope(m_runtime->context());
     auto& registry = ComponentRegistry::instance();
     std::string category = args.value("category", "");
 
@@ -567,6 +570,10 @@ nlohmann::json MCPServer::tool_list_components(const nlohmann::json& args) {
 // ==========================================================================================================================================================================================================================================═
 
 nlohmann::json MCPServer::tool_preview_params(const nlohmann::json& args) {
+    // Activate the runtime context so ComponentRegistry::instance() resolves
+    // to this server's per-runtime registry.
+    PMLContextScope ctx_scope(m_runtime->context());
+
     std::string component = args.value("component", "");
     if (component.empty()) {
         return {{"error", "Missing required argument: 'component'"}};
