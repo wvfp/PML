@@ -13,7 +13,7 @@
 
 ;; ---- linear-gradient tile-modes ----
 (add (labeled-rect 20  20 160 120 "clamp"
-      (linear-gradient '((0.0 "#e17055") (1.0 "#74b9ff"))
+      (linear-gradient '((0.0 "#e17055") (1.0 "#36cd0dff"))
         :x1 0 :y1 0 :x2 0.25 :y2 0 :tile-mode "clamp")))
 
 (add (labeled-rect 200 20 160 120 "repeat"
@@ -30,7 +30,7 @@
 
 ;; ---- radial-gradient tile-mode "decal" ----
 (add (labeled-rect 20  180 220 160 "radial decal"
-      (radial-gradient '((0.0 "#00b894") (1.0 "#0984e3"))
+      (radial-gradient '((0.0 "#28d0afff") (1.0 "#0984e3"))
         :cx 0.5 :cy 0.5 :r 0.35 :tile-mode "decal")))
 
 ;; ---- sweep-gradient tile-mode "repeat" ----
