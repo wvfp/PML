@@ -1,4 +1,4 @@
-﻿# PML Examples 一键渲染脚本
+# PML Examples 一键渲染脚本
 # 用法: powershell -ExecutionPolicy Bypass -File examples/run_all.ps1
 
 param(
@@ -63,8 +63,13 @@ $featureDirs = @(
     "04-animation",
     "05-layer-composition-filter",
     "06-sprites-style-palette",
+    "07-shaders-noise",
     "08-asset-bitmap",
-    "11-rough-style"
+    "10-tilemap",
+    "11-rough-style",
+    "12-edge-perturb",
+    "13-texture",
+    "14-gradients"
 )
 foreach ($d in $featureDirs) {
     $dir = Join-Path $scriptDir $d

@@ -25,4 +25,4 @@
 
 (add (rect 330 170 100 100 :fill "#F39C12" :opacity 0.5))
 
-(render "examples/02-graphics/test_opacity.png")
+(render "test_opacity.png")

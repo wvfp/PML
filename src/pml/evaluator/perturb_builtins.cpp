@@ -211,23 +211,31 @@ static Result<Value> builtin_perturb_polygon(
         point_pairs.push_back(make_list_value({Value(pt.x), Value(pt.y)}));
     }
 
+    // Backward compatibility: if no style kwargs are supplied, return the raw
+    // perturbed point list so callers can pass it to (polygon ...) or chain
+    // multiple perturb-polygon calls.  If style kwargs are present, wrap the
+    // result in a GraphicObject directly.
+    bool has_style = kwargs.contains("fill") || kwargs.contains("stroke") ||
+                     kwargs.contains("stroke-width") || kwargs.contains("opacity");
+    if (!has_style) {
+        return make_list_value(std::move(point_pairs));
+    }
+
     // Wrap in a GraphicObject so style params (:fill, :stroke, :opacity) work.
     Params params;
     params.set(ParamKey::points, make_list_value(std::move(point_pairs)));
 
-    // Pass through recognised style keyword args.
-    auto kw = parse_kwargs(args, 1);
     std::optional<std::string> fill_color;
     std::optional<std::string> stroke_color;
-    double stroke_width = kw_double(kw, "stroke-width", 1.0);
-    double opacity = kw_double(kw, "opacity", 1.0);
+    double stroke_width = kw_double(kwargs, "stroke-width", 1.0);
+    double opacity = kw_double(kwargs, "opacity", 1.0);
 
-    auto fill_it = kw.find("fill");
-    if (fill_it != kw.end()) {
+    auto fill_it = kwargs.find("fill");
+    if (fill_it != kwargs.end()) {
         if (const auto* s = fill_it->second.as_string()) fill_color = *s;
     }
-    auto stroke_it = kw.find("stroke");
-    if (stroke_it != kw.end()) {
+    auto stroke_it = kwargs.find("stroke");
+    if (stroke_it != kwargs.end()) {
         if (const auto* s = stroke_it->second.as_string()) stroke_color = *s;
     }
 
