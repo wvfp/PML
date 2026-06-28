@@ -213,6 +213,52 @@ my-project/
 (add (rect 50 50 100 100 :fill "#ff0000" :blend-mode "multiply"))
 ```
 
+### 渐变填充
+
+PML 提供三种 gradient 构造函数，返回 `Gradient` 对象，可通过形状的 `:fill-gradient` 关键字使用。
+
+**注意**：`linear` 会被 `stdlib/easing.pml` 的缓动函数覆盖，因此 gradient builtins 使用以下名称：
+
+- `linear-gradient` — 线性渐变
+- `radial-gradient` — 径向渐变
+- `sweep-gradient` — 扫掠渐变
+
+#### `linear-gradient`
+**签名**: `(linear-gradient '((pos color) ...) [:x1 0] [:y1 0] [:x2 0] [:y2 1] [:tile-mode "clamp"])`
+
+#### `radial-gradient`
+**签名**: `(radial-gradient '((pos color) ...) [:cx 0.5] [:cy 0.5] [:r 0.5] [:tile-mode "clamp"])`
+
+#### `sweep-gradient`
+**签名**: `(sweep-gradient '((pos color) ...) [:cx 0.5] [:cy 0.5] [:start-angle 0] [:end-angle 360] [:tile-mode "clamp"])`
+
+公共参数：
+
+- `pos` — 0.0–1.0 的浮点位置
+- `color` — 颜色字符串（因为 stop 列表被引用，想用变量颜色时需用 `quasiquote`/`unquote`）
+- `:tile-mode` — 边缘行为：`"clamp"`（默认） / `"repeat"` / `"mirror"` / `"decal"`
+
+示例：
+
+```pml
+(set-backend! "skia")
+(canvas 400 200 :bg "#2d3436")
+
+(add (rect 20 20 160 160
+      :fill-gradient (linear-gradient '((0.0 "#e17055") (1.0 "#74b9ff"))
+                      :x1 0 :y1 0 :x2 0.25 :y2 0
+                      :tile-mode "repeat")))
+
+(add (rect 220 20 160 160
+      :fill-gradient (radial-gradient '((0.0 "#e17055") (1.0 "#74b9ff"))
+                      :cx 0.5 :cy 0.5 :r 0.35
+                      :tile-mode "decal")))
+
+(render "gradient_demo.png")
+```
+
+完整 tile-mode 示例见 [`examples/02-graphics/08_gradient_tile_mode.pml`](examples/02-graphics/08_gradient_tile_mode.pml)。
+
 ### 样式函数
 
 | 函数 | 说明 |
@@ -541,11 +587,12 @@ PML 的着色器系统允许编译 SkSL（Skia Shader Language）片段，或通
 ```
 
 #### `apply-shader!`
-**签名**: `(apply-shader! graphic-object shader-handle [:coordinate-space :local | :world])`
+**签名**: `(apply-shader! graphic-object shader-handle [:coordinate-space :local | :world] [:blend-mode mode])`
 
 返回一个绑定了着色器的新 GraphicObject。着色器会覆盖该对象的填充。
 
 - `:coordinate-space` — 坐标空间（默认 `:local` 对象局部坐标；`:world` 画布世界坐标）。世界坐标用于需要对齐场景的着色效果（如背景纹理）
+- `:blend-mode` — 混合模式字符串（如 `"dst-in"`、`"multiply"`、`"plus"`）。`apply-shader!` 会把该模式直接写入返回的 GraphicObject，因此 `(apply-shader! obj s :blend-mode "dst-in")` 与 `(with-blend-mode (apply-shader! obj s) "dst-in")` 等价。做 SDF alpha 蒙版时通常需要这个参数。
 
 ```pml
 ;; 将着色器附加到矩形，使用局部坐标

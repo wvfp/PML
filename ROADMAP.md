@@ -11,11 +11,13 @@
 | 功能 | 描述 |
 |------|------|
 | 坐标缩放修复 | 归一化 0-1 → 形状包围盒映射 |
-| 线性渐变 | `(linear '((pos color)...) [:x1 :y1 :x2 :y2])` |
-| 径向渐变 | `(radial '((pos color)...) [:cx :cy :r])` |
-| Sweep 渐变 | `(sweep '((pos color)...) [:cx :cy :start-angle :end-angle])` |
+| 线性渐变 | `(linear-gradient '((pos color)...) [:x1 :y1 :x2 :y2])` |
+| 径向渐变 | `(radial-gradient '((pos color)...) [:cx :cy :r])` |
+| Sweep 渐变 | `(sweep-gradient '((pos color)...) [:cx :cy :start-angle :end-angle])` |
 | `:tile-mode` kwarg | clamp / repeat / mirror / decal |
 | 11 个绘制函数边界传递 | circle, rect, ellipse, polygon, path + rough 变体 |
+| 渐变示例 | `examples/14-gradients/01_gradient_tile_modes.pml` |
+| 技能文档 | `.claude/skills/pml-image/SKILL.md` 已更新 gradient / `apply-shader! :blend-mode` |
 
 ### 语言基础增强
 
@@ -52,12 +54,12 @@
 
 ## 待办
 
-### P0 — 渐进完善
+### P0 — 渐进完善 ✅
 
-| # | 任务 | 工作量 |
-|---|------|--------|
-| 1 | 创建渐变示例 .pml 文件 | `examples/14-gradients/` | ~1h |
-| 2 | 更新 `.claude/skills/pml-image/SKILL.md` | ~30min |
+| # | 任务 | 工作量 | 状态 |
+|---|------|--------|------|
+| 1 | 创建渐变示例 .pml 文件 | `examples/14-gradients/01_gradient_tile_modes.pml` | ✅ |
+| 2 | 更新 `.claude/skills/pml-image/SKILL.md` | gradient / `apply-shader! :blend-mode` | ✅ |
 
 ### P1 — 架构优化
 
@@ -99,7 +101,7 @@ v0.2  ── 渐变系统完整 ✅
          ├── 线性/径向/Sweep 渐变 ✅
          ├── 坐标缩放修复 ✅
          ├── :tile-mode ✅
-         └── 示例 + docs ⏳
+         └── 示例 + docs ✅
 
 v0.3  ── 架构成熟
          ├── 纹理管线拆分
