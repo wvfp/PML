@@ -67,6 +67,7 @@ examples/output/
 
 # IDE / Editor (project-level)
 .codebuddy/
+.trae/
 
 # OpenCode session working files
 .omo/notepads/pml-vscode-preview/
