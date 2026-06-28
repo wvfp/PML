@@ -2,10 +2,11 @@
 // PML Gradient Builtins
 //
 // Implements:
-//   (linear ((pos color) ...) [:x1 :y1 :x2 :y2])  — linear gradient
-//   (radial ((pos color) ...) [:cx :cy :r])         — radial gradient
+//   (linear-gradient ((pos color) ...) [:x1 :y1 :x2 :y2])  — linear gradient
+//   (radial-gradient ((pos color) ...) [:cx :cy :r])         — radial gradient
+//   (sweep-gradient ((pos color) ...) [:cx :cy :start-angle :end-angle]) — sweep gradient
 //
-// Both return a Gradient value that can be passed as :fill-gradient to shape
+// All return a Gradient value that can be passed as :fill-gradient to shape
 // constructors (circle, rect, polygon, etc.).
 // ==========================================================================================================================================================================================================================================═
 
@@ -180,9 +181,9 @@ Result<Value> builtin_sweep(const std::vector<Value>& args, Environment& /*env*/
 void register_gradient_builtins(std::shared_ptr<Environment> env) {
     if (!env) return;
 
-    def(env, "linear", builtin_linear, true);
-    def(env, "radial", builtin_radial, true);
-    def(env, "sweep", builtin_sweep, true);
+    def(env, "linear-gradient", builtin_linear, true);
+    def(env, "radial-gradient", builtin_radial, true);
+    def(env, "sweep-gradient", builtin_sweep, true);
 }
 
 }  // namespace pml

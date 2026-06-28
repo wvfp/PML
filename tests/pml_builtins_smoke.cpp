@@ -168,3 +168,40 @@ TEST_F(PMLBuiltinsSmokeTest, ShaderMultiplyBlendTest) {
     EXPECT_LT(sk_color_b(inside), 50) << "blue channel should be near zero";
 #endif
 }
+
+TEST_F(PMLBuiltinsSmokeTest, LinearGradientTileModeRepeatTest) {
+    // linear-gradient must preserve :tile-mode "repeat" and the Skia backend
+    // must honour it when rendering the fill.
+    auto value = eval_value(rt,
+        "(define grad (linear-gradient '((0.0 \"#ff0000\") (0.5 \"#0000ff\") (1.0 \"#ff0000\"))"
+        "               :x1 0 :y1 0 :x2 0.25 :y2 0 :tile-mode \"repeat\"))"
+        "(rect 0 0 128 128 :fill-gradient grad)");
+
+    const auto& rect_obj = expect_graphic_object(value);
+
+    // Property check: the gradient descriptor is attached and tile mode is repeat.
+    ASSERT_TRUE(rect_obj.fill_gradient.has_value());
+    EXPECT_EQ(rect_obj.fill_gradient->tile_mode, "repeat");
+
+#ifdef PML_USE_SKIA
+    // Pixel check: render the rect to a black surface.
+    auto surf = render_to_surface(
+        pml::BackendRegistry::instance().active(), rect_obj, 128, 128, 0xFF000000);
+    ASSERT_NE(surf, nullptr);
+
+    // The gradient vector is 25% of the 128px width, so the pattern repeats every 32px.
+    uint32_t p8  = get_pixel(*surf, 8, 64);
+    uint32_t p32 = get_pixel(*surf, 32, 64);
+    uint32_t p64 = get_pixel(*surf, 64, 64);
+    uint32_t p96 = get_pixel(*surf, 96, 64);
+
+    // Some pixels are more red, some contain more blue, confirming the repeat.
+    EXPECT_GT(sk_color_r(p32), sk_color_b(p32)) << "period boundary should be predominantly red";
+    EXPECT_GT(sk_color_b(p8), sk_color_b(p32)) << "ramp pixel should contain more blue than the red boundary";
+    EXPECT_NE(p8, p32) << "gradient should vary across repeat periods";
+
+    // Integer-period positions should look identical because of the repeat.
+    EXPECT_EQ(p32, p64) << "repeat should make 32px and 64px period boundaries identical";
+    EXPECT_EQ(p64, p96) << "repeat should make 64px and 96px period boundaries identical";
+#endif
+}
