@@ -163,6 +163,43 @@ TEST(Lexer, UnterminatedString) {
     EXPECT_EQ(result.error().code, ErrorCode::PMLSyntaxError);
 }
 
+// ----─ FnLit token --------------------------------------------------------------------------------------------------------------------─
+
+TEST(Lexer, FnLitToken) {
+    auto tokens = tokenize_ok("#( 5 )");
+    ASSERT_EQ(tokens.size(), 5u);  // FNLIT, LPAREN, INTEGER("5"), RPAREN, EOF
+    EXPECT_EQ(tokens[0].type, TokenType::FNLIT);
+    EXPECT_EQ(tokens[0].value, "#(");
+    EXPECT_EQ(tokens[1].type, TokenType::LPAREN);
+    EXPECT_EQ(tokens[2].type, TokenType::INTEGER);
+    EXPECT_EQ(tokens[2].value, "5");
+    EXPECT_EQ(tokens[3].type, TokenType::RPAREN);
+}
+
+TEST(Lexer, FnLitWithBody) {
+    auto tokens = tokenize_ok("#(* % 2)");
+    // FNLIT, LPAREN, SYMBOL("*"), SYMBOL("%"), INTEGER("2"), RPAREN, EOF
+    ASSERT_EQ(tokens.size(), 7u);
+    EXPECT_EQ(tokens[0].type, TokenType::FNLIT);
+    EXPECT_EQ(tokens[1].type, TokenType::LPAREN);
+    EXPECT_EQ(tokens[2].type, TokenType::SYMBOL);
+    EXPECT_EQ(tokens[2].value, "*");
+    EXPECT_EQ(tokens[3].type, TokenType::SYMBOL);
+    EXPECT_EQ(tokens[3].value, "%");
+    EXPECT_EQ(tokens[4].type, TokenType::INTEGER);
+    EXPECT_EQ(tokens[4].value, "2");
+    EXPECT_EQ(tokens[5].type, TokenType::RPAREN);
+}
+
+TEST(Lexer, BooleanValuesStillWork) {
+    auto tokens = tokenize_ok("#t #f");
+    ASSERT_EQ(tokens.size(), 3u);  // TRUE, FALSE, EOF
+    EXPECT_EQ(tokens[0].type, TokenType::BOOLEAN);
+    EXPECT_EQ(tokens[0].value, "#t");
+    EXPECT_EQ(tokens[1].type, TokenType::BOOLEAN);
+    EXPECT_EQ(tokens[1].value, "#f");
+}
+
 // ----─ Line tracking --------------------------------------------------------------------------------------------------------------------─
 
 TEST(Lexer, LineTracking) {

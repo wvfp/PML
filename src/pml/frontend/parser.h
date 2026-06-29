@@ -63,6 +63,9 @@ private:
     /// Parse an atomic value: integer, float, string, boolean, symbol, keyword.
     [[nodiscard]] auto parse_atom() -> Result<Expr>;
 
+    /// Parse an anonymous function literal: #(...) → (lambda (%1 ... %n) ...)
+    [[nodiscard]] auto parse_fnlit() -> Result<Expr>;
+
     /// Panic-mode recovery: skip tokens until a safe top-level expression
     /// boundary (start of next expression or a closing parenthesis).
     void synchronize_top_level();

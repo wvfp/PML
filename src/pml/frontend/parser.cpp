@@ -8,6 +8,7 @@
 #include "parser.h"
 
 #include <format>
+#include <functional>
 #include <utility>
 
 namespace pml {
@@ -118,6 +119,10 @@ auto Parser::parse_expr() -> Result<Expr> {
             return make_list({Symbol("unquote"), std::move(*expr)}, loc);
         }
 
+        // #( — anonymous function (lambda shorthand)
+        case TokenType::FNLIT:
+            return parse_fnlit();
+
         // Atom (number, string, boolean, symbol, keyword)
         default:
             return parse_atom();
@@ -200,6 +205,95 @@ auto Parser::parse_atom() -> Result<Expr> {
     }
 }
 
+auto Parser::parse_fnlit() -> Result<Expr> {
+    const Token& token = current();  // the #( token
+    SourceLocation loc{token.line, token.column, filename};
+    (void)advance();  // consume FNLIT (#)
+
+    // Expect LPAREN — the body list
+    if (at_end() || current().type != TokenType::LPAREN) {
+        return std::unexpected(syntax_error(loc, "Expected '(' after # in #()"));
+    }
+
+    // Parse the body list: (expr ...)
+    // parse_list() returns a ListExpr with all body expressions as elements
+    auto list_result = parse_list();
+    if (!list_result) return std::unexpected(list_result.error());
+
+    auto* lst = get_list(*list_result);
+    if (!lst) {
+        return std::unexpected(syntax_error(loc, "Internal error: fnlit body is not a list"));
+    }
+
+    // Empty body check
+    if (lst->empty()) {
+        return std::unexpected(syntax_error(loc, "#() requires at least one body expression"));
+    }
+
+    // Determine body expression(s):
+    // - One element → unwrap to just that expression (e.g., #(42) → body is 42)
+    // - Multiple elements → use the entire list as a single body expression (e.g., #(* % 2) → body is (* %2))
+    std::vector<Expr> body;
+    if (lst->size() == 1) {
+        body.push_back(std::move((*lst)[0]));
+    } else {
+        body.push_back(std::move(*list_result));
+    }
+
+    // Detect % / %n placeholders in body
+    int max_arg = 0;
+
+    // Recursive walker: find %/%n symbols and replace bare % with %1
+    std::function<void(Expr&)> process = [&](Expr& e) {
+        if (auto* sym = std::get_if<Symbol>(&e)) {
+            if (sym->name == "%") {
+                sym->name = "%1";
+                max_arg = std::max(max_arg, 1);
+            } else if (sym->name.size() >= 2 && sym->name[0] == '%') {
+                // Check if the rest is all digits (e.g., %1, %2, ... %9)
+                bool all_digits = true;
+                for (char c : sym->name.substr(1)) {
+                    if (c < '0' || c > '9') { all_digits = false; break; }
+                }
+                if (all_digits) {
+                    int n = std::stoi(sym->name.substr(1));
+                    max_arg = std::max(max_arg, n);
+                }
+            }
+        } else if (auto* inner_lst = get_list(e)) {
+            // Don't recurse into quote forms — symbols inside quote are literal
+            if (!inner_lst->empty() && is_symbol((*inner_lst)[0]) &&
+                std::get<Symbol>((*inner_lst)[0]).name == "quote") {
+                return;
+            }
+            for (auto& child : *inner_lst) {
+                process(child);
+            }
+        }
+    };
+
+    // Walk body and discover/replace % args
+    for (auto& e : body) {
+        process(e);
+    }
+
+    // Build params list: (%1 %2 ... %max_n)
+    std::vector<Expr> params;
+    for (int i = 1; i <= max_arg; ++i) {
+        params.push_back(Expr(Symbol(std::format("%{}", i))));
+    }
+
+    // Build (lambda (%1 ... %n) body...)
+    std::vector<Expr> lambda_children;
+    lambda_children.push_back(Expr(Symbol{"lambda"}));
+    lambda_children.push_back(make_list(std::move(params), loc));
+    for (auto& e : body) {
+        lambda_children.push_back(std::move(e));
+    }
+
+    return make_list(std::move(lambda_children), loc);
+}
+
 // ==========================================================================================================================================================================================================================================═
 // Cursor helpers
 // ==========================================================================================================================================================================================================================================═
@@ -227,6 +321,7 @@ bool Parser::is_expr_start(TokenType type) {
         case TokenType::QUASIQUOTE:
         case TokenType::UNQUOTE:
         case TokenType::UNQUOTE_SPLICE:
+        case TokenType::FNLIT:
         case TokenType::INTEGER:
         case TokenType::FLOAT:
         case TokenType::STRING:

@@ -28,6 +28,7 @@ enum class TokenType {
     QUASIQUOTE,     // `
     UNQUOTE,        // ,
     UNQUOTE_SPLICE, // ,@
+    FNLIT,          // #(   — anonymous function literal
     END_OF_FILE     // end of file
 };
 

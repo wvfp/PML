@@ -105,6 +105,15 @@ auto Lexer::read_token() -> Result<Token> {
         return Token{TokenType::UNQUOTE, ",", cur_line, cur_col};
     }
 
+    // #( — anonymous function literal (only consume #, leave ( for LPAREN token)
+    if (ch == '#') {
+        if (pos + 1 < source.size() && source[pos + 1] == '(') {
+            advance();
+            return Token{TokenType::FNLIT, "#(", cur_line, cur_col};
+        }
+        // else: fall through to read_atom() for #t/#f
+    }
+
     // Number or symbol
     return read_atom();
 }

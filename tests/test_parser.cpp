@@ -234,6 +234,140 @@ TEST(Parser, UnmatchedOpenParen) {
     EXPECT_EQ(err.code, ErrorCode::PMLSyntaxError);
 }
 
+// ---- FnLit: #( ) anonymous function shorthand ------------------------------------------------------------------------─
+
+TEST(Parser, FnLitBasic) {
+    // #(* % 2) → (lambda (%1) (* %1 2))
+    auto exprs = parse_ok("#(* % 2)");
+    ASSERT_EQ(exprs.size(), 1u);
+    ASSERT_TRUE(is_list(exprs[0]));
+
+    const auto& outer = list_elements(exprs[0]);
+    ASSERT_EQ(outer.size(), 3u);
+
+    // First: symbol "lambda"
+    ASSERT_TRUE(is_symbol(outer[0]));
+    EXPECT_EQ(std::get<Symbol>(outer[0]).name, "lambda");
+
+    // Second: params list (%1)
+    ASSERT_TRUE(is_list(outer[1]));
+    const auto& params = list_elements(outer[1]);
+    ASSERT_EQ(params.size(), 1u);
+    ASSERT_TRUE(is_symbol(params[0]));
+    EXPECT_EQ(std::get<Symbol>(params[0]).name, "%1");
+
+    // Third: body (* %1 2)
+    ASSERT_TRUE(is_list(outer[2]));
+    const auto& body = list_elements(outer[2]);
+    ASSERT_EQ(body.size(), 3u);
+    ASSERT_TRUE(is_symbol(body[0]));
+    EXPECT_EQ(std::get<Symbol>(body[0]).name, "*");
+    ASSERT_TRUE(is_symbol(body[1]));
+    EXPECT_EQ(std::get<Symbol>(body[1]).name, "%1");
+    ASSERT_TRUE(is_integer(body[2]));
+    EXPECT_EQ(std::get<int64_t>(body[2]), 2);
+}
+
+TEST(Parser, FnLitMultiArg) {
+    // #(+ %1 %2) → (lambda (%1 %2) (+ %1 %2))
+    auto exprs = parse_ok("#(+ %1 %2)");
+    ASSERT_EQ(exprs.size(), 1u);
+    ASSERT_TRUE(is_list(exprs[0]));
+
+    const auto& outer = list_elements(exprs[0]);
+    ASSERT_EQ(outer.size(), 3u);
+
+    // First: symbol "lambda"
+    ASSERT_TRUE(is_symbol(outer[0]));
+    EXPECT_EQ(std::get<Symbol>(outer[0]).name, "lambda");
+
+    // Second: params list (%1 %2)
+    ASSERT_TRUE(is_list(outer[1]));
+    const auto& params = list_elements(outer[1]);
+    ASSERT_EQ(params.size(), 2u);
+    ASSERT_TRUE(is_symbol(params[0]));
+    EXPECT_EQ(std::get<Symbol>(params[0]).name, "%1");
+    ASSERT_TRUE(is_symbol(params[1]));
+    EXPECT_EQ(std::get<Symbol>(params[1]).name, "%2");
+
+    // Third: body (+ %1 %2)
+    ASSERT_TRUE(is_list(outer[2]));
+    const auto& body = list_elements(outer[2]);
+    ASSERT_EQ(body.size(), 3u);
+    ASSERT_TRUE(is_symbol(body[0]));
+    EXPECT_EQ(std::get<Symbol>(body[0]).name, "+");
+    ASSERT_TRUE(is_symbol(body[1]));
+    EXPECT_EQ(std::get<Symbol>(body[1]).name, "%1");
+    ASSERT_TRUE(is_symbol(body[2]));
+    EXPECT_EQ(std::get<Symbol>(body[2]).name, "%2");
+}
+
+TEST(Parser, FnLitZeroArg) {
+    // #(42) → (lambda () 42)
+    auto exprs = parse_ok("#(42)");
+    ASSERT_EQ(exprs.size(), 1u);
+    ASSERT_TRUE(is_list(exprs[0]));
+
+    const auto& outer = list_elements(exprs[0]);
+    ASSERT_EQ(outer.size(), 3u);
+
+    ASSERT_TRUE(is_symbol(outer[0]));
+    EXPECT_EQ(std::get<Symbol>(outer[0]).name, "lambda");
+
+    // Empty params list
+    ASSERT_TRUE(is_list(outer[1]));
+    EXPECT_EQ(list_elements(outer[1]).size(), 0u);
+
+    // Body: 42
+    ASSERT_TRUE(is_integer(outer[2]));
+    EXPECT_EQ(std::get<int64_t>(outer[2]), 42);
+}
+
+TEST(Parser, FnLitEmpty) {
+    // #() → parse error — empty body
+    auto err = parse_err("#()");
+    EXPECT_EQ(err.code, ErrorCode::PMLSyntaxError);
+}
+
+TEST(Parser, FnLitUnterminated) {
+    // #(* % 2 → parse error — missing closing )
+    auto err = parse_err("#(* % 2");
+    EXPECT_EQ(err.code, ErrorCode::PMLSyntaxError);
+}
+
+TEST(Parser, FnLitMixedBareAndNamed) {
+    // #(* % %2 3) → (lambda (%1 %2) (* %1 %2 3))
+    auto exprs = parse_ok("#(* % %2 3)");
+    ASSERT_EQ(exprs.size(), 1u);
+    ASSERT_TRUE(is_list(exprs[0]));
+
+    const auto& outer = list_elements(exprs[0]);
+    ASSERT_EQ(outer.size(), 3u);
+
+    ASSERT_TRUE(is_symbol(outer[0]));
+    EXPECT_EQ(std::get<Symbol>(outer[0]).name, "lambda");
+
+    // Params: (%1 %2)
+    const auto& params = list_elements(outer[1]);
+    ASSERT_EQ(params.size(), 2u);
+    ASSERT_TRUE(is_symbol(params[0]));
+    EXPECT_EQ(std::get<Symbol>(params[0]).name, "%1");
+    ASSERT_TRUE(is_symbol(params[1]));
+    EXPECT_EQ(std::get<Symbol>(params[1]).name, "%2");
+
+    // Body: (* %1 %2 3)
+    const auto& body = list_elements(outer[2]);
+    ASSERT_EQ(body.size(), 4u);
+    ASSERT_TRUE(is_symbol(body[0]));
+    EXPECT_EQ(std::get<Symbol>(body[0]).name, "*");
+    ASSERT_TRUE(is_symbol(body[1]));
+    EXPECT_EQ(std::get<Symbol>(body[1]).name, "%1");
+    ASSERT_TRUE(is_symbol(body[2]));
+    EXPECT_EQ(std::get<Symbol>(body[2]).name, "%2");
+    ASSERT_TRUE(is_integer(body[3]));
+    EXPECT_EQ(std::get<int64_t>(body[3]), 3);
+}
+
 // ---- Error: unmatched close paren ----------------------------------------------------------------------------------------
 
 TEST(Parser, UnmatchedCloseParen) {
