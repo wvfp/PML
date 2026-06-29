@@ -257,3 +257,75 @@ TEST(StdlibLoad, DotoPreservesValue) {
     EXPECT_TRUE(r.success);
     EXPECT_EQ(r.value.get<int64_t>(), 0);
 }
+
+// ---- #rgb / #hsl / #pt / #rect (from color.pml) -----------------------------------------------------------
+
+TEST(StdlibLoad, HashRgb) {
+    pml::PMLRuntime rt;
+    pml::load_embedded_stdlib(rt.env());
+    auto r = rt.execute("(#rgb 255 0 0)");
+    EXPECT_TRUE(r.success) << "error: " << (r.error.has_value() ? r.error->dump() : "none");
+    ASSERT_TRUE(r.value.is_string());
+    EXPECT_EQ(r.value.get<std::string>(), "#ff0000");
+}
+
+TEST(StdlibLoad, HashRgbGreen) {
+    pml::PMLRuntime rt;
+    pml::load_embedded_stdlib(rt.env());
+    auto r = rt.execute("(#rgb 0 255 0)");
+    EXPECT_TRUE(r.success);
+    ASSERT_TRUE(r.value.is_string());
+    EXPECT_EQ(r.value.get<std::string>(), "#00ff00");
+}
+
+TEST(StdlibLoad, HashRgbBlue) {
+    pml::PMLRuntime rt;
+    pml::load_embedded_stdlib(rt.env());
+    auto r = rt.execute("(#rgb 0 0 255)");
+    EXPECT_TRUE(r.success);
+    ASSERT_TRUE(r.value.is_string());
+    EXPECT_EQ(r.value.get<std::string>(), "#0000ff");
+}
+
+TEST(StdlibLoad, HashHsl) {
+    pml::PMLRuntime rt;
+    pml::load_embedded_stdlib(rt.env());
+    auto r = rt.execute("(#hsl 0.0 1.0 0.5)");
+    EXPECT_TRUE(r.success) << "error: " << (r.error.has_value() ? r.error->dump() : "none");
+    ASSERT_TRUE(r.value.is_string());
+    EXPECT_EQ(r.value.get<std::string>(), "#ff0000");
+}
+
+TEST(StdlibLoad, HashHslGray) {
+    pml::PMLRuntime rt;
+    pml::load_embedded_stdlib(rt.env());
+    auto r = rt.execute("(#hsl 0.0 0.0 0.5)");
+    EXPECT_TRUE(r.success) << "error: " << (r.error.has_value() ? r.error->dump() : "none");
+    ASSERT_TRUE(r.value.is_string());
+    std::string gray = r.value.get<std::string>();
+    EXPECT_EQ(gray, "#7f7f7f");
+}
+
+TEST(StdlibLoad, HashPt) {
+    pml::PMLRuntime rt;
+    pml::load_embedded_stdlib(rt.env());
+    auto r = rt.execute("(#pt 10 20)");
+    EXPECT_TRUE(r.success) << "error: " << (r.error.has_value() ? r.error->dump() : "none");
+    ASSERT_TRUE(r.value.is_array());
+    EXPECT_EQ(r.value.size(), 2);
+    EXPECT_EQ(r.value[0].get<int64_t>(), 10);
+    EXPECT_EQ(r.value[1].get<int64_t>(), 20);
+}
+
+TEST(StdlibLoad, HashRect) {
+    pml::PMLRuntime rt;
+    pml::load_embedded_stdlib(rt.env());
+    auto r = rt.execute("(#rect 0 0 100 100)");
+    EXPECT_TRUE(r.success) << "error: " << (r.error.has_value() ? r.error->dump() : "none");
+    ASSERT_TRUE(r.value.is_array());
+    EXPECT_EQ(r.value.size(), 4);
+    EXPECT_EQ(r.value[0].get<int64_t>(), 0);
+    EXPECT_EQ(r.value[1].get<int64_t>(), 0);
+    EXPECT_EQ(r.value[2].get<int64_t>(), 100);
+    EXPECT_EQ(r.value[3].get<int64_t>(), 100);
+}
