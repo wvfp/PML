@@ -13,4 +13,18 @@
 (defmacro defconst (name value)
   `(define ,name ,value))
 
-(provide defn defconst)
+;; doto — chain side-effectful calls returning the value
+;;   (doto (list 1 2 3) (push! 4) (push! 5))
+;; →
+;;   (let ((g (list 1 2 3))) (push! g 4) (push! g 5) g)
+(defmacro doto (val . forms)
+  (let ((g (gensym)))
+    `(let ((,g ,val))
+       ,@(map (lambda (f)
+               (if (pair? f)
+                   `(,(car f) ,g ,@(cdr f))
+                   (list f g)))
+             forms)
+       ,g)))
+
+(provide defn defconst doto)

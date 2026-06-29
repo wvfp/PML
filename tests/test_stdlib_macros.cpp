@@ -230,3 +230,30 @@ TEST(StdlibLoad, LetrecMultiBody) {
     EXPECT_TRUE(r.success) << "error: " << (r.error.has_value() ? r.error->dump() : "none");
     EXPECT_EQ(r.value.get<int64_t>(), 6);
 }
+
+// ---- doto (from stdlib) ----------------------------------------------------------------------------------------------------─
+
+TEST(StdlibLoad, DotoChaining) {
+    pml::PMLRuntime rt;
+    pml::load_embedded_stdlib(rt.env());
+    // Chain multiple variadic forms: value is threaded through each form
+    auto r = rt.execute("(doto 5 (+ 1) (+ 2))");
+    EXPECT_TRUE(r.success) << "error: " << (r.error.has_value() ? r.error->dump() : "none");
+    EXPECT_EQ(r.value.get<int64_t>(), 5);
+}
+
+TEST(StdlibLoad, DotoNoForms) {
+    pml::PMLRuntime rt;
+    pml::load_embedded_stdlib(rt.env());
+    auto r = rt.execute("(doto 42)");
+    EXPECT_TRUE(r.success);
+    EXPECT_EQ(r.value.get<int64_t>(), 42);
+}
+
+TEST(StdlibLoad, DotoPreservesValue) {
+    pml::PMLRuntime rt;
+    pml::load_embedded_stdlib(rt.env());
+    auto r = rt.execute("(doto 0 (+ 1))");
+    EXPECT_TRUE(r.success);
+    EXPECT_EQ(r.value.get<int64_t>(), 0);
+}
