@@ -1021,6 +1021,101 @@ Result<EvalResult> eval_for(
     return Value(nullptr);
 }
 
+// ---- for-comp: (for-comp (x in <list-expr>) body...) (for-comp (x in start end) body...) ---------
+
+Result<EvalResult> eval_for_comp(
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation /*call_site*/) {
+    if (expr.size() < 3) {
+        return std::unexpected(general_error(
+            "for-comp: expects at least 1 binding and 1 body expression"));
+    }
+
+    std::vector<Value> results;
+
+    std::function<Result<void>(size_t, std::shared_ptr<Environment>)> process;
+    process = [&](size_t bi, std::shared_ptr<Environment> cur_env) -> Result<void> {
+        if (bi >= expr.size() - 1) {
+            auto val = eval_to_value(expr.back(), cur_env);
+            if (!val) return std::unexpected(val.error());
+            results.push_back(*val);
+            return {};
+        }
+
+        const auto* binding_list = get_list(expr[bi]);
+        if (!binding_list || binding_list->size() < 3) {
+            return std::unexpected(type_error(
+                "for-comp: binding must be a list (var in <expr>) or (var in start end)"));
+        }
+
+        auto var_name = extract_symbol_name((*binding_list)[0]);
+        if (!var_name) {
+            return std::unexpected(type_error(
+                "for-comp: first element of binding must be a symbol"));
+        }
+
+        if (get_list((*binding_list)[2])) {
+            auto collection = eval_to_value((*binding_list)[2], cur_env);
+            if (!collection) return std::unexpected(collection.error());
+
+            if (auto* vec = collection->as_vector()) {
+                for (const auto& item : (*vec)->elements) {
+                    auto sub_env = std::make_shared<Environment>(cur_env);
+                    sub_env->define(*var_name, item);
+                    auto r = process(bi + 1, sub_env);
+                    if (!r) return r;
+                }
+            } else if (auto* lst = collection->as_list()) {
+                for (const auto& item : (*lst)->elements) {
+                    auto sub_env = std::make_shared<Environment>(cur_env);
+                    sub_env->define(*var_name, item);
+                    auto r = process(bi + 1, sub_env);
+                    if (!r) return r;
+                }
+            } else {
+                return std::unexpected(type_error(
+                    "for-comp: expected a list or vector from collection expression"));
+            }
+        } else {
+            if (binding_list->size() < 4) {
+                return std::unexpected(type_error(
+                    "for-comp: range binding requires (var in start end)"));
+            }
+
+            auto start_val = eval_to_value((*binding_list)[2], cur_env);
+            if (!start_val) return std::unexpected(start_val.error());
+
+            auto end_val = eval_to_value((*binding_list)[3], cur_env);
+            if (!end_val) return std::unexpected(end_val.error());
+
+            auto to_int = [](const Value& v) -> Result<int64_t> {
+                if (v.is_int()) return v.int_val();
+                if (v.is_double()) return static_cast<int64_t>(v.double_val());
+                return std::unexpected(type_error(
+                    "for-comp: start/end must be numbers"));
+            };
+
+            auto start_i = to_int(*start_val);
+            if (!start_i) return std::unexpected(start_i.error());
+            auto end_i = to_int(*end_val);
+            if (!end_i) return std::unexpected(end_i.error());
+
+            for (int64_t i = *start_i; i < *end_i; ++i) {
+                auto sub_env = std::make_shared<Environment>(cur_env);
+                sub_env->define(*var_name, Value(i));
+                auto r = process(bi + 1, sub_env);
+                if (!r) return r;
+            }
+        }
+        return {};
+    };
+
+    auto r = process(1, env);
+    if (!r) return std::unexpected(r.error());
+
+    return Value(std::make_shared<ValueVector>(std::move(results)));
+}
+
 // ---- case: (case <key> (<value> <expr>...) ... (else <expr>...)) ----------------─
 
 Result<EvalResult> eval_case(
@@ -2031,6 +2126,94 @@ Result<EvalResult> eval_with_exception_handler(
     return std::unexpected(handler_result.error());
 }
 
+// ---- scene: (scene width height [:bg color] [:output path] elements...) -------------------------
+
+Result<EvalResult> eval_scene(
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site) {
+
+    if (expr.size() < 3) {
+        return std::unexpected(
+            arity_error(call_site, 2, static_cast<int>(expr.size()) - 1));
+    }
+
+    // 1. Evaluate width and height
+    auto w_val = eval_to_value(expr[1], env);
+    if (!w_val) return std::unexpected(w_val.error());
+    auto h_val = eval_to_value(expr[2], env);
+    if (!h_val) return std::unexpected(h_val.error());
+
+    int w = value_to_int(*w_val);
+    int h = value_to_int(*h_val);
+
+    // 2. Parse keyword args (:bg, :output) and collect element indices
+    std::string bg = "#fff";
+    std::string output;
+    std::vector<size_t> element_indices;
+
+    size_t i = 3;
+    while (i < expr.size()) {
+        if (const auto* kw = std::get_if<Keyword>(&expr[i])) {
+            if (kw->name == "bg" || kw->name == "background") {
+                if (i + 1 >= expr.size())
+                    return std::unexpected(type_error(call_site, "scene: :bg expects a string argument"));
+                auto bg_val = eval_to_value(expr[i + 1], env);
+                if (!bg_val) return std::unexpected(bg_val.error());
+                if (const auto* s = bg_val->as_string())
+                    bg = *s;
+                i += 2;
+            } else if (kw->name == "output") {
+                if (i + 1 >= expr.size())
+                    return std::unexpected(type_error(call_site, "scene: :output expects a string argument"));
+                auto out_val = eval_to_value(expr[i + 1], env);
+                if (!out_val) return std::unexpected(out_val.error());
+                if (const auto* s = out_val->as_string())
+                    output = *s;
+                i += 2;
+            } else {
+                return std::unexpected(type_error(call_site, "scene: unknown keyword :" + kw->name));
+            }
+        } else {
+            element_indices.push_back(i);
+            ++i;
+        }
+    }
+
+    // 3. Build and evaluate (canvas w h :bg bg-color)
+    auto canvas_call = make_list({
+        Expr(Symbol("canvas")),
+        Expr(static_cast<int64_t>(w)),
+        Expr(static_cast<int64_t>(h)),
+        Expr(Keyword("background")),
+        Expr(bg)
+    });
+    auto canvas_val = eval_to_value(canvas_call, env);
+    if (!canvas_val) return std::unexpected(canvas_val.error());
+
+    // 4. Add each element with (add <element-expr>)
+    for (size_t idx : element_indices) {
+        auto add_call = make_list({
+            Expr(Symbol("add")),
+            expr[idx]
+        });
+        auto add_val = eval_to_value(add_call, env);
+        if (!add_val) return std::unexpected(add_val.error());
+    }
+
+    // 5. Render if output path specified
+    if (!output.empty()) {
+        auto render_call = make_list({
+            Expr(Symbol("render")),
+            Expr(output)
+        });
+        auto render_val = eval_to_value(render_call, env);
+        if (!render_val) return std::unexpected(render_val.error());
+    }
+
+    // 6. Return the canvas value
+    return Value(*canvas_val);
+}
+
 // ==========================================================================================================================================================================================================================================═
 // Special forms dispatch table
 // ==========================================================================================================================================================================================================================================═
@@ -2062,8 +2245,10 @@ std::unordered_map<std::string, SpecialForm>& get_mutable_special_forms() {
         {"unless", eval_unless},
         {"dotimes", eval_dotimes},
         {"for", eval_for},
+        {"for-comp", eval_for_comp},
         {"case", eval_case},
         {"with-exception-handler", eval_with_exception_handler},
+        {"scene", eval_scene},
     };
     return forms;
 }

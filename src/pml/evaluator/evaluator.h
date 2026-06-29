@@ -240,6 +240,12 @@ using SpecialForm = std::function<Result<EvalResult>(
     const ArenaExprVector& expr, std::shared_ptr<Environment> env,
     SourceLocation call_site);
 
+/// (scene width height [:bg color] [:output path] elements...) — declarative scene.
+/// Creates a canvas, adds elements, and optionally renders to file.
+[[nodiscard]] Result<EvalResult> eval_scene(
+    const ArenaExprVector& expr, std::shared_ptr<Environment> env,
+    SourceLocation call_site);
+
 // ---- Special forms dispatch table ------------------------------------------------------------------------------------─
 
 /// Get the special forms dispatch table (function-local static).

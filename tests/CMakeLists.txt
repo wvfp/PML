@@ -105,11 +105,62 @@ target_link_libraries(pml-filter-test PRIVATE
     pml_filter
 )
 
+# ---- For-comp unit tests -------------------------------------------------------------------------------------------------------------
+add_executable(pml-for-comp-test
+    test_for_comp.cpp
+)
+
+target_include_directories(pml-for-comp-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(pml-for-comp-test PRIVATE
+    GTest::gtest
+    GTest::gtest_main
+    pml_core
+    pml_frontend
+    pml_evaluator
+    pml_graphics
+    pml_graphics3d
+    pml_backend
+    pml_layer
+    pml_filter
+    pml_asset
+    pml_sprites
+    pml_animation
+    pml_skeleton
+    pml_module
+    pml_api
+)
+
+# ---- Scene unit tests ----------------------------------------------------------------------------------------------------------------
+add_executable(pml-scene-test
+    test_scene.cpp
+)
+
+target_include_directories(pml-scene-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(pml-scene-test PRIVATE
+    GTest::gtest
+    GTest::gtest_main
+    pml_core
+    pml_frontend
+    pml_evaluator
+    pml_graphics
+    pml_graphics3d
+    pml_backend
+    pml_layer
+    pml_filter
+    pml_sprites
+    pml_animation
+    pml_skeleton
+    pml_module
+    pml_api
+)
+
 # Register tests via CTest (runs from repo root so relative paths resolve correctly)
 include(GoogleTest)
 gtest_discover_tests(pml-tests PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 gtest_discover_tests(pml-layer-test PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 gtest_discover_tests(pml-filter-test PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+gtest_discover_tests(pml-scene-test PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+gtest_discover_tests(pml-for-comp-test PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 
 # Smoke test (standalone, no GTest discovery)
 add_test(NAME pml-builtins-smoke COMMAND pml-builtins-smoke WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
