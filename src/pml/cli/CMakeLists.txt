@@ -27,7 +27,10 @@ if(TARGET poly2tri)
 endif()
 
 # Force inclusion of backend static initializers by wrapping with whole-archive.
+# pml_backend contains null_backend.cpp (static registration) — must be
+# whole-archived or the linker skips it since nothing references its symbols.
 set(_pml_optional_backends
+    pml_backend
     pml_backend_gif
     pml_backend_skia
 )
@@ -39,15 +42,20 @@ foreach(_b IN LISTS _pml_optional_backends)
 endforeach()
 if(_pml_present_backends)
     target_link_libraries(pml PRIVATE ${_pml_present_backends})
-    foreach(_b IN LISTS _pml_present_backends)
-        if(MSVC)
+    if(MSVC)
+        foreach(_b IN LISTS _pml_present_backends)
             target_link_options(pml PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:${_b}>")
-        else()
-            target_link_options(pml PRIVATE
-                -Wl,--whole-archive "$<TARGET_FILE:${_b}>" -Wl,--no-whole-archive
-            )
-        endif()
-    endforeach()
+        endforeach()
+    else()
+        # Collect ALL backend .a files into a single --whole-archive block.
+        # A single pair avoids Ninja combining separate -Wl, flags incorrectly.
+        set(_wa_backend_files "")
+        foreach(_b IN LISTS _pml_present_backends)
+            list(APPEND _wa_backend_files "$<TARGET_FILE:${_b}>")
+        endforeach()
+        target_link_options(pml PRIVATE
+            -Wl,--whole-archive ${_wa_backend_files} -Wl,--no-whole-archive)
+    endif()
 endif()
 
 install(TARGETS pml DESTINATION bin)
